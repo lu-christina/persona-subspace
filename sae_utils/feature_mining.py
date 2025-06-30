@@ -30,6 +30,21 @@ CUDA_VISIBLE_DEVICES=0 python sae_utils/feature_mining.py \
   --num_samples 500000
 """
 
+"""
+uv run python sae_utils/feature_mining.py \
+    --model_name "meta-llama/Meta-Llama-3.1-8B-Instruct" \
+    --sae_path "/workspace/sae/llama-3-8b-instruct/saes/resid_post_layer_15/trainer_0" \
+    --layer_index 15 \
+    --out_dir "/workspace/sae/llama-3-8b-instruct/feature_mining/resid_post_layer_15/trainer_0" \
+    --ctx_len 512 \
+    --num_samples 500000 \
+    --batch_size 4 \
+    --ctx_len 256 \
+    --top_k 10 \
+    --act_dtype float16 \
+    --score_dtype float16 \
+"""
+
 
 # ------------------------------------------------------------------------ #
 #  Standard imports
