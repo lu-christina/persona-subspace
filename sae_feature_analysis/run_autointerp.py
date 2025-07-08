@@ -7,12 +7,12 @@ import pandas as pd
 import asyncio
 import pathlib
 import re
-from entity_behavior_semantic_autointerp import analyze_features_with_claude
+from autointerp import analyze_features_with_claude
 
 
 def parse_source_info(source: str):
     """Parse source string to extract model, layer and trainer info."""
-    # Example: "llama_trainer1_layer11_asst" or "qwen_trainer1_layer15_newline"
+    # Example: "llama_trainer1_layer11" (without token suffix)
     match = re.search(r'(\w+)_trainer(\d+)_layer(\d+)', source)
     if match:
         model_prefix = match.group(1)
@@ -35,14 +35,13 @@ def get_model_info(model_prefix: str):
 
 async def main():
     # Load the CSV file
-    csv_path = "/root/git/persona-subspace/sae_feature_analysis/results/universal/universal_30.csv"
+    csv_path = "/root/git/persona-subspace/sae_feature_analysis/results/personal/only_personal.csv"
     df = pd.read_csv(csv_path)
     
     print(f"Loaded {len(df)} features from {csv_path}")
+    print(f"Columns: {list(df.columns)}")
     
-    # Group features by model and layer combination
-    df['model_layer_key'] = df['source'].apply(lambda x: '_'.join(x.split('_')[:3]))  # e.g., "llama_trainer1_layer11"
-    groups = df.groupby('model_layer_key')
+    groups = df.groupby('source')
     
     print(f"Found {len(groups)} different SAE groups:")
     for key, group in groups:
@@ -55,7 +54,7 @@ async def main():
         print(f"\n🔍 Processing group: {group_key}")
         
         # Parse source info for this group
-        model_prefix, layer, trainer = parse_source_info(group_df['source'].iloc[0])
+        model_prefix, layer, trainer = parse_source_info(group_key)
         model_path, model_dir = get_model_info(model_prefix)
         
         print(f"  Model: {model_path}")
@@ -66,7 +65,8 @@ async def main():
         feature_ids = group_df['feature_id'].tolist()
         
         # Set up paths for feature mining data
-        feature_mining_path_template = f"/workspace/sae/{model_dir}/feature_mining/resid_post_layer_{layer}/trainer_1"
+        # Use trainer from parsing, not hardcoded trainer_1
+        feature_mining_path_template = f"/workspace/sae/{model_dir}/feature_mining/resid_post_layer_{layer}/trainer_{trainer}"
         
         # Run Claude analysis for this group
         results = await analyze_features_with_claude(
@@ -86,11 +86,11 @@ async def main():
     
     # Add results to dataframe
     df['claude_completion'] = df['feature_id'].map(lambda x: all_results.get(x, {}).get('claude_completion', ''))
-    df['feature_description'] = df['feature_id'].map(lambda x: all_results.get(x, {}).get('feature_description', ''))
-    df['type'] = df['feature_id'].map(lambda x: all_results.get(x, {}).get('type', ''))
-    
+    df['claude_desc'] = df['feature_id'].map(lambda x: all_results.get(x, {}).get('claude_desc', ''))
+    df['claude_type'] = df['feature_id'].map(lambda x: all_results.get(x, {}).get('claude_type', ''))
+
     # Save results
-    output_path = "/root/git/persona-subspace/sae_feature_analysis/results/universal/universal_30_autointerp.csv"
+    output_path = "/root/git/persona-subspace/sae_feature_analysis/results/personal/only_personal_autointerp.csv"
     df.to_csv(output_path, index=False)
     
     print(f"\n✅ Analysis complete! Results saved to {output_path}")

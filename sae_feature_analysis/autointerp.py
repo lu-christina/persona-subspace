@@ -365,8 +365,8 @@ async def analyze_features_with_claude(
         
         results[feature_id_int] = {
             'claude_completion': completion,
-            'feature_description': parse_xml_tag(completion, "feature_description"),
-            'type': parse_xml_tag(completion, "feature_type")
+            'claude_desc': parse_xml_tag(completion, "feature_description"),
+            'claude_type': parse_xml_tag(completion, "feature_type")
         }
     
     print(f"✅ Claude analysis complete for {len(results)} features")

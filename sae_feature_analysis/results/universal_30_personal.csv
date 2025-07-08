@@ -1,0 +1,41 @@
+source,feature_id,activation_mean,activation_max,activation_min,num_prompts,chat_desc,pt_desc,type,link,model_layer_key,claude_completion,feature_description,assistant_mean,cohens_d,experiment_name
+qwen_trainer1_layer11_asst,81528,5.142666816711426,10.429818153381348,0.0,126,"""assistant"" header token after being asked to do a writing or copyediting task","""assistant"" token from descriptions of human assistant professions",semantic,https://completely-touched-platypus.ngrok-free.app/?model=qwen&layer=11&trainer=1&fids=81528,qwen_trainer1_layer11,"<reasoning>
+Looking across these examples, I notice a strong pattern of content that appears to be AI-generated or AI-assisted writing, particularly in response to user requests for articles, blog posts, or other written content. 
+
+In the chat examples, we see:
+- Users asking for articles/blog posts with specific word counts (2000 words, 10000 words)
+- AI responses that begin with phrases like ""Sure! Here's a draft of..."" or provide structured, formulaic content
+- Topics that are typical of content generation requests (SEO articles, how-to guides, business topics)
+- The <<assistant>> token frequently appears at the beginning of AI-generated responses
+
+The pretraining examples show a different pattern - they appear to be news articles or informational content where the <<Assistant>> token appears mid-text, possibly indicating where an AI system might have continued or completed the text.
+
+The common thread is AI-generated or AI-assisted text production. This is not about a specific entity (like a person or object) or a specific behavior (like running or analyzing), but rather about a semantic pattern - the characteristic style and structure of AI-generated content, particularly in response to content creation requests.
+
+This is a semantic feature because it's detecting an abstract pattern related to the nature and origin of the text (AI-generated vs human-written), rather than any specific entities or actions within the text.
+</reasoning>
+
+<feature_description>
+This feature detects AI-generated or AI-assisted text, particularly in contexts where users request articles, blog posts, or other written content with specific requirements.
+</feature_description>
+
+<feature_type>
+semantic
+</feature_type>","This feature detects AI-generated or AI-assisted text, particularly in contexts where users request articles, blog posts, or other written content with specific requirements.",0.23483181,0.6029610634,qwen_trainer1_layer11_asst
+qwen_trainer1_layer15_newline,49123,4.476788520812988,10.54895305633545,0.0,84,"newline before AI chatbot answers yes or no question about factual consistency, reasoning, or semantic content ",newline before answer in wide range of contexts ???,semantic,https://completely-touched-platypus.ngrok-free.app/?model=qwen&layer=15&trainer=1&fids=49123,qwen_trainer1_layer15,"<reasoning>
+Looking at these examples, I notice a clear pattern: the feature strongly activates on newline characters (↵) and the beginning of responses/answers in various contexts. 
+
+In the chat examples, the highest activations occur at the transition from user prompts to assistant responses, particularly right after the newline that precedes the assistant's answer. The double angle brackets consistently appear around the newline character (<<↵>>) at these transition points.
+
+In the pretraining examples, the pattern is similar but occurs in Q&A formats where there's a question followed by ""A:"" or ""reply"" and then the answer begins. The feature activates at these structural transition points between questions and answers.
+
+This is not about any specific entity or action/behavior, but rather about a structural/linguistic pattern in text - specifically the transition point where a response or answer begins after a prompt or question. This is a semantic feature because it's detecting an abstract linguistic pattern related to discourse structure and conversational flow, not concrete entities or specific actions.
+</reasoning>
+
+<feature_description>
+This feature detects the structural transition point where responses or answers begin, particularly activating on newline characters that mark the start of replies in conversational or Q&A contexts.
+</feature_description>
+
+<feature_type>
+semantic
+</feature_type>","This feature detects the structural transition point where responses or answers begin, particularly activating on newline characters that mark the start of replies in conversational or Q&A contexts.",0.3649736643,0.6027551889,qwen_trainer1_layer15_newline
