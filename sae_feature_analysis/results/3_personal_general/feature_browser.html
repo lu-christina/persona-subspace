@@ -151,6 +151,13 @@
             border-radius: 4px;
             border-left: 4px solid #4caf50;
             margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .highlighted-token {
+            background-color: #ff9800;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
         }
         .tokens-section {
             margin-top: 10px;
@@ -205,44 +212,68 @@
             try {
                 const response = await fetch('2_personal_general_desc.csv');
                 const text = await response.text();
-                const lines = text.trim().split('\n');
-                const headers = lines[0].split(',');
-                
-                return lines.slice(1).map(line => {
-                    const values = parseCSVLine(line);
-                    const obj = {};
-                    headers.forEach((header, index) => {
-                        obj[header] = values[index];
-                    });
-                    return obj;
-                });
+                return parseCSV(text);
             } catch (error) {
                 console.error('Error loading CSV:', error);
                 return [];
             }
         }
 
-        // Simple CSV parser that handles quoted fields
-        function parseCSVLine(line) {
+        // Proper CSV parser that handles quoted fields with newlines
+        function parseCSV(text) {
             const result = [];
+            const rows = [];
             let current = '';
             let inQuotes = false;
+            let row = [];
             
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
                 
                 if (char === '"') {
-                    inQuotes = !inQuotes;
+                    if (inQuotes && nextChar === '"') {
+                        // Escaped quote
+                        current += '"';
+                        i++; // Skip next quote
+                    } else {
+                        // Toggle quote state
+                        inQuotes = !inQuotes;
+                    }
                 } else if (char === ',' && !inQuotes) {
-                    result.push(current.trim());
+                    // Field separator
+                    row.push(current.trim());
                     current = '';
+                } else if (char === '\n' && !inQuotes) {
+                    // Row separator
+                    row.push(current.trim());
+                    rows.push(row);
+                    row = [];
+                    current = '';
+                } else if (char === '\r' && !inQuotes) {
+                    // Ignore carriage returns when not in quotes
+                    continue;
                 } else {
                     current += char;
                 }
             }
             
-            result.push(current.trim());
-            return result;
+            // Add final field and row
+            if (current.length > 0 || row.length > 0) {
+                row.push(current.trim());
+                rows.push(row);
+            }
+            
+            if (rows.length === 0) return [];
+            
+            const headers = rows[0];
+            return rows.slice(1).map(row => {
+                const obj = {};
+                headers.forEach((header, index) => {
+                    obj[header] = row[index] || '';
+                });
+                return obj;
+            });
         }
 
         // Load JSONL data
@@ -297,6 +328,54 @@
             renderFeatureDetail(feature, prompts);
         }
 
+        // Highlight tokens in prompt text
+        function highlightTokensInText(promptText, tokens) {
+            if (!tokens || tokens.length === 0) return promptText;
+            
+            // Find max activation for scaling
+            const maxActivation = Math.max(...tokens.map(t => t.activation));
+            
+            // Create a copy of the text to modify
+            let highlightedText = promptText;
+            
+            // Sort tokens by position (descending) to avoid position shifting during replacement
+            const sortedTokens = [...tokens].sort((a, b) => b.position - a.position);
+            
+            // Split text into tokens roughly (simple whitespace split)
+            const textTokens = promptText.split(/(\s+)/);
+            let currentPos = 0;
+            
+            // Build a map of text positions to tokens
+            const positionMap = new Map();
+            sortedTokens.forEach(token => {
+                positionMap.set(token.position, token);
+            });
+            
+            // Reconstruct text with highlights
+            let result = '';
+            let tokenIndex = 0;
+            
+            for (let i = 0; i < textTokens.length; i++) {
+                const textToken = textTokens[i];
+                const activatingToken = positionMap.get(tokenIndex);
+                
+                if (activatingToken && !textToken.match(/^\s+$/)) {
+                    // Calculate opacity based on activation strength
+                    const opacity = Math.min(1, activatingToken.activation / maxActivation);
+                    const style = `background-color: rgba(255, 152, 0, ${opacity}); padding: 2px 4px; border-radius: 3px; font-weight: bold;`;
+                    result += `<span style="${style}">${textToken}</span>`;
+                    tokenIndex++;
+                } else {
+                    result += textToken;
+                    if (!textToken.match(/^\s+$/)) {
+                        tokenIndex++;
+                    }
+                }
+            }
+            
+            return result;
+        }
+
         // Render feature detail
         function renderFeatureDetail(feature, prompts) {
             const container = document.getElementById('feature-detail-content');
@@ -311,7 +390,7 @@
                                 <span class="prompt-label">${prompt.prompt_label}</span>
                                 <span class="prompt-activation">Activation: ${prompt.prompt_feature_activation.toFixed(4)}</span>
                             </div>
-                            <div class="prompt-text">${prompt.prompt_text}</div>
+                            <div class="prompt-text">${highlightTokensInText(prompt.prompt_text, prompt.tokens)}</div>
                             <div class="tokens-section">
                                 <div class="tokens-title">Top Activating Tokens:</div>
                                 ${prompt.tokens.map(token => `
