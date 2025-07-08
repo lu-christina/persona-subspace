@@ -328,52 +328,56 @@
             renderFeatureDetail(feature, prompts);
         }
 
-        // Highlight tokens in prompt text
-        function highlightTokensInText(promptText, tokens) {
-            if (!tokens || tokens.length === 0) return promptText;
+        // Highlight tokens in prompt text using tokenized_prompt
+        function highlightTokensInText(prompt) {
+            if (!prompt.tokens || prompt.tokens.length === 0 || !prompt.tokenized_prompt) {
+                return prompt.prompt_text;
+            }
             
             // Find max activation for scaling
-            const maxActivation = Math.max(...tokens.map(t => t.activation));
+            const maxActivation = Math.max(...prompt.tokens.map(t => t.activation));
             
-            // Create a copy of the text to modify
-            let highlightedText = promptText;
-            
-            // Sort tokens by position (descending) to avoid position shifting during replacement
-            const sortedTokens = [...tokens].sort((a, b) => b.position - a.position);
-            
-            // Split text into tokens roughly (simple whitespace split)
-            const textTokens = promptText.split(/(\s+)/);
-            let currentPos = 0;
-            
-            // Build a map of text positions to tokens
-            const positionMap = new Map();
-            sortedTokens.forEach(token => {
-                positionMap.set(token.position, token);
+            // Create a map of position to activation
+            const activationMap = new Map();
+            prompt.tokens.forEach(token => {
+                activationMap.set(token.position, token.activation);
             });
             
-            // Reconstruct text with highlights
-            let result = '';
-            let tokenIndex = 0;
+            // Find the last position with an activation to trim trailing tokens
+            const lastActivatedPosition = Math.max(...prompt.tokens.map(t => t.position));
             
-            for (let i = 0; i < textTokens.length; i++) {
-                const textToken = textTokens[i];
-                const activatingToken = positionMap.get(tokenIndex);
+            // Reconstruct text with highlights using tokenized_prompt
+            let result = '';
+            
+            for (let i = 0; i < prompt.tokenized_prompt.length; i++) {
+                const token = prompt.tokenized_prompt[i];
                 
-                if (activatingToken && !textToken.match(/^\s+$/)) {
+                // Skip trailing <|eot_id|> and <|endoftext|> tokens that don't have activations
+                if (i > lastActivatedPosition && 
+                    (token === '<|eot_id|>' || token === '<|endoftext|>')) {
+                    continue;
+                }
+                
+                const activation = activationMap.get(i);
+                
+                if (activation) {
                     // Calculate opacity based on activation strength
-                    const opacity = Math.min(1, activatingToken.activation / maxActivation);
+                    const opacity = Math.min(1, activation / maxActivation);
                     const style = `background-color: rgba(255, 152, 0, ${opacity}); padding: 2px 4px; border-radius: 3px; font-weight: bold;`;
-                    result += `<span style="${style}">${textToken}</span>`;
-                    tokenIndex++;
+                    result += `<span style="${style}">${escapeHtml(token)}</span>`;
                 } else {
-                    result += textToken;
-                    if (!textToken.match(/^\s+$/)) {
-                        tokenIndex++;
-                    }
+                    result += escapeHtml(token);
                 }
             }
             
             return result;
+        }
+        
+        // Escape HTML characters
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Render feature detail
@@ -390,7 +394,7 @@
                                 <span class="prompt-label">${prompt.prompt_label}</span>
                                 <span class="prompt-activation">Activation: ${prompt.prompt_feature_activation.toFixed(4)}</span>
                             </div>
-                            <div class="prompt-text">${highlightTokensInText(prompt.prompt_text, prompt.tokens)}</div>
+                            <div class="prompt-text">${highlightTokensInText(prompt)}</div>
                             <div class="tokens-section">
                                 <div class="tokens-title">Top Activating Tokens:</div>
                                 ${prompt.tokens.map(token => `
