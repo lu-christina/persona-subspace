@@ -75,7 +75,13 @@
         }
         .feature-meta {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .feature-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 10px;
             margin-bottom: 15px;
         }
@@ -366,7 +372,7 @@
                 if (activation) {
                     // Calculate opacity based on activation strength
                     const opacity = Math.min(1, activation / maxActivation);
-                    const style = `background-color: rgba(255, 152, 0, ${opacity}); padding: 2px 4px; border-radius: 3px; font-weight: bold;`;
+                    const style = `background-color: rgba(255, 152, 0, ${opacity}); padding: 2px 4px; border-radius: 3px;`;
                     result += `<span style="${style}">${escapeHtml(token)}</span>`;
                 } else {
                     result += escapeHtml(token);
@@ -416,6 +422,8 @@
                         <div class="meta-item">
                             <span class="meta-label">Type:</span> ${feature.type || 'N/A'}
                         </div>
+                    </div>
+                    <div class="feature-stats">
                         <div class="meta-item">
                             <span class="meta-label">Personal Mean:</span> ${feature.personal_mean}
                         </div>
