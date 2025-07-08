@@ -395,12 +395,6 @@
                                 <span class="prompt-activation">Activation: ${prompt.prompt_feature_activation.toFixed(4)}</span>
                             </div>
                             <div class="prompt-text">${highlightTokensInText(prompt)}</div>
-                            <div class="tokens-section">
-                                <div class="tokens-title">Top Activating Tokens:</div>
-                                ${prompt.tokens.map(token => `
-                                    <span class="token-item">${token.text} (${token.activation.toFixed(2)})</span>
-                                `).join('')}
-                            </div>
                         </div>
                     `).join('')}
                 </div>
