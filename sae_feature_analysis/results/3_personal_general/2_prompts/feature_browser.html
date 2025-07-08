@@ -10,6 +10,7 @@
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
+            text-align: left;
         }
         .container {
             max-width: 1400px;
@@ -90,9 +91,12 @@
         }
         .descriptions {
             margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
         }
         .description-section {
-            margin-bottom: 20px;
+            margin-bottom: 0;
         }
         .description-title {
             font-weight: bold;
@@ -210,7 +214,7 @@
         // Load CSV data
         async function loadCSV() {
             try {
-                const response = await fetch('2_personal_general_desc.csv');
+                const response = await fetch('personal_general_desc.csv');
                 const text = await response.text();
                 return parseCSV(text);
             } catch (error) {
@@ -279,7 +283,7 @@
         // Load JSONL data
         async function loadJSONL() {
             try {
-                const response = await fetch('2_personal_general_prompts.jsonl');
+                const response = await fetch('personal_general_prompts.jsonl');
                 const text = await response.text();
                 return text.trim().split('\n').map(line => JSON.parse(line));
             } catch (error) {
@@ -300,8 +304,7 @@
             container.innerHTML = featuresData.map(feature => `
                 <div class="feature-item" onclick="selectFeature(${feature.feature_id})">
                     <div class="feature-id">Feature ${feature.feature_id}</div>
-                    <div class="feature-token">Token: ${feature.token}</div>
-                    <div class="feature-desc-short">${feature.claude_type || 'No type'}</div>
+                    <div class="feature-token">${feature.source}</div>
                 </div>
             `).join('');
         }
@@ -405,13 +408,13 @@
                     <div class="feature-title">Feature ${feature.feature_id}</div>
                     <div class="feature-meta">
                         <div class="meta-item">
-                            <span class="meta-label">Token:</span> ${feature.token}
+                            <span class="meta-label">Activation Token:</span> ${feature.token}
                         </div>
                         <div class="meta-item">
                             <span class="meta-label">Source:</span> ${feature.source}
                         </div>
                         <div class="meta-item">
-                            <span class="meta-label">Type:</span> ${feature.claude_type || 'N/A'}
+                            <span class="meta-label">Type:</span> ${feature.type || 'N/A'}
                         </div>
                         <div class="meta-item">
                             <span class="meta-label">Personal Mean:</span> ${feature.personal_mean}
