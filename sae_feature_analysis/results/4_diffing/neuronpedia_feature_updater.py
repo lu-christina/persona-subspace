@@ -212,7 +212,7 @@ def main():
     parser.add_argument('--api-key', help='Neuronpedia API key (or set NEURONPEDIA_API_KEY env var)')
     parser.add_argument('--csv-dir', default='llama_trainer32x_layer15', 
                        help='Directory containing CSV files to update')
-    parser.add_argument('--explanations-file', default='neuronpedia_explanations.json',
+    parser.add_argument('--explanations-file', default='/workspace/sae/llama-3.1-8b/saes/resid_post_layer_15/trainer_32x/explanations.json',
                        help='Path to explanations JSON file')
     parser.add_argument('--download-fresh', action='store_true',
                        help='Download fresh explanations instead of using cached file')
