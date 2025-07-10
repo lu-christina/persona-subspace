@@ -15,17 +15,20 @@ import pandas as pd
 import os
 from pathlib import Path
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 import argparse
+import pickle
+from collections import defaultdict
 
 
 class NeuronpediaFeatureUpdater:
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, cache_file: str = "feature_cache.pkl"):
         """
         Initialize the Neuronpedia feature updater.
         
         Args:
             api_key: Neuronpedia API key. If None, will look for NEURONPEDIA_API_KEY env var.
+            cache_file: Path to pickle file for caching feature explanations.
         """
         self.api_key = api_key or os.getenv('NEURONPEDIA_API_KEY')
         self.base_url = "https://www.neuronpedia.org/api"
@@ -36,58 +39,135 @@ class NeuronpediaFeatureUpdater:
         self.model_id = "llama3.1-8b"
         self.sae_id = "15-llamascope-res-131k"
         
-    def download_explanations(self, output_file: str = "neuronpedia_explanations.json") -> Dict:
+        # Caching and rate limiting
+        self.cache_file = cache_file
+        self.cache = self._load_cache()
+        self.request_count = 0
+        self.last_request_time = 0
+        self.min_request_interval = 0.1  # 100ms between requests (10 requests/second)
+    
+    def _load_cache(self) -> Dict[str, Dict]:
+        """Load cached feature explanations from disk."""
+        if os.path.exists(self.cache_file):
+            try:
+                with open(self.cache_file, 'rb') as f:
+                    cache = pickle.load(f)
+                print(f"Loaded {len(cache)} cached explanations from {self.cache_file}")
+                return cache
+            except Exception as e:
+                print(f"Error loading cache: {e}")
+        return {}
+    
+    def _save_cache(self) -> None:
+        """Save cache to disk."""
+        try:
+            with open(self.cache_file, 'wb') as f:
+                pickle.dump(self.cache, f)
+        except Exception as e:
+            print(f"Error saving cache: {e}")
+    
+    def _rate_limit(self) -> None:
+        """Enforce rate limiting between API requests."""
+        current_time = time.time()
+        time_since_last = current_time - self.last_request_time
+        if time_since_last < self.min_request_interval:
+            sleep_time = self.min_request_interval - time_since_last
+            time.sleep(sleep_time)
+        self.last_request_time = time.time()
+        self.request_count += 1
+    
+    def get_feature_explanation(self, feature_id: str) -> Optional[Dict]:
         """
-        Download all feature explanations from Neuronpedia for the specified model/SAE.
+        Get explanation for a single feature, using cache if available.
         
         Args:
+            feature_id: The feature ID to get explanation for
+            
+        Returns:
+            Feature explanation dictionary or None if not found
+        """
+        # Check cache first
+        cache_key = f"{self.model_id}_{self.sae_id}_{feature_id}"
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        
+        # Make API request
+        self._rate_limit()
+        url = f"{self.base_url}/feature/{self.model_id}/{self.sae_id}/{feature_id}"
+        
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            
+            feature_data = response.json()
+            
+            # Cache the result
+            self.cache[cache_key] = feature_data
+            
+            if self.request_count % 50 == 0:  # Save cache every 50 requests
+                self._save_cache()
+                print(f"Made {self.request_count} API requests so far...")
+            
+            return feature_data
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching feature {feature_id}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                if e.response.status_code == 429:  # Rate limited
+                    print("Rate limited - increasing delay...")
+                    self.min_request_interval *= 1.5
+                    time.sleep(1)  # Extra pause
+            return None
+        
+    def download_explanations(self, feature_ids: List[str], output_file: str = "neuronpedia_explanations.json") -> Dict:
+        """
+        Download feature explanations individually from Neuronpedia for the specified feature IDs.
+        
+        Args:
+            feature_ids: List of feature IDs to download explanations for
             output_file: Path to save the downloaded explanations
             
         Returns:
             Dictionary containing explanations indexed by feature_id
         """
-        print(f"Downloading explanations for {self.model_id}/{self.sae_id}...")
+        # Deduplicate feature IDs while preserving order
+        unique_feature_ids = list(dict.fromkeys(str(fid) for fid in feature_ids))
+        total_features = len(unique_feature_ids)
         
-        # Use the export endpoint to get all explanations for the SAE
-        url = f"{self.base_url}/explanation/export"
-        params = {
-            'modelId': self.model_id,
-            'saeId': self.sae_id
-        }
+        print(f"Downloading explanations for {total_features} unique features (from {len(feature_ids)} total)")
+        print(f"Model: {self.model_id}, SAE: {self.sae_id}")
         
-        try:
-            response = requests.get(url, params=params, headers=self.headers)
-            response.raise_for_status()
+        explanations_by_id = {}
+        cached_count = 0
+        
+        for i, feature_id in enumerate(unique_feature_ids):
+            if (i + 1) % 100 == 0:
+                print(f"Progress: {i + 1}/{total_features} features processed")
             
-            explanations_data = response.json()
-            print(f"Downloaded {len(explanations_data)} explanations")
+            cache_key = f"{self.model_id}_{self.sae_id}_{feature_id}"
+            if cache_key in self.cache:
+                cached_count += 1
+                feature_data = self.cache[cache_key]
+            else:
+                feature_data = self.get_feature_explanation(feature_id)
             
-            # Index explanations by feature_id for easy lookup
-            explanations_by_id = {}
-            for explanation in explanations_data:
-                feature_id = explanation.get('index')  # 'index' is the feature_id
-                if feature_id is not None:
-                    # Convert to string for consistent lookup
-                    explanations_by_id[str(feature_id)] = explanation
-            
-            # Save to disk
-            output_path = Path(output_file)
-            with open(output_path, 'w') as f:
-                json.dump(explanations_by_id, f, indent=2)
-            
-            print(f"Saved explanations to {output_path}")
-            return explanations_by_id
-            
-        except requests.exceptions.RequestException as e:
-            print(f"Error downloading explanations: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                print(f"Response status: {e.response.status_code}")
-                print(f"Response content: {e.response.text}")
-                if e.response.status_code == 404:
-                    print("\nHint: The model/SAE ID combination might not exist in Neuronpedia.")
-                    print("Check the Neuronpedia website for the correct model and SAE IDs.")
-                    print("You can also try using individual feature lookup via search endpoints.")
-            return {}
+            if feature_data:
+                explanations_by_id[feature_id] = feature_data
+        
+        # Save final cache
+        self._save_cache()
+        
+        print(f"Downloaded {len(explanations_by_id)} explanations")
+        print(f"Used cache for {cached_count} features")
+        print(f"Made {self.request_count} new API requests")
+        
+        # Save explanations to JSON file
+        output_path = Path(output_file)
+        with open(output_path, 'w') as f:
+            json.dump(explanations_by_id, f, indent=2)
+        
+        print(f"Saved explanations to {output_path}")
+        return explanations_by_id
     
     def load_explanations(self, file_path: str) -> Dict:
         """
@@ -130,15 +210,34 @@ class NeuronpediaFeatureUpdater:
                 print(f"Error: 'feature_id' column not found in {csv_path}")
                 return False
             
-            # Add explanation columns - convert feature_id to string for lookup
-            df['explanation'] = df['feature_id'].apply(
-                lambda fid: explanations.get(str(fid), {}).get('description', '')
-            )
+            # Helper function to safely extract explanation data
+            def get_explanation_text(fid):
+                feature_data = explanations.get(str(fid))
+                if not feature_data:
+                    return ''
+                explanations_data = feature_data.get('explanations')
+                if isinstance(explanations_data, list) and explanations_data:
+                    # Take first explanation from list
+                    explanations_data = explanations_data[0]
+                if not isinstance(explanations_data, dict):
+                    return ''
+                return explanations_data.get('description', '').strip()
             
-            # Add additional explanation metadata
-            df['explanation_score'] = df['feature_id'].apply(
-                lambda fid: explanations.get(str(fid), {}).get('score', None)
-            )
+            def get_explanation_score(fid):
+                feature_data = explanations.get(str(fid))
+                if not feature_data:
+                    return None
+                explanations_data = feature_data.get('explanations')
+                if isinstance(explanations_data, list) and explanations_data:
+                    # Take first explanation from list
+                    explanations_data = explanations_data[0]
+                if not isinstance(explanations_data, dict):
+                    return None
+                return explanations_data.get('score', None)
+            
+            # Add explanation columns
+            df['explanation'] = df['feature_id'].apply(get_explanation_text)
+            df['explanation_score'] = df['feature_id'].apply(get_explanation_score)
             
             # Save the updated CSV
             output_file = output_path or csv_path
@@ -179,6 +278,39 @@ class NeuronpediaFeatureUpdater:
             print(f"Processing {csv_file.name}...")
             self.update_csv_with_explanations(str(csv_file), explanations)
     
+    def get_feature_ids_from_csvs(self, csv_directory: str) -> List[str]:
+        """
+        Extract all unique feature IDs from CSV files in the directory.
+        
+        Args:
+            csv_directory: Directory containing CSV files
+            
+        Returns:
+            List of unique feature IDs found in the CSV files
+        """
+        csv_dir = Path(csv_directory)
+        if not csv_dir.exists():
+            print(f"Error: Directory {csv_directory} does not exist")
+            return []
+        
+        csv_files = list(csv_dir.glob("*.csv"))
+        if not csv_files:
+            print(f"No CSV files found in {csv_directory}")
+            return []
+        
+        all_feature_ids = []
+        for csv_file in csv_files:
+            try:
+                df = pd.read_csv(csv_file)
+                if 'feature_id' in df.columns:
+                    feature_ids = df['feature_id'].astype(str).tolist()
+                    all_feature_ids.extend(feature_ids)
+                    print(f"Found {len(feature_ids)} feature IDs in {csv_file.name}")
+            except Exception as e:
+                print(f"Error reading {csv_file}: {e}")
+        
+        return all_feature_ids
+
     def run(self, csv_directory: str = "llama_trainer32x_layer15", 
             explanations_file: str = "neuronpedia_explanations.json",
             download_fresh: bool = False) -> None:
@@ -190,9 +322,17 @@ class NeuronpediaFeatureUpdater:
             explanations_file: Path to explanations JSON file
             download_fresh: Whether to download fresh explanations or use cached file
         """
+        # Get all feature IDs from CSV files first
+        feature_ids = self.get_feature_ids_from_csvs(csv_directory)
+        if not feature_ids:
+            print("No feature IDs found in CSV files. Exiting.")
+            return
+        
+        print(f"Found {len(feature_ids)} total feature IDs across all CSV files")
+        
         # Download or load explanations
         if download_fresh or not os.path.exists(explanations_file):
-            explanations = self.download_explanations(explanations_file)
+            explanations = self.download_explanations(feature_ids, explanations_file)
         else:
             print(f"Loading cached explanations from {explanations_file}")
             explanations = self.load_explanations(explanations_file)
