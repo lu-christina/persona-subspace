@@ -156,7 +156,7 @@ def main():
         return
     
     # File paths
-    input_file = Path("llama_trainer32x_layer15/missing_explanations.csv")
+    input_file = Path("llama_trainer32x_layer15/missing_explanations_with_claude.csv")
     output_file = Path("llama_trainer32x_layer15/missing_explanations_with_claude.csv")
     
     if not input_file.exists():
