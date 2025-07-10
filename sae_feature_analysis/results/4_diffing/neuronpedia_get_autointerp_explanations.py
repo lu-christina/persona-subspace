@@ -19,6 +19,9 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+INPUT_FILE = "llama_trainer32x_layer15/missing_explanations_with_claude.csv"
+OUTPUT_FILE = "llama_trainer32x_layer15/missing_explanations_with_claude.csv"
+
 class ThreadSafeCSVWriter:
     """Thread-safe CSV writer that saves results incrementally."""
     
@@ -154,10 +157,9 @@ def main():
     if not api_key:
         logger.error("NEURONPEDIA_API_KEY not found in ~/.env file")
         return
-    
-    # File paths
-    input_file = Path("llama_trainer32x_layer15/missing_explanations_with_claude.csv")
-    output_file = Path("llama_trainer32x_layer15/missing_explanations_with_claude.csv")
+
+    input_file = Path(INPUT_FILE)
+    output_file = Path(OUTPUT_FILE)
     
     if not input_file.exists():
         logger.error(f"Input file {input_file} not found")
