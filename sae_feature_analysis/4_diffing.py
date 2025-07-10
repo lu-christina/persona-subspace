@@ -19,6 +19,19 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import hf_hub_download
 from sae_lens import SAE
 from tqdm.auto import tqdm
+import random
+
+# ✨ Determinism & precision controls
+SEED = 42
+torch.manual_seed(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+torch.use_deterministic_algorithms(True)
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
+
+# Allow TF32 ( ≤ 1 e‑6 error ) – flip to False for a golden fp32 pass
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.set_float32_matmul_precision("high")
 
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,13 +53,8 @@ N_PROMPTS = 10000
 # =============================================================================
 # OUTPUT FILE CONFIGURATION
 # =============================================================================
-OUTPUT_FILE = f"/workspace/results/4_diffing/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/{N_PROMPTS}_prompts/{MODEL_VER}.pt"
+OUTPUT_FILE = f"/workspace/results/4_diffing/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/{N_PROMPTS}_prompts/gpu_{MODEL_VER}.pt"
 os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-
-# =============================================================================
-# FEATURE DASHBOARD URL - Global variable for links
-# =============================================================================
-LLAMA_BASE_URL = f"https://www.neuronpedia.org/llama3.1-8b/{SAE_LAYER}-llamascope-res-131k/"
 
 # =============================================================================
 # AUTO-CONFIGURED SETTINGS BASED ON MODEL TYPE
@@ -66,7 +74,6 @@ if MODEL_TYPE == "llama":
     ASSISTANT_HEADER = "<|start_header_id|>assistant<|end_header_id|>"
     TOKEN_OFFSETS = {"asst": -2, "endheader": -1, "newline": 0}
     SAE_BASE_PATH = "/workspace/sae/llama-3.1-8b/saes"
-    BASE_URL = LLAMA_BASE_URL
     
 else:
     raise ValueError(f"Unknown MODEL_TYPE: {MODEL_TYPE}. Use 'qwen' or 'llama'")
@@ -84,7 +91,8 @@ PROMPTS_PATH = f"/workspace/data/{PROMPTS_HF.split('/')[-1]}/chat_{N_PROMPTS}.js
 os.makedirs(os.path.dirname(PROMPTS_PATH), exist_ok=True)
 
 # Processing parameters
-BATCH_SIZE = 8
+# Fits in 80 GB H100 with bf16 activations
+BATCH_SIZE = 32
 MAX_LENGTH = 512
 
 # =============================================================================
@@ -187,9 +195,25 @@ print(f"SAE device: {next(sae.parameters()).device}")
 # ## Activation Extraction Functions
 
 # %%
-class StopForward(Exception):
-    """Exception to stop forward pass after target layer."""
-    pass
+# ---------------------------------------------------------------------------
+# 🐛 Replace StopForward hook with a clean partial‑forward wrapper
+# ---------------------------------------------------------------------------
+
+class UpToLayer(torch.nn.Module):
+    """Runs the Transformer up to and including `layer_idx` and returns the
+    layer‑normed hidden states (B, S, H)."""
+
+    def __init__(self, model: torch.nn.Module, layer_idx: int):
+        super().__init__()
+        self.embed_tokens = model.model.embed_tokens
+        self.layers = torch.nn.ModuleList(model.model.layers[: layer_idx + 1])
+        self.norm = model.model.norm
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
+        x = self.embed_tokens(input_ids)
+        for layer in self.layers:
+            x = layer(x, attention_mask=attention_mask, **kwargs)
+        return self.norm(x)
 
 def find_assistant_position(input_ids: torch.Tensor, attention_mask: torch.Tensor, 
                           assistant_header: str, token_offset: int, tokenizer, device) -> int:
@@ -215,97 +239,46 @@ def find_assistant_position(input_ids: torch.Tensor, attention_mask: torch.Tenso
     
     return int(assistant_pos)
 
+# ---------------------------------------------------------------------------
+# 🐛 Vectorised, deterministic extraction using UpToLayer
+# ---------------------------------------------------------------------------
+
 @torch.no_grad()
-def extract_activations_and_metadata(prompts: List[str], layer_idx: int) -> Tuple[torch.Tensor, List[Dict], List[str]]:
-    """Extract activations and prepare metadata for all prompts."""
-    all_activations = []
-    all_metadata = []
-    formatted_prompts_list = []
-    
-    # Get target layer
-    target_layer = model.model.layers[layer_idx]
-    
-    # Process in batches
-    for i in tqdm(range(0, len(prompts), BATCH_SIZE), desc="Processing batches"):
-        batch_prompts = prompts[i:i+BATCH_SIZE]
-        
-        # Format prompts as chat messages
-        formatted_prompts = []
-        for prompt in batch_prompts:
-            messages = [{"role": "user", "content": prompt}]
-            formatted_prompt = tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            formatted_prompts.append(formatted_prompt)
-        
-        formatted_prompts_list.extend(formatted_prompts)
-        
-        # Tokenize batch
-        batch_inputs = tokenizer(
-            formatted_prompts,
+def extract_activations_and_metadata(prompts: List[str], layer_idx: int):
+    partial = UpToLayer(model, layer_idx).eval()
+
+    all_acts, all_meta, tmplts = [], [], []
+    for i in range(0, len(prompts), BATCH_SIZE):
+        batch = prompts[i : i + BATCH_SIZE]
+        messages = [{"role": "user", "content": p} for p in batch]
+        formatted = [
+            tokenizer.apply_chat_template(m, tokenize=False, add_generation_prompt=True)
+            for m in messages
+        ]
+        tmplts.extend(formatted)
+
+        tok = tokenizer(
+            formatted,
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=MAX_LENGTH
-        )
-        
-        # Move to device
-        batch_inputs = {k: v.to(device) for k, v in batch_inputs.items()}
-        
-        # Hook to capture activations
-        activations = None
-        
-        def hook_fn(module, input, output):
-            nonlocal activations
-            activations = output[0] if isinstance(output, tuple) else output
-            raise StopForward()
-        
-        # Register hook
-        handle = target_layer.register_forward_hook(hook_fn)
-        
-        try:
-            _ = model(**batch_inputs)
-        except StopForward:
-            pass
-        finally:
-            handle.remove()
-        
-        # For each prompt in the batch, calculate positions for all token types
-        for j, formatted_prompt in enumerate(formatted_prompts):
-            attention_mask = batch_inputs["attention_mask"][j]
-            input_ids = batch_inputs["input_ids"][j]
-            
-            # Calculate positions for all token types
-            positions = {}
-            for token_type, token_offset in TOKEN_OFFSETS.items():
-                positions[token_type] = find_assistant_position(
-                    input_ids, attention_mask, ASSISTANT_HEADER, token_offset, tokenizer, device
-                )
-            
-            # Store the full activation sequence and metadata
-            all_activations.append(activations[j].cpu())  # [seq_len, hidden_dim]
-            all_metadata.append({
-                'prompt_idx': i + j,
-                'positions': positions,
-                'attention_mask': attention_mask.cpu(),
-                'input_ids': input_ids.cpu()
-            })
-    
-    # Find the maximum sequence length across all activations
-    max_seq_len = max(act.shape[0] for act in all_activations)
-    hidden_dim = all_activations[0].shape[1]
-    
-    # Pad all activations to the same length
-    padded_activations = []
-    for act in all_activations:
-        if act.shape[0] < max_seq_len:
-            padding = torch.zeros(max_seq_len - act.shape[0], hidden_dim)
-            padded_act = torch.cat([act, padding], dim=0)
-        else:
-            padded_act = act
-        padded_activations.append(padded_act)
-    
-    return torch.stack(padded_activations, dim=0), all_metadata, formatted_prompts_list
+            max_length=MAX_LENGTH,
+        ).to(device)
+
+        h = partial(**tok)  # (B, S, H)
+        for j, _ in enumerate(batch):
+            amask, ids = tok["attention_mask"][j], tok["input_ids"][j]
+            pos = {
+                t: find_assistant_position(ids, amask, ASSISTANT_HEADER, o, tokenizer, device)
+                for t, o in TOKEN_OFFSETS.items()
+            }
+            all_acts.append(h[j].cpu())
+            all_meta.append({"prompt_idx": i + j, "positions": pos, "attention_mask": amask.cpu(), "input_ids": ids.cpu()})
+
+    max_len = max(a.shape[0] for a in all_acts)
+    hid = all_acts[0].shape[1]
+    padded = [torch.cat([a, a.new_zeros(max_len - a.size(0), hid)], 0) for a in all_acts]
+    return torch.stack(padded), all_meta, tmplts
 
 @torch.no_grad()
 def extract_token_activations(full_activations: torch.Tensor, metadata: List[Dict]) -> Dict[str, torch.Tensor]:
@@ -366,26 +339,6 @@ def get_sae_features_batched(activations: torch.Tensor) -> torch.Tensor:
     
     return torch.cat(feature_activations, dim=0)
 
-@torch.no_grad()
-def get_sae_features_all_positions(full_activations: torch.Tensor) -> torch.Tensor:
-    """Pre-compute SAE features for ALL positions at once for optimization."""
-    print(f"Processing {full_activations.shape[0]} prompts with max {full_activations.shape[1]} tokens each...")
-    
-    # Reshape to [total_positions, hidden_dim]
-    total_positions = full_activations.shape[0] * full_activations.shape[1]
-    reshaped_activations = full_activations.view(total_positions, -1)
-    
-    # Apply SAE to all positions
-    full_sae_features = get_sae_features_batched(reshaped_activations)
-    
-    # Reshape back to [num_prompts, seq_len, num_features]
-    full_sae_features = full_sae_features.view(full_activations.shape[0], full_activations.shape[1], -1)
-    
-    print(f"Full SAE features shape: {full_sae_features.shape}")
-    print(f"✓ SAE features pre-computed for all positions")
-    
-    return full_sae_features
-
 # Get SAE feature activations for specific token positions
 print("Computing SAE features for specific token positions...")
 token_features = {}
@@ -398,282 +351,61 @@ for token_type, activations in token_activations.items():
 
 print(f"\nCompleted SAE feature extraction for {len(token_features)} token types")
 
-# Uncomment the lines below if you need all-position features for optimization
-# print("\nOptimization: Pre-computing SAE features for all positions...")
-# full_sae_features = get_sae_features_all_positions(full_activations)
 
-# %% [markdown]
-# ## Analysis and Save Results
 
-# %%
-def save_as_csv():
-    """Save results as CSV format (slower but human readable)"""
-    csv_results = []
-    source_name = f"{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}_{MODEL_VER}"
-    
-    print(f"Processing results for CSV format, source: {source_name}")
-    
-    # Process each token type
-    for token_type in TOKEN_OFFSETS.keys():
-        print(f"\nProcessing token type: {token_type}")
-        
-        # Get features tensor for this token type: [num_prompts, num_features]
-        features_tensor = token_features[token_type]
-        
-        # Convert to numpy for easier processing (handle BFloat16)
-        features_np = features_tensor.float().numpy()
-        
-        print(f"Processing all {features_np.shape[1]} features for token_type='{token_type}'")
-        
-        # Process ALL features (not just active ones)
-        for feature_idx in range(features_np.shape[1]):
-            feature_activations = features_np[:, feature_idx]  # [num_prompts]
-            
-            # Split into active and inactive
-            active_mask = feature_activations > 0
-            active_activations = feature_activations[active_mask]
-            
-            # Calculate comprehensive statistics
-            all_mean = float(feature_activations.mean())
-            all_std = float(feature_activations.std())
-            max_activation = float(feature_activations.max())  # same whether active or all
-            
-            # Active-only statistics
-            if len(active_activations) > 0:
-                active_mean = float(active_activations.mean())
-                active_min = float(active_activations.min())
-                active_std = float(active_activations.std())
-            else:
-                active_mean = active_min = active_std = 0.0
-            
-            # Sparsity statistics
-            num_active = len(active_activations)
-            sparsity = num_active / len(feature_activations)  # fraction of prompts where feature is active
-            
-            # Percentiles (useful for understanding distribution)
-            p90 = float(np.percentile(feature_activations, 90))
-            p95 = float(np.percentile(feature_activations, 95))
-            p99 = float(np.percentile(feature_activations, 99))
-            
-            # Add to results
-            csv_result = {
-                'feature_id': int(feature_idx),
-                'all_mean': all_mean,
-                'all_std': all_std,
-                'active_mean': active_mean,
-                'active_min': active_min,
-                'active_std': active_std,
-                'max': max_activation,
-                'num_active': num_active,
-                'sparsity': sparsity,
-                'p90': p90,
-                'p95': p95,
-                'p99': p99,
-                'source': source_name,
-                'token': token_type,
-            }
-            csv_results.append(csv_result)
-        
-        print(f"Processed all {features_np.shape[1]} features for token_type='{token_type}'")
-    
-    print(f"\nTotal feature records: {len(csv_results)}")
-    return csv_results
+# ---------------------------------------------------------------------------
+# 🐛 Device‑agnostic, vectorised stats & save
+# ---------------------------------------------------------------------------
 
-def save_as_pt_cpu():
-    """Save results as PyTorch tensors using CPU computation (most accurate)"""
-    source_name = f"{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}_{MODEL_VER}"
-    
-    print(f"Processing results for PyTorch format using CPU, source: {source_name}")
-    
-    # Store results as tensors for each token type
-    results_dict = {}
-    
-    # Process each token type
-    for token_type in TOKEN_OFFSETS.keys():
-        print(f"\nProcessing token type: {token_type}")
-        
-        # Get features tensor for this token type: [num_prompts, num_features]
-        features_tensor = token_features[token_type].float()  # Convert to float32 on CPU
-        
-        print(f"Processing all {features_tensor.shape[1]} features for token_type='{token_type}' on CPU")
-        
-        # Calculate statistics vectorized across all features
-        # features_tensor shape: [num_prompts, num_features]
-        
-        # All statistics (including zeros)
-        all_mean = features_tensor.mean(dim=0)  # [num_features]
-        all_std = features_tensor.std(dim=0)    # [num_features]
-        max_vals = features_tensor.max(dim=0)[0]  # [num_features]
-        
-        # Active statistics (only non-zero values)
-        active_mask = features_tensor > 0  # [num_prompts, num_features]
-        num_active = active_mask.sum(dim=0)  # [num_features]
-        sparsity = num_active.float() / features_tensor.shape[0]  # [num_features]
-        
-        # For active mean/std/min, we need to handle features with no active values
-        active_mean = torch.zeros_like(all_mean)
-        active_std = torch.zeros_like(all_std)
-        active_min = torch.zeros_like(all_mean)
-        
-        # Percentiles
-        p90 = torch.quantile(features_tensor, 0.9, dim=0)
-        p95 = torch.quantile(features_tensor, 0.95, dim=0)
-        p99 = torch.quantile(features_tensor, 0.99, dim=0)
-        
-        # Calculate active stats only for features that have active values
-        for feat_idx in range(features_tensor.shape[1]):
-            if num_active[feat_idx] > 0:
-                active_vals = features_tensor[:, feat_idx][active_mask[:, feat_idx]]
-                active_mean[feat_idx] = active_vals.mean()
-                active_std[feat_idx] = active_vals.std()
-                active_min[feat_idx] = active_vals.min()
-        
-        # Store all statistics as tensors
-        results_dict[token_type] = {
-            'all_mean': all_mean,
-            'all_std': all_std,
-            'active_mean': active_mean,
-            'active_min': active_min,
-            'active_std': active_std,
-            'max': max_vals,
-            'num_active': num_active,
-            'sparsity': sparsity,
-            'p90': p90,
-            'p95': p95,
-            'p99': p99,
-        }
-        
-        print(f"Processed all {features_tensor.shape[1]} features for token_type='{token_type}'")
-    
-    # Add metadata
-    results_dict['metadata'] = {
-        'source': source_name,
-        'model_type': MODEL_TYPE,
-        'model_ver': MODEL_VER,
-        'sae_layer': SAE_LAYER,
-        'sae_trainer': SAE_TRAINER,
-        'num_prompts': features_tensor.shape[0],
-        'num_features': features_tensor.shape[1],
-        'token_types': list(TOKEN_OFFSETS.keys())
+def compute_stats(t: torch.Tensor):
+    t = t.float()
+    n = t.shape[0]
+
+    all_mean = t.mean(0, dtype=torch.float64)
+    all_std = t.std(0, unbiased=False, dtype=torch.float64)
+    max_v = t.max(0).values
+
+    active = t > 0
+    num_active = active.sum(0)
+    sparsity = num_active / n
+
+    inf = torch.finfo(t.dtype).max
+    active_mean = (t * active).sum(0, dtype=torch.float64) / num_active.clamp(min=1)
+    active_min = torch.where(active, t, inf).amin(0)
+    diff2 = ((t - active_mean) ** 2) * active
+    active_std = (diff2.sum(0, dtype=torch.float64) / num_active.clamp(min=2).sub_(1)).sqrt()
+
+    p90 = torch.quantile(t, 0.9, dim=0, interpolation="linear")
+    p95 = torch.quantile(t, 0.95, dim=0, interpolation="linear")
+    p99 = torch.quantile(t, 0.99, dim=0, interpolation="linear")
+
+    return {
+        "all_mean": all_mean.cpu(),
+        "all_std": all_std.cpu(),
+        "active_mean": active_mean.cpu(),
+        "active_min": active_min.cpu(),
+        "active_std": active_std.cpu(),
+        "max": max_v.cpu(),
+        "num_active": num_active.cpu(),
+        "sparsity": sparsity.cpu(),
+        "p90": p90.cpu(),
+        "p95": p95.cpu(),
+        "p99": p99.cpu(),
     }
-    
-    print(f"\nTotal token types processed: {len(results_dict) - 1}")  # -1 for metadata
-    return results_dict
 
-def save_as_pt_gpu():
-    """Save results as PyTorch tensors using GPU computation (faster but potentially less accurate)"""
-    source_name = f"{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}_{MODEL_VER}"
-    
-    print(f"Processing results for PyTorch format using GPU, source: {source_name}")
-    
-    # Store results as tensors for each token type
-    results_dict = {}
-    
-    # Process each token type
-    for token_type in TOKEN_OFFSETS.keys():
-        print(f"\nProcessing token type: {token_type}")
-        
-        # Get features tensor for this token type: [num_prompts, num_features]
-        # Keep on GPU for faster computation and ensure float dtype
-        features_tensor = token_features[token_type].to(device).float()
-        
-        print(f"Processing all {features_tensor.shape[1]} features for token_type='{token_type}' on GPU")
-        print(f"Features tensor dtype: {features_tensor.dtype}")
-        
-        # Calculate statistics vectorized across all features on GPU
-        # features_tensor shape: [num_prompts, num_features]
-        
-        # All statistics (including zeros)
-        all_mean = features_tensor.mean(dim=0)  # [num_features]
-        all_std = features_tensor.std(dim=0)    # [num_features]
-        max_vals = features_tensor.max(dim=0)[0]  # [num_features]
-        
-        # Active statistics (only non-zero values)
-        active_mask = features_tensor > 0  # [num_prompts, num_features]
-        num_active = active_mask.sum(dim=0)  # [num_features]
-        sparsity = num_active.float() / features_tensor.shape[0]  # [num_features]
-        
-        # Percentiles - compute on GPU
-        p90 = torch.quantile(features_tensor, 0.9, dim=0)
-        p95 = torch.quantile(features_tensor, 0.95, dim=0)
-        p99 = torch.quantile(features_tensor, 0.99, dim=0)
-        
-        # For active mean/std/min, we need to handle features with no active values
-        # Use masked operations for better GPU performance
-        active_mean = torch.zeros_like(all_mean)
-        active_std = torch.zeros_like(all_std)
-        active_min = torch.zeros_like(all_mean)
-        
-        # Find features that have active values
-        has_active = num_active > 0
-        
-        if has_active.any():
-            # Use broadcasting to compute active stats efficiently
-            # For each feature with active values, compute mean/std/min
-            features_with_active = features_tensor[:, has_active]  # [num_prompts, num_active_features]
-            mask_with_active = active_mask[:, has_active]  # [num_prompts, num_active_features]
-            
-            # Set inactive values to 0 for mean calculation
-            active_values = features_with_active * mask_with_active
-            
-            # Calculate active means
-            active_sums = active_values.sum(dim=0)  # [num_active_features]
-            active_counts = mask_with_active.sum(dim=0)  # [num_active_features]
-            active_means_subset = active_sums / active_counts  # [num_active_features]
-            active_mean[has_active] = active_means_subset
-            
-            # Calculate active mins (set inactive to large value first)
-            large_value = features_tensor.max() + 1
-            features_for_min = features_with_active.clone()
-            features_for_min[~mask_with_active] = large_value
-            active_min[has_active] = features_for_min.min(dim=0)[0]
-            
-            # Calculate active stds
-            # For each feature, compute std of only active values
-            for i, feat_idx in enumerate(torch.where(has_active)[0]):
-                active_vals = features_tensor[:, feat_idx][active_mask[:, feat_idx]]
-                if len(active_vals) > 1:  # Need at least 2 values for std
-                    active_std[feat_idx] = active_vals.std()
-        
-        # Store all statistics as tensors (move to CPU for storage)
-        results_dict[token_type] = {
-            'all_mean': all_mean.cpu(),
-            'all_std': all_std.cpu(),
-            'active_mean': active_mean.cpu(),
-            'active_min': active_min.cpu(),
-            'active_std': active_std.cpu(),
-            'max': max_vals.cpu(),
-            'num_active': num_active.cpu(),
-            'sparsity': sparsity.cpu(),
-            'p90': p90.cpu(),
-            'p95': p95.cpu(),
-            'p99': p99.cpu(),
-        }
-        
-        print(f"Processed all {features_tensor.shape[1]} features for token_type='{token_type}'")
-    
-    # Add metadata
-    results_dict['metadata'] = {
-        'source': source_name,
-        'model_type': MODEL_TYPE,
-        'model_ver': MODEL_VER,
-        'sae_layer': SAE_LAYER,
-        'sae_trainer': SAE_TRAINER,
-        'num_prompts': features_tensor.shape[0],
-        'num_features': features_tensor.shape[1],
-        'token_types': list(TOKEN_OFFSETS.keys())
-    }
-    
-    print(f"\nTotal token types processed: {len(results_dict) - 1}")  # -1 for metadata
-    return results_dict
 
-# Choose your approach:
-# results_dict = save_as_pt_cpu()    # Most accurate, slower
-# results_dict = save_as_pt_gpu()    # Faster, potentially less accurate
+def save_as_pt(in_gpu: bool = True):
+    src = f"{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}_{MODEL_VER}"
+    out = {"metadata": {"source": src, "model_type": MODEL_TYPE, "model_ver": MODEL_VER, "sae_layer": SAE_LAYER, "sae_trainer": SAE_TRAINER, "num_prompts": N_PROMPTS, "token_types": list(TOKEN_OFFSETS)}}
 
-# Use CPU version by default for accuracy
-print("Using CPU version for maximum accuracy...")
-results_dict = save_as_pt_cpu()
+    for tk in TOKEN_OFFSETS:
+        feats = token_features[tk].to("cuda" if in_gpu else "cpu")
+        out[tk] = compute_stats(feats)
+        print(f"✓ {tk} done ({'GPU' if in_gpu else 'CPU'})")
+
+    return out
+
+results_dict = save_as_pt(in_gpu=True)
 
 # %%
 # Save results
