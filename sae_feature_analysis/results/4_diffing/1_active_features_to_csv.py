@@ -12,7 +12,7 @@ from pathlib import Path
 # N_PROMPTS = 1000
 MODEL_TYPE = "gemma"
 SAE_LAYER = 20
-SAE_TRAINER = "131k-l0-34"
+SAE_TRAINER = "131k-l0-114"
 TOKEN_OFFSETS = {"model": -1, "newline": 0}
 N_PROMPTS = 1000
 
@@ -28,7 +28,7 @@ OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # Link
 LLAMA_LINK_FORMAT = f"https://www.neuronpedia.org/llama3.1-8b/{SAE_LAYER}-llamascope-res-131k/"
-GEMMA_LINK_FORMAT = f"https://www.neuronpedia.org/gemma-2-9b/{SAE_LAYER}-gemmascope-res-131k-l0_32plus/"
+GEMMA_LINK_FORMAT = f"https://www.neuronpedia.org/gemma-2-9b/{SAE_LAYER}-gemmascope-res-131k/"
 
 print(f"Loading base model data from: {BASE_FILE}")
 print(f"Loading chat model data from: {CHAT_FILE}")
