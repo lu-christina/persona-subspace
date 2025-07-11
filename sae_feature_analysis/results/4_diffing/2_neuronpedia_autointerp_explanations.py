@@ -19,12 +19,17 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-INPUT_FILE = "gemma_trainer131k-l0-34_layer20/1000_prompts/explanations_1percent.csv"
-OUTPUT_FILE = "gemma_trainer131k-l0-34_layer20/explanations_with_claude.csv"
+# INPUT_FILE = "gemma_trainer131k-l0-34_layer20/1000_prompts/explanations_1percent.csv"
+# OUTPUT_FILE = "gemma_trainer131k-l0-34_layer20/explanations_with_claude.csv"
 
-# Neuronpedia API parameters
-MODEL_ID = "gemma-2-9b"
-LAYER = "20-gemmascope-res-131k-l0_32plus"
+INPUT_FILE = "llama_trainer32x_layer15/10000_prompts/explanations_1percent.csv"
+OUTPUT_FILE = "llama_trainer32x_layer15/explanations_with_claude.csv"
+MODEL_ID = "llama3.1-8b"
+LAYER = "15-llamascope-res-131k"
+
+# # Neuronpedia API parameters
+# MODEL_ID = "gemma-2-9b"
+# LAYER = "20-gemmascope-res-131k-l0_32plus"
 EXPLANATION_TYPE = "eleuther_acts_top20"
 EXPLANATION_MODEL_NAME = "claude-3-7-sonnet-20250219"
 
