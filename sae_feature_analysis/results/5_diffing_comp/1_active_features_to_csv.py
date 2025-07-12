@@ -16,8 +16,8 @@ SAE_TRAINER = "131k-l0-114"
 TOKEN_OFFSETS = {"model": -1, "newline": 0}
 
 # File paths
-BASE_FILE = f"/workspace/results/5_diffing_personal/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_40/base.pt"
-CHAT_FILE = f"/workspace/results/5_diffing_personal/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_40/chat.pt"
+BASE_FILE = f"/workspace/results/5_diffing_comp/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_40/base.pt"
+CHAT_FILE = f"/workspace/results/5_diffing_comp/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_40/chat.pt"
 
 # Output directory
 OUTPUT_FILE = Path(f"{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_40/target_features.csv")

@@ -14,16 +14,16 @@ MODEL_TYPE = "gemma"
 SAE_LAYER = 20
 SAE_TRAINER = "131k-l0-114"
 TOKEN_OFFSETS = {"model": -1, "newline": 0}
-N_PROMPTS = 1000
+N_PROMPTS = 40
 
-PERCENT_ACTIVE = 1
+PERCENT_ACTIVE = 0
 
 # File paths
-BASE_FILE = f"/workspace/results/4_diffing/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/{N_PROMPTS}_prompts/base.pt"
-CHAT_FILE = f"/workspace/results/4_diffing/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/{N_PROMPTS}_prompts/chat.pt"
+BASE_FILE = f"/workspace/results/4_diffing/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_{N_PROMPTS}/base.pt"
+CHAT_FILE = f"/workspace/results/4_diffing/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_{N_PROMPTS}/chat.pt"
 
 # Output directory
-OUTPUT_FILE = Path(f"{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/{N_PROMPTS}_prompts/explanations_{PERCENT_ACTIVE}percent.csv")
+OUTPUT_FILE = Path(f"{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_{N_PROMPTS}/explanations.csv")
 OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # Link

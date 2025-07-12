@@ -19,8 +19,8 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-INPUT_FILE = "gemma_trainer131k-l0-114_layer20/1000_prompts/explanations_1percent.csv"
-OUTPUT_FILE = "gemma_trainer131k-l0-114_layer20/explanations_with_claude.csv"
+INPUT_FILE = "gemma_trainer131k-l0-114_layer20/personal_40/explanations.csv"
+OUTPUT_FILE = "../../explanations/gemma_trainer131k-l0-114_layer20.csv"
 
 # INPUT_FILE = "llama_trainer32x_layer15/10000_prompts/explanations_1percent.csv"
 # OUTPUT_FILE = "llama_trainer32x_layer15/explanations_with_claude.csv"
