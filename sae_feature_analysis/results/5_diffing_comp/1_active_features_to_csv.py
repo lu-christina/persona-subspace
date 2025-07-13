@@ -5,15 +5,15 @@ import os
 from pathlib import Path
 
 # Configuration
-# MODEL_TYPE = "llama"
-# SAE_LAYER = 15
-# SAE_TRAINER = "32x"
-# TOKEN_OFFSETS = {"asst": -2, "endheader": -1, "newline": 0}
-# N_PROMPTS = 1000
-MODEL_TYPE = "gemma"
-SAE_LAYER = 20
-SAE_TRAINER = "131k-l0-114"
-TOKEN_OFFSETS = {"model": -1, "newline": 0}
+MODEL_TYPE = "llama"
+SAE_LAYER = 15
+SAE_TRAINER = "32x"
+TOKEN_OFFSETS = {"asst": -2, "endheader": -1, "newline": 0}
+
+# MODEL_TYPE = "gemma"
+# SAE_LAYER = 20
+# SAE_TRAINER = "131k-l0-114"
+# TOKEN_OFFSETS = {"model": -1, "newline": 0}
 
 # File paths
 BASE_FILE = f"/workspace/results/5_diffing_comp/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/personal_40/base.pt"
