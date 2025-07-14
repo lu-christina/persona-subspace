@@ -6,7 +6,7 @@ from pathlib import Path
 
 # Configuration
 MODEL_TYPE = "llama"
-SAE_LAYER = 11
+SAE_LAYER = 19
 SAE_TRAINER = "32x"
 TOKEN_OFFSETS = {"asst": -2, "endheader": -1, "newline": 0}
 N_PROMPTS = 1000
