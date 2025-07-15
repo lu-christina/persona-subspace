@@ -22,15 +22,16 @@ logger = logging.getLogger(__name__)
 # INPUT_FILE = "gemma_trainer131k-l0-114_layer20/personal_40/explanations.csv"
 # OUTPUT_FILE = "../../explanations/gemma_trainer131k-l0-114_layer20.csv"
 
-INPUT_FILE = "llama_trainer32x_layer11/1000_prompts/explanations_1percent.csv"
-OUTPUT_FILE = "../../explanations/llama_trainer32x_layer11.csv"
+SAE_LAYER = 19
+INPUT_FILE = f"llama_trainer32x_layer{SAE_LAYER}/1000_prompts/explanations_1percent.csv"
+OUTPUT_FILE = f"../../explanations/llama_trainer32x_layer{SAE_LAYER}.csv"
 
 
 # # Neuronpedia API parameters
 # MODEL_ID = "gemma-2-9b"
 # LAYER = "20-gemmascope-res-131k"
 MODEL_ID = "llama3.1-8b"
-LAYER = "11-llamascope-res-131k"
+LAYER = f"{SAE_LAYER}-llamascope-res-131k"
 
 
 EXPLANATION_TYPE = "eleuther_acts_top20"
