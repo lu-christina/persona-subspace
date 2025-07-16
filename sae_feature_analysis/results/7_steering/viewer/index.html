@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAE Feature Activation Viewer</title>
+    <title>SAE Steering Results Viewer</title>
     <style>
         body {
             font-family: Verdana, Arial, sans-serif;
@@ -85,50 +85,61 @@
             text-align: center;
         }
         
-        .navigation {
-            background-color: #fff;
-            border-bottom: 1px solid #333;
-            padding: 10px 20px;
-            text-align: center;
-        }
-        
-        .navigation button {
-            margin: 0 10px;
-            padding: 5px 10px;
-            font-size: 12px;
-        }
-        
-        .prompt-container {
+        .prompts-container {
             flex: 1;
             overflow-y: auto;
             background-color: #fff;
             padding: 20px;
         }
         
-        .prompt-text {
-            line-height: 1.5;
-            font-size: 13px;
+        .prompt-row {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 20px;
+        }
+        
+        .prompt-question {
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+        
+        .responses-container {
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            padding: 10px 0;
+        }
+        
+        .response-box {
+            display: inline-block;
+            width: 250px;
+            height: 250px;
+            margin-right: 15px;
+            padding: 10px;
+            border: 1px solid #000;
+            background-color: #fff;
+            vertical-align: top;
+            white-space: normal;
             word-wrap: break-word;
         }
         
-        .token {
-            /* Removed padding to eliminate extra spaces */
+        .response-magnitude {
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
         }
         
-        .token.highlighted {
-            /* No bold styling */
+        .response-text {
+            line-height: 1.4;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
         }
-        
-        .activation-1 { background-color: rgba(255, 0, 0, 0.1); }
-        .activation-2 { background-color: rgba(255, 0, 0, 0.2); }
-        .activation-3 { background-color: rgba(255, 0, 0, 0.3); }
-        .activation-4 { background-color: rgba(255, 0, 0, 0.4); }
-        .activation-5 { background-color: rgba(255, 0, 0, 0.5); }
-        .activation-6 { background-color: rgba(255, 0, 0, 0.6); }
-        .activation-7 { background-color: rgba(255, 0, 0, 0.7); }
-        .activation-8 { background-color: rgba(255, 0, 0, 0.8); }
-        .activation-9 { background-color: rgba(255, 0, 0, 0.9); }
-        .activation-10 { background-color: rgba(255, 0, 0, 1.0); }
         
         a {
             color: #0000ff;
@@ -152,28 +163,6 @@
                 </div>
                 
                 <div class="control-group">
-                    <label>Token Type:</label>
-                    <select id="token-type-select">
-                        <option value="all">All Tokens</option>
-                        <option value="model">Model Token</option>
-                        <option value="newline">Newline Token</option>
-                    </select>
-                </div>
-                
-                <div class="control-group">
-                    <label>Type:</label>
-                    <select id="active-type-select">
-                        <option value="active">Active Prompts</option>
-                        <option value="inactive">Inactive Prompts</option>
-                    </select>
-                </div>
-                
-                <div class="control-group">
-                    <label>Threshold: <span id="threshold-value">0.0</span></label>
-                    <input type="range" id="threshold-slider" min="0" max="10" value="0" step="0.1">
-                </div>
-                
-                <div class="control-group">
                     <button id="load-btn">Load Data</button>
                 </div>
             </div>
@@ -185,19 +174,14 @@
         </div>
         
         <div class="main-content">
-            <div class="header">SAE Feature Activation</div>
+            <div class="header">SAE Steering Results Viewer</div>
             
             <div class="status" id="status">Click "Load Data" to begin</div>
             
-            <div class="navigation" id="navigation" style="display: none;">
-                <button id="prev-btn">Previous</button>
-                <span id="prompt-counter">0 / 0</span>
-                <button id="next-btn">Next</button>
-            </div>
-            
-            <div class="prompt-container">
-                <div class="prompt-info" id="prompt-info" style="display: none;"></div>
-                <div class="prompt-text" id="prompt-text">No data loaded</div>
+            <div class="prompts-container" id="prompts-container">
+                <div style="text-align: center; color: #666; margin-top: 50px;">
+                    No data loaded
+                </div>
             </div>
         </div>
     </div>
