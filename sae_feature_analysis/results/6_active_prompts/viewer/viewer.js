@@ -19,11 +19,8 @@ class FeatureViewer {
         this.promptDisplay = document.getElementById('prompt-display');
         this.promptInfo = document.getElementById('prompt-info');
         this.promptText = document.getElementById('prompt-text');
-        this.featureDescription = document.getElementById('feature-description');
-        this.neuronpediaLink = document.getElementById('neuronpedia-link');
         
         this.initEventListeners();
-        this.loadStoredSettings();
     }
     
     initEventListeners() {
@@ -31,27 +28,6 @@ class FeatureViewer {
         this.thresholdSlider.addEventListener('input', (e) => this.updateThreshold(e.target.value));
         this.prevBtn.addEventListener('click', () => this.navigatePrompt(-1));
         this.nextBtn.addEventListener('click', () => this.navigatePrompt(1));
-        
-        // Save settings on change
-        this.featureDescription.addEventListener('input', () => this.saveSettings());
-        this.neuronpediaLink.addEventListener('input', () => this.saveSettings());
-    }
-    
-    loadStoredSettings() {
-        const settings = localStorage.getItem('featureViewerSettings');
-        if (settings) {
-            const parsed = JSON.parse(settings);
-            this.featureDescription.value = parsed.description || '';
-            this.neuronpediaLink.value = parsed.neuronpediaLink || '';
-        }
-    }
-    
-    saveSettings() {
-        const settings = {
-            description: this.featureDescription.value,
-            neuronpediaLink: this.neuronpediaLink.value
-        };
-        localStorage.setItem('featureViewerSettings', JSON.stringify(settings));
     }
     
     updateThreshold(value) {
@@ -80,7 +56,23 @@ class FeatureViewer {
             }
             
             const text = await response.text();
-            this.data = text.trim().split('\\n').filter(line => line.trim()).map(line => JSON.parse(line));
+            
+            // Parse JSONL more carefully to handle malformed JSON
+            this.data = [];
+            const lines = text.trim().split('\n');
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    try {
+                        const parsed = JSON.parse(line);
+                        this.data.push(parsed);
+                    } catch (jsonError) {
+                        console.warn(`Skipping malformed JSON on line ${i + 1}:`, jsonError.message);
+                        console.warn(`Line content:`, line);
+                    }
+                }
+            }
             
             this.currentIndex = 0;
             this.setStatus(`Loaded ${this.data.length} prompts`, 'success');
@@ -112,7 +104,7 @@ class FeatureViewer {
     
     updateNavigation() {
         if (this.data.length > 0) {
-            this.navigation.style.display = 'flex';
+            this.navigation.style.display = 'block';
             this.updateNavigationButtons();
         } else {
             this.hideNavigation();
@@ -154,43 +146,19 @@ class FeatureViewer {
         const feature = this.featureSelect.value;
         const maxActivation = prompt.max_feature_activations ? prompt.max_feature_activations[feature] : 0;
         
-        let infoHTML = `
-            <h3>Prompt ${prompt.prompt_id}</h3>
-            <div class="prompt-info-grid">
-                <div class="info-item">
-                    <div class="info-label">Max Activation:</div>
-                    <div class="info-value">${maxActivation.toFixed(4)}</div>
-                </div>
-        `;
+        let infoHTML = `<strong>Prompt ${prompt.prompt_id}</strong> - Max Activation: ${maxActivation.toFixed(4)}`;
         
         if (prompt.token_type) {
-            infoHTML += `
-                <div class="info-item">
-                    <div class="info-label">Token Type:</div>
-                    <div class="info-value">${prompt.token_type}</div>
-                </div>
-            `;
+            infoHTML += ` - Token Type: ${prompt.token_type}`;
         }
         
         if (prompt.token_position !== undefined) {
-            infoHTML += `
-                <div class="info-item">
-                    <div class="info-label">Token Position:</div>
-                    <div class="info-value">${prompt.token_position}</div>
-                </div>
-            `;
+            infoHTML += ` - Position: ${prompt.token_position}`;
         }
         
         if (prompt.max_activation_at_position !== undefined) {
-            infoHTML += `
-                <div class="info-item">
-                    <div class="info-label">Activation at Position:</div>
-                    <div class="info-value">${prompt.max_activation_at_position.toFixed(4)}</div>
-                </div>
-            `;
+            infoHTML += ` - Position Activation: ${prompt.max_activation_at_position.toFixed(4)}`;
         }
-        
-        infoHTML += '</div>';
         
         this.promptInfo.innerHTML = infoHTML;
         this.promptInfo.style.display = 'block';
