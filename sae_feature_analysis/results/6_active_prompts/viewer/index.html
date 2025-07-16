@@ -8,58 +8,88 @@
         body {
             font-family: Verdana, Arial, sans-serif;
             font-size: 12px;
-            margin: 20px;
+            margin: 0;
+            padding: 0;
             background-color: #f0f0f0;
+            height: 100vh;
+            overflow: hidden;
         }
         
         .container {
-            width: 800px;
-            margin: 0 auto;
+            display: flex;
+            height: 100vh;
         }
         
-        .box {
-            border: 2px solid #333;
+        .sidebar {
+            width: 300px;
             background-color: #fff;
-            padding: 10px;
-            margin: 10px 0;
+            border-right: 2px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         
         .header {
+            background-color: #fff;
+            border-bottom: 2px solid #333;
+            padding: 20px;
             text-align: center;
             font-size: 18px;
             font-weight: bold;
-            margin-bottom: 10px;
         }
         
         .controls {
-            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .control-group {
             margin: 10px 0;
         }
         
-        .controls select, .controls input, .controls button {
-            margin: 5px;
-            padding: 3px;
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .control-group select, .control-group input, .control-group button {
+            width: 100%;
+            padding: 5px;
             font-size: 12px;
         }
         
         .metadata {
-            margin: 10px 0;
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #333;
+            background-color: #f9f9f9;
         }
         
         .metadata div {
-            margin: 5px 0;
+            margin: 10px 0;
         }
         
         .status {
-            text-align: center;
+            background-color: #fff;
+            border-bottom: 1px solid #333;
+            padding: 10px 20px;
             font-style: italic;
             color: #666;
-            margin: 10px 0;
+            text-align: center;
         }
         
         .navigation {
+            background-color: #fff;
+            border-bottom: 1px solid #333;
+            padding: 10px 20px;
             text-align: center;
-            margin: 10px 0;
         }
         
         .navigation button {
@@ -68,14 +98,14 @@
             font-size: 12px;
         }
         
-        .prompt-info {
-            margin: 10px 0;
-            font-size: 11px;
-            color: #333;
+        .prompt-container {
+            flex: 1;
+            overflow-y: auto;
+            background-color: #fff;
+            padding: 20px;
         }
         
         .prompt-text {
-            margin: 10px 0;
             line-height: 1.5;
             font-size: 13px;
             word-wrap: break-word;
@@ -86,7 +116,7 @@
         }
         
         .token.highlighted {
-            font-weight: bold;
+            /* No bold styling */
         }
         
         .activation-1 { background-color: rgba(255, 0, 0, 0.1); }
@@ -112,54 +142,63 @@
 </head>
 <body>
     <div class="container">
-        <div class="box">
-            <div class="header">SAE Feature Activation Viewer</div>
-            
+        <div class="sidebar">
             <div class="controls">
-                Feature: 
-                <select id="feature-select">
-                    <option value="45426">45426</option>
-                </select>
+                <div class="control-group">
+                    <label>Feature:</label>
+                    <select id="feature-select">
+                        <option value="45426">45426</option>
+                    </select>
+                </div>
                 
-                Token Type: 
-                <select id="token-type-select">
-                    <option value="all">All Tokens</option>
-                    <option value="model">Model Token</option>
-                    <option value="newline">Newline Token</option>
-                </select>
+                <div class="control-group">
+                    <label>Token Type:</label>
+                    <select id="token-type-select">
+                        <option value="all">All Tokens</option>
+                        <option value="model">Model Token</option>
+                        <option value="newline">Newline Token</option>
+                    </select>
+                </div>
                 
-                Type: 
-                <select id="active-type-select">
-                    <option value="active">Active Prompts</option>
-                    <option value="inactive">Inactive Prompts</option>
-                </select>
+                <div class="control-group">
+                    <label>Type:</label>
+                    <select id="active-type-select">
+                        <option value="active">Active Prompts</option>
+                        <option value="inactive">Inactive Prompts</option>
+                    </select>
+                </div>
                 
-                Threshold: 
-                <input type="range" id="threshold-slider" min="0" max="10" value="0" step="0.1">
-                <span id="threshold-value">0.0</span>
+                <div class="control-group">
+                    <label>Threshold: <span id="threshold-value">0.0</span></label>
+                    <input type="range" id="threshold-slider" min="0" max="10" value="0" step="0.1">
+                </div>
                 
-                <button id="load-btn">Load Data</button>
+                <div class="control-group">
+                    <button id="load-btn">Load Data</button>
+                </div>
             </div>
-        </div>
-        
-        <div class="box">
+            
             <div class="metadata">
-                <div><strong>Feature Description:</strong> Terms related to possession, transformation, or existence in various forms - including souls, spirits, fragments, or consciousness that can inhabit, transform into, or transfer between different physical vessels, bodies, or objects.</div>
+                <div><strong>Feature Description:</strong><br>Terms related to possession, transformation, or existence in various forms - including souls, spirits, fragments, or consciousness that can inhabit, transform into, or transfer between different physical vessels, bodies, or objects.</div>
                 <div><a href="https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/45426" target="_blank">View on Neuronpedia</a></div>
             </div>
         </div>
         
-        <div class="status" id="status">Click "Load Data" to begin</div>
-        
-        <div class="navigation" id="navigation" style="display: none;">
-            <button id="prev-btn">Previous</button>
-            <span id="prompt-counter">0 / 0</span>
-            <button id="next-btn">Next</button>
-        </div>
-        
-        <div class="box">
-            <div class="prompt-info" id="prompt-info" style="display: none;"></div>
-            <div class="prompt-text" id="prompt-text">No data loaded</div>
+        <div class="main-content">
+            <div class="header">SAE Feature Activation Viewer</div>
+            
+            <div class="status" id="status">Click "Load Data" to begin</div>
+            
+            <div class="navigation" id="navigation" style="display: none;">
+                <button id="prev-btn">Previous</button>
+                <span id="prompt-counter">0 / 0</span>
+                <button id="next-btn">Next</button>
+            </div>
+            
+            <div class="prompt-container">
+                <div class="prompt-info" id="prompt-info" style="display: none;"></div>
+                <div class="prompt-text" id="prompt-text">No data loaded</div>
+            </div>
         </div>
     </div>
     
