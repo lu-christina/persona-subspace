@@ -100,7 +100,7 @@ class SteeringViewer {
         
         return `
             <div class="prompt-row">
-                <div class="prompt-question">Prompt: ${this.escapeHtml(prompt)}</div>
+                <div class="prompt-question"><b>Prompt:</b> ${this.escapeHtml(prompt)}</div>
                 <div class="responses-container">
                     ${responsesHTML}
                 </div>
