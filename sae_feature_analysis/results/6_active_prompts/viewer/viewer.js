@@ -72,7 +72,7 @@ class FeatureViewer {
         
         try {
             const fileName = this.constructFileName(activeType, tokenType);
-            const filePath = `../gemma_trainer131k-l0-114_layer20/1000_prompts/${fileName}`;
+            const filePath = `../gemma_trainer131k-l0-114_layer20/1000_prompts/45426/${fileName}`;
             
             const response = await fetch(filePath);
             if (!response.ok) {
