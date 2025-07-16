@@ -198,11 +198,14 @@ class FeatureViewer {
                 const token = tokenizedPrompt[i];
                 const activation = activationMap.get(i) || 0;
                 
+                // Display newlines as literal "\n"
+                const displayToken = token === '\n' ? '\\n' : token;
+                
                 if (activation > this.currentThreshold) {
                     const colorClass = this.getActivationColorClass(activation);
-                    textHTML += `<span class="token highlighted ${colorClass}">${this.escapeHtml(token)}</span>`;
+                    textHTML += `<span class="token highlighted ${colorClass}">${this.escapeHtml(displayToken)}</span>`;
                 } else {
-                    textHTML += `<span class="token">${this.escapeHtml(token)}</span>`;
+                    textHTML += `<span class="token">${this.escapeHtml(displayToken)}</span>`;
                 }
             }
         }
