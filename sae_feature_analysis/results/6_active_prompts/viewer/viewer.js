@@ -193,8 +193,8 @@ class FeatureViewer {
                 });
             }
             
-            // Generate HTML with highlighting
-            for (let i = 0; i < tokenizedPrompt.length; i++) {
+            // Generate HTML with highlighting, skip first 2 tokens (<bos> tokens)
+            for (let i = 2; i < tokenizedPrompt.length; i++) {
                 const token = tokenizedPrompt[i];
                 const activation = activationMap.get(i) || 0;
                 
