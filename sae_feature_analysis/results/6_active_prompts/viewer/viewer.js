@@ -1,7 +1,8 @@
 class FeatureViewer {
     constructor() {
         this.data = [];
-        this.currentIndex = 0;
+        this.currentPage = 0;
+        this.promptsPerPage = 50;
         this.currentThreshold = 0;
         
         // DOM elements
@@ -26,15 +27,15 @@ class FeatureViewer {
     initEventListeners() {
         this.loadBtn.addEventListener('click', () => this.loadData());
         this.thresholdSlider.addEventListener('input', (e) => this.updateThreshold(e.target.value));
-        this.prevBtn.addEventListener('click', () => this.navigatePrompt(-1));
-        this.nextBtn.addEventListener('click', () => this.navigatePrompt(1));
+        this.prevBtn.addEventListener('click', () => this.navigatePage(-1));
+        this.nextBtn.addEventListener('click', () => this.navigatePage(1));
     }
     
     updateThreshold(value) {
         this.currentThreshold = parseFloat(value);
         this.thresholdValue.textContent = value;
         if (this.data.length > 0) {
-            this.displayPrompt();
+            this.displayPage();
         }
     }
     
@@ -74,10 +75,10 @@ class FeatureViewer {
                 }
             }
             
-            this.currentIndex = 0;
+            this.currentPage = 0;
             this.setStatus(`Loaded ${this.data.length} prompts`, 'success');
             this.updateNavigation();
-            this.displayPrompt();
+            this.displayPage();
             
         } catch (error) {
             console.error('Error loading data:', error);
@@ -116,36 +117,51 @@ class FeatureViewer {
     }
     
     updateNavigationButtons() {
-        this.prevBtn.disabled = this.currentIndex === 0;
-        this.nextBtn.disabled = this.currentIndex === this.data.length - 1;
-        this.promptCounter.textContent = `${this.currentIndex + 1} / ${this.data.length}`;
+        const totalPages = Math.ceil(this.data.length / this.promptsPerPage);
+        this.prevBtn.disabled = this.currentPage === 0;
+        this.nextBtn.disabled = this.currentPage === totalPages - 1;
+        
+        const startPrompt = this.currentPage * this.promptsPerPage + 1;
+        const endPrompt = Math.min((this.currentPage + 1) * this.promptsPerPage, this.data.length);
+        this.promptCounter.textContent = `${startPrompt}-${endPrompt} of ${this.data.length} (Page ${this.currentPage + 1}/${totalPages})`;
     }
     
-    navigatePrompt(direction) {
-        const newIndex = this.currentIndex + direction;
-        if (newIndex >= 0 && newIndex < this.data.length) {
-            this.currentIndex = newIndex;
+    navigatePage(direction) {
+        const totalPages = Math.ceil(this.data.length / this.promptsPerPage);
+        const newPage = this.currentPage + direction;
+        if (newPage >= 0 && newPage < totalPages) {
+            this.currentPage = newPage;
             this.updateNavigationButtons();
-            this.displayPrompt();
+            this.displayPage();
         }
     }
     
-    displayPrompt() {
+    displayPage() {
         if (this.data.length === 0) {
             this.promptText.innerHTML = '<p>No data loaded</p>';
             this.promptInfo.style.display = 'none';
             return;
         }
         
-        const prompt = this.data[this.currentIndex];
-        this.displayPromptInfo(prompt);
-        this.displayPromptText(prompt);
+        const startIdx = this.currentPage * this.promptsPerPage;
+        const endIdx = Math.min(startIdx + this.promptsPerPage, this.data.length);
+        const pagePrompts = this.data.slice(startIdx, endIdx);
+        
+        let html = '';
+        for (let i = 0; i < pagePrompts.length; i++) {
+            const prompt = pagePrompts[i];
+            html += this.renderPrompt(prompt, i === 0);
+        }
+        
+        this.promptText.innerHTML = html;
+        this.promptInfo.style.display = 'none';
     }
     
-    displayPromptInfo(prompt) {
+    renderPrompt(prompt, isFirst = false) {
         const feature = this.featureSelect.value;
         const maxActivation = prompt.max_feature_activations ? prompt.max_feature_activations[feature] : 0;
         
+        // Build prompt info
         let infoHTML = `<strong>Prompt ${prompt.prompt_id}</strong> - Max Activation: ${maxActivation.toFixed(4)}`;
         
         if (prompt.token_type) {
@@ -160,44 +176,45 @@ class FeatureViewer {
             infoHTML += ` - Position Activation: ${prompt.max_activation_at_position.toFixed(4)}`;
         }
         
-        this.promptInfo.innerHTML = infoHTML;
-        this.promptInfo.style.display = 'block';
-    }
-    
-    displayPromptText(prompt) {
+        // Build prompt text with highlighting
+        let textHTML = '';
         if (!prompt.tokenized_prompt) {
-            this.promptText.innerHTML = `<p>${this.escapeHtml(prompt.prompt_text)}</p>`;
-            return;
-        }
-        
-        const feature = this.featureSelect.value;
-        const tokenizedPrompt = prompt.tokenized_prompt;
-        
-        // Create activation map from tokens
-        const activationMap = new Map();
-        if (prompt.tokens) {
-            prompt.tokens.forEach(token => {
-                if (token.feature_activations && token.feature_activations[feature]) {
-                    activationMap.set(token.position, token.feature_activations[feature]);
-                }
-            });
-        }
-        
-        // Generate HTML with highlighting
-        let html = '';
-        for (let i = 0; i < tokenizedPrompt.length; i++) {
-            const token = tokenizedPrompt[i];
-            const activation = activationMap.get(i) || 0;
+            textHTML = `<p>${this.escapeHtml(prompt.prompt_text)}</p>`;
+        } else {
+            const tokenizedPrompt = prompt.tokenized_prompt;
             
-            if (activation > this.currentThreshold) {
-                const colorClass = this.getActivationColorClass(activation);
-                html += `<span class="token highlighted ${colorClass}">${this.escapeHtml(token)}</span>`;
-            } else {
-                html += `<span class="token">${this.escapeHtml(token)}</span>`;
+            // Create activation map from tokens
+            const activationMap = new Map();
+            if (prompt.tokens) {
+                prompt.tokens.forEach(token => {
+                    if (token.feature_activations && token.feature_activations[feature]) {
+                        activationMap.set(token.position, token.feature_activations[feature]);
+                    }
+                });
+            }
+            
+            // Generate HTML with highlighting
+            for (let i = 0; i < tokenizedPrompt.length; i++) {
+                const token = tokenizedPrompt[i];
+                const activation = activationMap.get(i) || 0;
+                
+                if (activation > this.currentThreshold) {
+                    const colorClass = this.getActivationColorClass(activation);
+                    textHTML += `<span class="token highlighted ${colorClass}">${this.escapeHtml(token)}</span>`;
+                } else {
+                    textHTML += `<span class="token">${this.escapeHtml(token)}</span>`;
+                }
             }
         }
         
-        this.promptText.innerHTML = html;
+        const marginTop = isFirst ? '0' : '20px';
+        
+        return `
+            <div style="margin-top: ${marginTop}; padding: 10px; border-bottom: 1px solid #ddd;">
+                <div style="margin-bottom: 10px; font-size: 11px; color: #333;">${infoHTML}</div>
+                <div style="line-height: 1.5; font-size: 13px; word-wrap: break-word;">${textHTML}</div>
+            </div>
+        `;
     }
     
     getActivationColorClass(activation) {
