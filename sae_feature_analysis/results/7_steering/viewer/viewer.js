@@ -9,12 +9,27 @@ class SteeringViewer {
         this.status = document.getElementById('status');
         this.promptsContainer = document.getElementById('prompts-container');
         
+        // Visibility controls
+        this.toggleDefault = document.getElementById('toggle-default');
+        this.toggleAblation = document.getElementById('toggle-ablation');
+        this.toggleSteering = document.getElementById('toggle-steering');
+        
+        // Visibility state
+        this.showDefault = true;
+        this.showAblation = true;
+        this.showSteering = true;
+        
         this.initEventListeners();
     }
     
     initEventListeners() {
         this.loadBtn.addEventListener('click', () => this.loadData());
         this.featureSelect.addEventListener('change', () => this.displayData());
+        
+        // Visibility controls
+        this.toggleDefault.addEventListener('click', () => this.toggleVisibility('default'));
+        this.toggleAblation.addEventListener('click', () => this.toggleVisibility('ablation'));
+        this.toggleSteering.addEventListener('click', () => this.toggleVisibility('steering'));
     }
     
     async loadData() {
@@ -22,14 +37,14 @@ class SteeringViewer {
         this.loadBtn.disabled = true;
         
         try {
-            const response = await fetch('../gemma_trainer131k-l0-114_layer20/steering_results.json');
+            const selectedFeature = this.featureSelect.value;
+            const response = await fetch(`../gemma_trainer131k-l0-114_layer20/${selectedFeature}.json`);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             this.data = await response.json();
-            this.populateFeatureSelect();
-            this.setStatus(`Loaded steering results for ${Object.keys(this.data.results).length} features`, 'success');
+            this.setStatus(`Loaded steering results for feature ${selectedFeature}`, 'success');
             this.displayData();
             
         } catch (error) {
@@ -43,17 +58,8 @@ class SteeringViewer {
     }
     
     populateFeatureSelect() {
-        if (!this.data || !this.data.results) return;
-        
-        this.availableFeatures = Object.keys(this.data.results);
-        this.featureSelect.innerHTML = '';
-        
-        this.availableFeatures.forEach(feature => {
-            const option = document.createElement('option');
-            option.value = feature;
-            option.textContent = feature;
-            this.featureSelect.appendChild(option);
-        });
+        // Feature select is now hardcoded in HTML since we load individual files
+        // Keep this method for compatibility
     }
     
     setStatus(message, type = '') {
@@ -67,64 +73,105 @@ class SteeringViewer {
             return;
         }
         
-        const selectedFeature = this.featureSelect.value;
-        const featureData = this.data.results[selectedFeature];
-        
-        if (!featureData) {
-            this.clearDisplay();
-            return;
-        }
-        
         let html = '';
         
         // Get all prompts for this feature
-        const prompts = Object.keys(featureData);
+        const prompts = Object.keys(this.data.results);
         
         prompts.forEach(prompt => {
-            const responses = featureData[prompt];
+            const responses = this.data.results[prompt];
             html += this.renderPromptRow(prompt, responses);
         });
         
         this.promptsContainer.innerHTML = html;
+        
+        // Initialize response navigation after rendering
+        setTimeout(() => this.initResponseNavigation(), 0);
     }
     
     renderPromptRow(prompt, responses) {
-        // Sort magnitudes numerically
-        const magnitudes = Object.keys(responses).sort((a, b) => parseFloat(a) - parseFloat(b));
+        let defaultHTML = '';
+        let scrollableHTML = '';
         
-        let responsesHTML = '';
-        magnitudes.forEach(magnitude => {
-            const response = responses[magnitude];
-            responsesHTML += this.renderResponseBox(magnitude, response);
-        });
+        // 1. Add default (0.0) first - this will be frozen
+        if (this.showDefault && responses.steering && responses.steering['0.0']) {
+            defaultHTML = this.renderResponseBox('Default', responses.steering['0.0'], 'default');
+        }
+        
+        // 2. Add ablation responses - these will scroll
+        if (this.showAblation && responses.ablation) {
+            if (responses.ablation.add_error) {
+                scrollableHTML += this.renderResponseBox('Zero Ablation (SAE encode/decode)', responses.ablation.add_error, 'ablation');
+            }
+            
+            if (responses.ablation.projection_zero_ablate) {
+                scrollableHTML += this.renderResponseBox('Zero Ablation (Projection ablation)', responses.ablation.projection_zero_ablate, 'ablation');
+            }
+        }
+        
+        // 3. Add steering responses in increasing order (excluding 0.0 which we already added) - these will scroll
+        if (this.showSteering && responses.steering) {
+            const magnitudes = Object.keys(responses.steering)
+                .filter(mag => mag !== '0.0')
+                .sort((a, b) => parseFloat(a) - parseFloat(b));
+            
+            magnitudes.forEach(magnitude => {
+                const responseList = responses.steering[magnitude];
+                const label = `Steering ${magnitude}`;
+                scrollableHTML += this.renderResponseBox(label, responseList, 'steering');
+            });
+        }
         
         return `
             <div class="prompt-row">
                 <div class="prompt-question"><b>Prompt:</b> ${this.escapeHtml(prompt)}</div>
-                <div class="responses-container">
-                    ${responsesHTML}
+                <div class="responses-layout">
+                    <div class="default-response-container">
+                        ${defaultHTML}
+                    </div>
+                    <div class="scrollable-responses-container">
+                        ${scrollableHTML}
+                    </div>
                 </div>
             </div>
         `;
     }
     
-    renderResponseBox(magnitude, response) {
-        const magnitudeFloat = parseFloat(magnitude);
+    renderResponseBox(label, responseList, type) {
+        if (!responseList || responseList.length === 0) return '';
         
-        // Format magnitude display
-        const magnitudeDisplay = magnitudeFloat >= 0 ? `+${magnitude}` : magnitude;
+        const currentResponse = responseList[0]; // Start with first response
+        const processedResponse = this.processResponseText(currentResponse);
         
-        // Process response text to handle newlines and basic markdown
-        const processedResponse = this.processResponseText(response);
+        // Create navigation - always show counter, only show buttons if multiple responses
+        let navigationHTML = '';
+        if (responseList.length > 1) {
+            navigationHTML = `
+                <div class="response-navigation">
+                    <button class="nav-btn prev-btn" onclick="this.closest('.response-box').changeResponse(-1)" disabled>‹</button>
+                    <span class="response-counter">1 / ${responseList.length}</span>
+                    <button class="nav-btn next-btn" onclick="this.closest('.response-box').changeResponse(1)">›</button>
+                </div>
+            `;
+        } else {
+            navigationHTML = `
+                <div class="response-navigation">
+                    <span class="response-counter">1 / 1</span>
+                </div>
+            `;
+        }
+        
+        const boxId = `response-${Math.random().toString(36).substr(2, 9)}`;
         
         return `
-            <div class="response-box">
+            <div class="response-box ${type}" id="${boxId}" data-responses='${JSON.stringify(responseList).replace(/'/g, "&#39;")}' data-current-index="0">
                 <div class="response-magnitude">
-                    Magnitude: ${magnitudeDisplay}
+                    ${label}
                 </div>
                 <div class="response-text">
                     ${processedResponse}
                 </div>
+                ${navigationHTML}
             </div>
         `;
     }
@@ -139,6 +186,9 @@ class SteeringViewer {
         // Handle basic markdown formatting
         processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         processed = processed.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        
+        // Replace newlines with <br> tags to avoid pre-line whitespace issues
+        processed = processed.replace(/\n/g, '<br>');
         
         return processed;
     }
@@ -156,9 +206,66 @@ class SteeringViewer {
         div.textContent = text;
         return div.innerHTML;
     }
+    
+    toggleVisibility(type) {
+        switch(type) {
+            case 'default':
+                this.showDefault = !this.showDefault;
+                this.toggleDefault.textContent = this.showDefault ? 'Hide Default' : 'Show Default';
+                this.toggleDefault.classList.toggle('active', this.showDefault);
+                break;
+            case 'ablation':
+                this.showAblation = !this.showAblation;
+                this.toggleAblation.textContent = this.showAblation ? 'Hide Ablation' : 'Show Ablation';
+                this.toggleAblation.classList.toggle('active', this.showAblation);
+                break;
+            case 'steering':
+                this.showSteering = !this.showSteering;
+                this.toggleSteering.textContent = this.showSteering ? 'Hide Steering' : 'Show Steering';
+                this.toggleSteering.classList.toggle('active', this.showSteering);
+                break;
+        }
+        
+        // Re-render the data with new visibility settings
+        this.displayData();
+    }
+    
+    // Add method to handle response navigation
+    initResponseNavigation() {
+        // Add change response method to response boxes
+        const changeResponse = function(direction) {
+            const responses = JSON.parse(this.getAttribute('data-responses'));
+            let currentIndex = parseInt(this.getAttribute('data-current-index'));
+            
+            currentIndex += direction;
+            if (currentIndex < 0) currentIndex = 0;
+            if (currentIndex >= responses.length) currentIndex = responses.length - 1;
+            
+            this.setAttribute('data-current-index', currentIndex);
+            
+            // Update response text
+            const responseText = this.querySelector('.response-text');
+            const viewer = window.steeringViewer;
+            responseText.innerHTML = viewer.processResponseText(responses[currentIndex]);
+            
+            // Update navigation buttons
+            const prevBtn = this.querySelector('.prev-btn');
+            const nextBtn = this.querySelector('.next-btn');
+            const counter = this.querySelector('.response-counter');
+            
+            if (prevBtn) prevBtn.disabled = currentIndex === 0;
+            if (nextBtn) nextBtn.disabled = currentIndex === responses.length - 1;
+            if (counter) counter.textContent = `${currentIndex + 1} / ${responses.length}`;
+        };
+        
+        // Attach method to all response boxes
+        document.querySelectorAll('.response-box').forEach(box => {
+            box.changeResponse = changeResponse;
+        });
+    }
 }
 
 // Initialize viewer when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new SteeringViewer();
+    window.steeringViewer = new SteeringViewer();
 });

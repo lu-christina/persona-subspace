@@ -76,6 +76,34 @@
             margin: 10px 0;
         }
         
+        .visibility-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin: 20px 0;
+        }
+        
+        .visibility-btn {
+            width: 100%;
+            padding: 5px;
+            font-size: 12px;
+            border: 1px solid #999;
+            background-color: #f0f0f0;
+            cursor: pointer;
+        }
+        
+        .visibility-btn.active {
+            background-color: #d0d0d0;
+        }
+        
+        .visibility-btn:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .visibility-btn.active:hover {
+            background-color: #c0c0c0;
+        }
+        
         .status {
             background-color: #fff;
             border-bottom: 1px solid #333;
@@ -105,11 +133,26 @@
             border: 1px solid #ddd;
         }
         
-        .responses-container {
+        .responses-layout {
+            display: flex;
+            gap: 15px;
+            padding: 10px 0;
+        }
+        
+        .default-response-container {
+            flex-shrink: 0;
+        }
+        
+        .scrollable-responses-container {
             overflow-x: auto;
             overflow-y: hidden;
             white-space: nowrap;
-            padding: 10px 0;
+            flex: 1;
+        }
+        
+        .scrollable-responses-container .response-box {
+            display: inline-block;
+            margin-right: 15px;
         }
         
         .response-box {
@@ -117,7 +160,7 @@
             width: 250px;
             height: 250px;
             margin-right: 15px;
-            padding: 10px;
+            padding: 10px 10px 0 10px;
             border: 1px solid #000;
             background-color: #fff;
             vertical-align: top;
@@ -135,11 +178,116 @@
         .response-text {
             line-height: 1.4;
             font-size: 12px;
-            height: 200px;
+            height: 190px;
             overflow-y: auto;
-            white-space: pre-line;
             margin: 0;
             padding: 0;
+        }
+        
+        .response-navigation {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px 0 0 0;
+            padding: 0;
+            border-top: 1px solid #ddd;
+            height: 20px;
+        }
+        
+        .response-navigation:has(.nav-btn) {
+            justify-content: space-between;
+        }
+        
+        .nav-btn {
+            background: #f0f0f0;
+            border: 1px solid #999;
+            width: 20px;
+            height: 18px;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            line-height: 1;
+        }
+        
+        .nav-btn:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+        
+        .nav-btn:disabled {
+            background: #f8f8f8;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        .response-counter {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .response-box.default {
+            border-color: #000;
+        }
+        
+        .response-box.default .response-text::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .response-box.default .response-text::-webkit-scrollbar-track {
+            background: #fff;
+        }
+        
+        .response-box.default .response-text::-webkit-scrollbar-thumb {
+            background: #000;
+            border-radius: 4px;
+        }
+        
+        .response-box.default .response-text::-webkit-scrollbar-thumb:hover {
+            background: #333;
+        }
+        
+        .response-box.ablation {
+            border-color: #cc0000;
+            background-color: #ffe6e6;
+        }
+        
+        .response-box.steering {
+            border-color: #0066cc;
+            background-color: #e6f2ff;
+        }
+        
+        .response-box.steering .response-text::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .response-box.steering .response-text::-webkit-scrollbar-track {
+            background: #e6f2ff;
+        }
+        
+        .response-box.steering .response-text::-webkit-scrollbar-thumb {
+            background: #0066cc;
+            border-radius: 4px;
+        }
+        
+        .response-box.steering .response-text::-webkit-scrollbar-thumb:hover {
+            background: #004499;
+        }
+        
+        .response-box.ablation .response-text::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .response-box.ablation .response-text::-webkit-scrollbar-track {
+            background: #ffe6e6;
+        }
+        
+        .response-box.ablation .response-text::-webkit-scrollbar-thumb {
+            background: #cc0000;
+            border-radius: 4px;
+        }
+        
+        .response-box.ablation .response-text::-webkit-scrollbar-thumb:hover {
+            background: #990000;
         }
         
         a {
@@ -155,6 +303,8 @@
 <body>
     <div class="container">
         <div class="sidebar">
+            <div class="status" id="status">Click "Load Data" to begin</div>
+            
             <div class="controls">
                 <div class="control-group">
                     <label>Feature:</label>
@@ -172,12 +322,16 @@
                 <div><strong>Feature Description:</strong><br>Terms related to possession, transformation, or existence in various forms - including souls, spirits, fragments, or consciousness that can inhabit, transform into, or transfer between different physical vessels, bodies, or objects.</div>
                 <div><a href="https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/45426" target="_blank">View on Neuronpedia</a></div>
             </div>
+            
+            <div class="visibility-buttons">
+                <button id="toggle-default" class="visibility-btn active">Hide Default</button>
+                <button id="toggle-ablation" class="visibility-btn active">Hide Ablation</button>
+                <button id="toggle-steering" class="visibility-btn active">Hide Steering</button>
+            </div>
         </div>
         
         <div class="main-content">
             <div class="header">SAE Steering Results Viewer</div>
-            
-            <div class="status" id="status">Click "Load Data" to begin</div>
             
             <div class="prompts-container" id="prompts-container">
                 <div style="text-align: center; color: #666; margin-top: 50px;">
