@@ -85,6 +85,21 @@
             text-align: center;
         }
         
+        .status.error {
+            color: #d32f2f;
+            background-color: #ffebee;
+        }
+        
+        .status.success {
+            color: #2e7d32;
+            background-color: #e8f5e8;
+        }
+        
+        .status.loading {
+            color: #1976d2;
+            background-color: #e3f2fd;
+        }
+        
         .navigation {
             background-color: #fff;
             border-bottom: 1px solid #333;
@@ -181,6 +196,14 @@
             <div class="metadata">
                 <div><strong>Feature Description:</strong><br><span id="feature-description">Select a feature to view description</span></div>
                 <div><a id="neuronpedia-link" href="#" target="_blank" style="display: none;">View on Neuronpedia</a></div>
+            </div>
+            
+            <div class="control-group" style="margin-top: 15px;">
+                <label>Sort Order:</label>
+                <select id="sort-order-select">
+                    <option value="default">Default order</option>
+                    <option value="activation">Max activation order</option>
+                </select>
             </div>
         </div>
         

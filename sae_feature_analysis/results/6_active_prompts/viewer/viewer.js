@@ -14,6 +14,7 @@ class FeatureViewer {
         this.thresholdSlider = document.getElementById('threshold-slider');
         this.thresholdValue = document.getElementById('threshold-value');
         this.loadBtn = document.getElementById('load-btn');
+        this.sortOrderSelect = document.getElementById('sort-order-select');
         this.status = document.getElementById('status');
         this.navigation = document.getElementById('navigation');
         this.prevBtn = document.getElementById('prev-btn');
@@ -34,7 +35,11 @@ class FeatureViewer {
         this.thresholdSlider.addEventListener('input', (e) => this.updateThreshold(e.target.value));
         this.prevBtn.addEventListener('click', () => this.navigatePage(-1));
         this.nextBtn.addEventListener('click', () => this.navigatePage(1));
-        this.featureSelect.addEventListener('change', () => this.updateFeatureMetadata());
+        this.featureSelect.addEventListener('change', () => {
+            this.updateFeatureMetadata();
+            this.updateUrlParameter();
+        });
+        this.sortOrderSelect.addEventListener('change', () => this.applySortOrder());
     }
     
     updateThreshold(value) {
@@ -87,6 +92,7 @@ class FeatureViewer {
             }
             
             this.currentPage = 0;
+            this.applySortOrder();
             this.setStatus(`Loaded ${this.data.length} prompts`, 'success');
             this.updateNavigation();
             this.displayPage();
@@ -107,6 +113,46 @@ class FeatureViewer {
         } else {
             return `${activeType}_${tokenType}.jsonl`;
         }
+    }
+    
+    applySortOrder() {
+        if (this.data.length === 0) {
+            return;
+        }
+        
+        const sortOrder = this.sortOrderSelect.value;
+        const feature = this.featureSelect.value;
+        
+        if (sortOrder === 'activation' && feature) {
+            // Sort by max activation in descending order
+            this.data.sort((a, b) => {
+                let aActivation = 0;
+                let bActivation = 0;
+                
+                // Handle both data formats: dictionary format and single value format
+                if (a.max_feature_activations && a.max_feature_activations[feature]) {
+                    aActivation = a.max_feature_activations[feature];
+                } else if (a.max_feature_activation) {
+                    aActivation = a.max_feature_activation;
+                }
+                
+                if (b.max_feature_activations && b.max_feature_activations[feature]) {
+                    bActivation = b.max_feature_activations[feature];
+                } else if (b.max_feature_activation) {
+                    bActivation = b.max_feature_activation;
+                }
+                
+                return bActivation - aActivation; // Descending order
+            });
+        } else {
+            // For 'default' order, sort by prompt_id to restore original order
+            this.data.sort((a, b) => a.prompt_id - b.prompt_id);
+        }
+        
+        // Reset to first page and update display
+        this.currentPage = 0;
+        this.updateNavigation();
+        this.displayPage();
     }
     
     setStatus(message, type = '') {
@@ -263,7 +309,16 @@ class FeatureViewer {
             await this.discoverFeatures();
             await this.loadFeatureMetadata();
             this.populateFeatureDropdown();
-            this.setStatus('Ready - select a feature and click "Load Data"', 'success');
+            
+            // Check for feature_id URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const featureId = urlParams.get('feature_id');
+            
+            if (featureId) {
+                this.handleUrlFeature(featureId);
+            } else {
+                this.setStatus('Ready - select a feature and click "Load Data"', 'success');
+            }
         } catch (error) {
             console.error('Error initializing viewer:', error);
             this.setStatus(`Error initializing viewer: ${error.message}`, 'error');
@@ -271,30 +326,15 @@ class FeatureViewer {
     }
     
     async discoverFeatures() {
-        // Since we can't directly list directories from browser, we'll try to fetch known features
-        // This is a workaround - we'll try to fetch the active.jsonl file for each potential feature
-        const knownFeatures = [
-            '10392', '11383', '21953', '26196', '45426', '57516', '65116', '71187', 
-            '74079', '74855', '80134', '8524', '85422', '90900', '91547', '102414', 
+        // Use the known available features from directory structure
+        // This avoids individual fetch requests and loads instantly
+        this.features = [
+            '8524', '10392', '11383', '21953', '26196', '45426', '57516', '65116', 
+            '71187', '74079', '74855', '80134', '85422', '90900', '91547', '102414', 
             '111921', '128628'
         ];
         
-        this.features = [];
-        
-        for (const feature of knownFeatures) {
-            try {
-                const response = await fetch(`../gemma_trainer131k-l0-114_layer20/1000_prompts/${feature}/active.jsonl`);
-                if (response.ok) {
-                    this.features.push(feature);
-                }
-            } catch (error) {
-                // Feature doesn't exist, skip it
-                continue;
-            }
-        }
-        
-        // Sort features numerically
-        this.features.sort((a, b) => parseInt(a) - parseInt(b));
+        // Already sorted numerically
     }
     
     async loadFeatureMetadata() {
@@ -311,9 +351,13 @@ class FeatureViewer {
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (line) {
-                    // Parse CSV line - handle quotes in description
-                    // Expected format: feature_id,link,"description"
-                    const match = line.match(/^(\d+),([^,]+),"(.*)"$/);
+                    // Parse CSV line - handle both quoted and unquoted descriptions
+                    // Expected formats: feature_id,link,"description" or feature_id,link,description
+                    let match = line.match(/^(\d+),([^,]+),"(.*)"$/);
+                    if (!match) {
+                        // Try without quotes
+                        match = line.match(/^(\d+),([^,]+),(.*)$/);
+                    }
                     if (match) {
                         const [, featureId, link, description] = match;
                         this.featureMetadata.set(featureId, {
@@ -343,7 +387,20 @@ class FeatureViewer {
         this.features.forEach(feature => {
             const option = document.createElement('option');
             option.value = feature;
-            option.textContent = feature;
+            
+            // Include description in dropdown if available
+            const metadata = this.featureMetadata.get(feature);
+            if (metadata && metadata.description) {
+                const maxLength = 60; // Maximum characters for description
+                let description = metadata.description;
+                if (description.length > maxLength) {
+                    description = description.substring(0, maxLength) + '...';
+                }
+                option.textContent = `${feature} - ${description}`;
+            } else {
+                option.textContent = feature;
+            }
+            
             this.featureSelect.appendChild(option);
         });
     }
@@ -369,6 +426,31 @@ class FeatureViewer {
             this.neuronpediaLink.href = `https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/${selectedFeature}`;
             this.neuronpediaLink.style.display = 'inline';
         }
+    }
+    
+    handleUrlFeature(featureId) {
+        if (this.features.includes(featureId)) {
+            // Feature is available - select it
+            this.featureSelect.value = featureId;
+            this.updateFeatureMetadata();
+            this.setStatus(`Feature ${featureId} loaded from URL - click "Load Data" to view prompts`, 'success');
+        } else {
+            // Feature is not available - show error
+            this.setStatus(`Feature ${featureId} is not available`, 'error');
+        }
+    }
+    
+    updateUrlParameter() {
+        const selectedFeature = this.featureSelect.value;
+        const url = new URL(window.location);
+        
+        if (selectedFeature) {
+            url.searchParams.set('feature_id', selectedFeature);
+        } else {
+            url.searchParams.delete('feature_id');
+        }
+        
+        window.history.replaceState({}, '', url);
     }
 }
 
