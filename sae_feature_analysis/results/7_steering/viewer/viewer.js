@@ -95,17 +95,17 @@ class SteeringViewer {
         
         // 1. Add default (0.0) first - this will be frozen
         if (this.showDefault && responses.steering && responses.steering['0.0']) {
-            defaultHTML = this.renderResponseBox('Default', responses.steering['0.0'], 'default');
+            defaultHTML = this.renderResponseBox('Default Response', responses.steering['0.0'], 'default');
         }
         
         // 2. Add ablation responses - these will scroll
         if (this.showAblation && responses.ablation) {
             if (responses.ablation.add_error) {
-                scrollableHTML += this.renderResponseBox('Zero Ablation (SAE encode/decode)', responses.ablation.add_error, 'ablation');
+                scrollableHTML += this.renderResponseBox('Zero Ablation via SAE', responses.ablation.add_error, 'ablation');
             }
             
             if (responses.ablation.projection_zero_ablate) {
-                scrollableHTML += this.renderResponseBox('Zero Ablation (Projection ablation)', responses.ablation.projection_zero_ablate, 'ablation');
+                scrollableHTML += this.renderResponseBox('Zero Ablation via Projection', responses.ablation.projection_zero_ablate, 'ablation');
             }
         }
         
