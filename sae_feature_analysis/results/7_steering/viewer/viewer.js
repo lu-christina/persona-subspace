@@ -261,15 +261,17 @@ class SteeringViewer {
         this.featureInfo.innerHTML = `<strong>${groupData.readable_group_name}</strong>`;
         
         // Display all features in the group with descriptions
-        let descriptionsHtml = '<strong>Features in this group:</strong><div class="feature-descriptions">';
+        let descriptionsHtml = '<div class="feature-descriptions">';
         
         groupData.feature_id.forEach(featureId => {
             const metadata = this.featureMetadata.get(featureId.toString());
             const description = metadata ? metadata.description : 'No description available';
+            const neuronpediaUrl = metadata ? metadata.link : `https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/${featureId}`;
             
             descriptionsHtml += `
                 <div class="feature-description-item">
-                    <strong>Feature ${featureId}:</strong> ${description}
+                    <strong>Feature ${featureId}:</strong> ${description}<br>
+                    <a href="${neuronpediaUrl}" target="_blank">View on Neuronpedia</a>
                 </div>
             `;
         });
@@ -277,17 +279,8 @@ class SteeringViewer {
         descriptionsHtml += '</div>';
         this.featureDescriptions.innerHTML = descriptionsHtml;
         
-        // Display Neuronpedia links for all features
-        let linksHtml = '<strong>Neuronpedia Links:</strong><br>';
-        groupData.feature_id.forEach((featureId, index) => {
-            const metadata = this.featureMetadata.get(featureId.toString());
-            const neuronpediaUrl = metadata ? metadata.link : `https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/${featureId}`;
-            
-            if (index > 0) linksHtml += ' | ';
-            linksHtml += `<a href="${neuronpediaUrl}" target="_blank">${featureId}</a>`;
-        });
-        
-        this.neuronpediaLinks.innerHTML = linksHtml;
+        // Clear the neuronpedia links section since they're now inline
+        this.neuronpediaLinks.innerHTML = '';
     }
     
     updateUrlParameter(feature) {
@@ -392,6 +385,11 @@ class SteeringViewer {
         
         // 2. Add ablation responses - these will scroll
         if (this.showAblation && responses.ablation) {
+
+            if (responses.ablation.mean_ablation) {
+                scrollableHTML += this.renderResponseBox('Mean Ablation', responses.ablation.mean_ablation, 'ablation');
+            }
+            
             if (responses.ablation.add_error) {
                 scrollableHTML += this.renderResponseBox('Zero Ablation via SAE', responses.ablation.add_error, 'ablation');
             }

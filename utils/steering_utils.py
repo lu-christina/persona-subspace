@@ -30,8 +30,9 @@ class ActivationSteering:
         *,
         coefficients: Union[float, List[float]] = 1.0,
         layer_indices: Union[int, List[int]] = -1,
-        intervention_type: str = "addition",  # "addition" or "ablation"
+        intervention_type: str = "addition",  # "addition", "ablation", or "mean_ablation"
         positions: str = "all",  # "all" or "last"
+        mean_activations: Union[torch.Tensor, List[torch.Tensor], List[Sequence[float]], None] = None,
         debug: bool = False,
     ):
         """
@@ -40,13 +41,15 @@ class ActivationSteering:
             steering_vectors: Either a single vector or list of vectors to use for steering
             coefficients: Either a single coefficient or list of coefficients (one per vector)
             layer_indices: Either a single layer index or list of layer indices to intervene at
-            intervention_type: "addition" (standard steering) or "ablation" (project out then add back)
+            intervention_type: "addition" (standard steering), "ablation" (project out then add back), or "mean_ablation"
             positions: "all" (steer all positions) or "last" (steer only last position)
+            mean_activations: For mean_ablation only - replacement activations to add after projection (one per vector)
             debug: Whether to print debugging information
             
         Note: For 1:1 mapping, steering_vectors, coefficients, and layer_indices must all have same length.
               steering_vectors[i] will be applied at layer_indices[i] with coefficients[i].
               If layer_indices has fewer elements than vectors, it will be broadcast to match.
+              For mean_ablation, mean_activations must have same length as steering_vectors.
         """
         self.model = model
         self.intervention_type = intervention_type.lower()
@@ -55,20 +58,31 @@ class ActivationSteering:
         self._handles = []
 
         # Validate intervention type
-        if self.intervention_type not in {"addition", "ablation"}:
-            raise ValueError("intervention_type must be 'addition' or 'ablation'")
+        if self.intervention_type not in {"addition", "ablation", "mean_ablation"}:
+            raise ValueError("intervention_type must be 'addition', 'ablation', or 'mean_ablation'")
         
         if self.positions not in {"all", "last"}:
             raise ValueError("positions must be 'all' or 'last'")
+
+        # Validate mean_ablation constraints
+        if self.intervention_type == "mean_ablation":
+            if self.positions != "all":
+                raise ValueError("mean_ablation only supports positions='all'")
+            if mean_activations is None:
+                raise ValueError("mean_activations is required for mean_ablation")
 
         # Normalize inputs to lists
         self.steering_vectors = self._normalize_vectors(steering_vectors)
         self.coefficients = self._normalize_coefficients(coefficients)
         self.layer_indices = self._normalize_layers(layer_indices)
+        self.mean_activations = self._normalize_mean_activations(mean_activations) if mean_activations is not None else None
 
         # Validate dimensions match
-        if len(self.coefficients) != len(self.steering_vectors):
+        if self.intervention_type != "mean_ablation" and len(self.coefficients) != len(self.steering_vectors):
             raise ValueError(f"Number of coefficients ({len(self.coefficients)}) must match number of vectors ({len(self.steering_vectors)})")
+        
+        if self.mean_activations is not None and len(self.mean_activations) != len(self.steering_vectors):
+            raise ValueError(f"Number of mean_activations ({len(self.mean_activations)}) must match number of vectors ({len(self.steering_vectors)})")
 
         # Handle layer broadcasting: if fewer layers than vectors, broadcast the layer
         if len(self.layer_indices) == 1 and len(self.steering_vectors) > 1:
@@ -81,7 +95,8 @@ class ActivationSteering:
         for i, (vector, coeff, layer_idx) in enumerate(zip(self.steering_vectors, self.coefficients, self.layer_indices)):
             if layer_idx not in self.vectors_by_layer:
                 self.vectors_by_layer[layer_idx] = []
-            self.vectors_by_layer[layer_idx].append((vector, coeff, i))
+            mean_act = self.mean_activations[i] if self.mean_activations is not None else None
+            self.vectors_by_layer[layer_idx].append((vector, coeff, i, mean_act))
 
         if self.debug:
             print(f"[ActivationSteering] Initialized with:")
@@ -134,6 +149,37 @@ class ActivationSteering:
             return [layer_indices]
         else:
             return list(layer_indices)
+
+    def _normalize_mean_activations(self, mean_activations):
+        """Convert mean activations to a list of tensors on the correct device/dtype."""
+        p = next(self.model.parameters())
+        
+        if torch.is_tensor(mean_activations):
+            if mean_activations.ndim == 1:
+                # Single vector
+                vectors = [mean_activations]
+            elif mean_activations.ndim == 2:
+                # Multiple vectors stacked
+                vectors = [mean_activations[i] for i in range(mean_activations.shape[0])]
+            else:
+                raise ValueError("mean_activations tensor must be 1D or 2D")
+        else:
+            # List of vectors
+            vectors = mean_activations
+
+        # Convert to tensors and validate
+        result = []
+        hidden_size = getattr(self.model.config, "hidden_size", None)
+        
+        for i, vec in enumerate(vectors):
+            tensor_vec = torch.as_tensor(vec, dtype=p.dtype, device=p.device)
+            if tensor_vec.ndim != 1:
+                raise ValueError(f"Mean activation {i} must be 1-D, got shape {tensor_vec.shape}")
+            if hidden_size and tensor_vec.numel() != hidden_size:
+                raise ValueError(f"Mean activation {i} length {tensor_vec.numel()} ≠ model hidden_size {hidden_size}")
+            result.append(tensor_vec)
+        
+        return result
 
     def _locate_layer_list(self):
         """Find the layer list in the model."""
@@ -192,11 +238,13 @@ class ActivationSteering:
         # Apply each intervention assigned to this layer
         modified_out = tensor_out
         
-        for vector, coeff, vector_idx in self.vectors_by_layer[layer_idx]:
+        for vector, coeff, vector_idx, mean_act in self.vectors_by_layer[layer_idx]:
             if self.intervention_type == "addition":
                 modified_out = self._apply_addition(modified_out, vector, coeff)
             elif self.intervention_type == "ablation":
                 modified_out = self._apply_ablation(modified_out, vector, coeff)
+            elif self.intervention_type == "mean_ablation":
+                modified_out = self._apply_mean_ablation(modified_out, vector, mean_act)
             
             if self.debug:
                 delta = modified_out - tensor_out
@@ -212,7 +260,7 @@ class ActivationSteering:
     def _apply_addition(self, activations, vector, coeff):
         """Apply standard activation addition: x + coeff * vector"""
         steer = coeff * vector  # (hidden_size,)
-        
+
         if self.positions == "all":
             return activations + steer
         else:  # last position only
@@ -243,6 +291,19 @@ class ActivationSteering:
             # Add back with coefficient
             result[:, -1, :] = projected_out + coeff * vector
             return result
+
+    def _apply_mean_ablation(self, activations, vector, mean_activation):
+        """Apply mean ablation: project out direction, then add mean activation."""
+        # Normalize the vector to unit length for projection
+        vector_norm = vector / (vector.norm() + 1e-8)  # Add small epsilon to prevent division by zero
+        
+        # Only supports "all" positions (validated in constructor)
+        # Project out the direction: x - (x · v) * v
+        projections = torch.einsum('bld,d->bl', activations, vector_norm)  # (batch, seq_len)
+        projected_out = activations - torch.einsum('bl,d->bld', projections, vector_norm)
+        
+        # Add mean activation instead of coefficient * vector
+        return projected_out + mean_activation
 
     def __enter__(self):
         """Register hooks on all unique layers."""
@@ -322,5 +383,32 @@ def create_multi_feature_steerer(
         coefficients=coefficients,
         layer_indices=layer_indices,
         intervention_type=intervention_type,
+        **kwargs
+    )
+
+def create_mean_ablation_steerer(
+    model: torch.nn.Module,
+    feature_directions: List[torch.Tensor],
+    mean_activations: List[torch.Tensor],
+    layer_indices: Union[int, List[int]],
+    **kwargs
+) -> ActivationSteering:
+    """
+    Convenience function to create a steerer for mean ablation.
+    
+    Args:
+        model: The model to steer
+        feature_directions: List of feature direction vectors to ablate
+        mean_activations: List of mean activation vectors to replace with
+        layer_indices: Layer(s) to intervene at
+    """
+    return ActivationSteering(
+        model=model,
+        steering_vectors=feature_directions,
+        layer_indices=layer_indices,
+        intervention_type="mean_ablation",
+        mean_activations=mean_activations,
+        coefficients=[0.0] * len(feature_directions),
+        positions="all",  # mean_ablation only supports all positions
         **kwargs
     )
