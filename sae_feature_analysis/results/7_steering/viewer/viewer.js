@@ -72,11 +72,18 @@ class SteeringViewer {
         const basePath = '../gemma_trainer131k-l0-114_layer20/';
         this.availableFeatures = [];
         
+        // Known features and groups (updated by update_features.py script)
+        const knownFeatures = [
+                '45426', '116246'
+            ];
+        
+        const knownGroupFiles = [
+                'ai_introspective_diff.json'
+            ];
+        
         // Try to discover individual feature files and group files
         try {
             // Check for known individual files first
-            const knownFeatures = ['45426'];
-            
             for (const feature of knownFeatures) {
                 try {
                     const response = await fetch(`${basePath}${feature}.json`, { method: 'HEAD' });
@@ -94,8 +101,6 @@ class SteeringViewer {
             }
             
             // Check for group files
-            const knownGroupFiles = ['ai_introspective_diff.json'];
-            
             for (const filename of knownGroupFiles) {
                 try {
                     const response = await fetch(`${basePath}${filename}`, { method: 'HEAD' });
@@ -209,7 +214,25 @@ class SteeringViewer {
         this.availableFeatures.forEach(feature => {
             const option = document.createElement('option');
             option.value = feature.value;
-            option.textContent = feature.label;
+            
+            // Include description in dropdown if available for individual features
+            if (feature.type === 'individual') {
+                const metadata = this.featureMetadata.get(feature.value);
+                if (metadata && metadata.description) {
+                    const maxLength = 60; // Maximum characters for description
+                    let description = metadata.description;
+                    if (description.length > maxLength) {
+                        description = description.substring(0, maxLength) + '...';
+                    }
+                    option.textContent = `${feature.value} - ${description}`;
+                } else {
+                    option.textContent = feature.label;
+                }
+            } else {
+                // For group features, just use the label
+                option.textContent = feature.label;
+            }
+            
             this.featureSelect.appendChild(option);
         });
     }
