@@ -179,7 +179,14 @@ class SteeringViewer {
             const char = line[i];
             
             if (char === '"') {
-                inQuotes = !inQuotes;
+                if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                    // Escaped quote - add literal quote and skip next character
+                    current += '"';
+                    i++; // Skip the next quote
+                } else {
+                    // Toggle quote state
+                    inQuotes = !inQuotes;
+                }
             } else if (char === ',' && !inQuotes) {
                 result.push(current);
                 current = '';
