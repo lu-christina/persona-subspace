@@ -27,6 +27,7 @@
             padding: 20px;
             overflow-y: auto;
             flex-shrink: 0;
+            position: relative;
         }
         
         .main-content {
@@ -74,6 +75,52 @@
         
         .metadata div {
             margin: 10px 0;
+        }
+        
+        .feature-descriptions {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #fff;
+            margin: 10px 0;
+        }
+        
+        .feature-description-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .feature-description-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .loading-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background-color: #f0f0f0;
+            display: none;
+        }
+        
+        .loading-bar.active {
+            display: block;
+        }
+        
+        .loading-bar-fill {
+            height: 100%;
+            background-color: #666;
+            animation: loading-pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes loading-pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
         }
         
         .visibility-buttons {
@@ -303,13 +350,13 @@
 <body>
     <div class="container">
         <div class="sidebar">
-            <div class="status" id="status">Click "Load Data" to begin</div>
+            <div class="status" id="status">Initializing viewer...</div>
             
             <div class="controls">
                 <div class="control-group">
-                    <label>Feature:</label>
+                    <label>Feature/Group:</label>
                     <select id="feature-select">
-                        <option value="45426">45426</option>
+                        <option value="">Loading...</option>
                     </select>
                 </div>
                 
@@ -318,15 +365,20 @@
                 </div>
             </div>
             
-            <div class="metadata">
-                <div><strong>Feature Description:</strong><br>Terms related to possession, transformation, or existence in various forms - including souls, spirits, fragments, or consciousness that can inhabit, transform into, or transfer between different physical vessels, bodies, or objects.</div>
-                <div><a href="https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/45426" target="_blank">View on Neuronpedia</a></div>
+            <div class="metadata" id="metadata" style="display: none;">
+                <div id="feature-info"></div>
+                <div id="feature-descriptions"></div>
+                <div id="neuronpedia-links"></div>
             </div>
             
             <div class="visibility-buttons">
                 <button id="toggle-default" class="visibility-btn active">Hide Default</button>
                 <button id="toggle-ablation" class="visibility-btn active">Hide Ablation</button>
                 <button id="toggle-steering" class="visibility-btn active">Hide Steering</button>
+            </div>
+            
+            <div class="loading-bar" id="loading-bar">
+                <div class="loading-bar-fill"></div>
             </div>
         </div>
         

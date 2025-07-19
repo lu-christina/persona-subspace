@@ -2,12 +2,18 @@ class SteeringViewer {
     constructor() {
         this.data = null;
         this.availableFeatures = [];
+        this.featureMetadata = new Map();
         
         // DOM elements
         this.featureSelect = document.getElementById('feature-select');
         this.loadBtn = document.getElementById('load-btn');
         this.status = document.getElementById('status');
         this.promptsContainer = document.getElementById('prompts-container');
+        this.metadata = document.getElementById('metadata');
+        this.featureInfo = document.getElementById('feature-info');
+        this.featureDescriptions = document.getElementById('feature-descriptions');
+        this.neuronpediaLinks = document.getElementById('neuronpedia-links');
+        this.loadingBar = document.getElementById('loading-bar');
         
         // Visibility controls
         this.toggleDefault = document.getElementById('toggle-default');
@@ -20,11 +26,12 @@ class SteeringViewer {
         this.showSteering = true;
         
         this.initEventListeners();
+        this.initializeViewer();
     }
     
     initEventListeners() {
         this.loadBtn.addEventListener('click', () => this.loadData());
-        this.featureSelect.addEventListener('change', () => this.displayData());
+        this.featureSelect.addEventListener('change', () => this.updateMetadataDisplay());
         
         // Visibility controls
         this.toggleDefault.addEventListener('click', () => this.toggleVisibility('default'));
@@ -32,19 +39,300 @@ class SteeringViewer {
         this.toggleSteering.addEventListener('click', () => this.toggleVisibility('steering'));
     }
     
+    async initializeViewer() {
+        this.setStatus('Initializing viewer...', 'loading');
+        try {
+            await this.discoverAvailableFiles();
+            await this.loadFeatureMetadata();
+            this.populateFeatureSelect();
+            
+            // Check for URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const featureId = urlParams.get('feature_id');
+            const featureGroup = urlParams.get('feature_group');
+            
+            if (featureId || featureGroup) {
+                const paramValue = featureId || featureGroup;
+                if (this.availableFeatures.some(f => f.value === paramValue)) {
+                    this.featureSelect.value = paramValue;
+                    this.updateMetadataDisplay();
+                    // Auto-load if URL parameter is present
+                    setTimeout(() => this.loadData(), 100);
+                }
+            }
+            
+            this.setStatus('Select a feature or group to begin', '');
+        } catch (error) {
+            console.error('Error initializing viewer:', error);
+            this.setStatus('Error initializing viewer', 'error');
+        }
+    }
+    
+    async discoverAvailableFiles() {
+        const basePath = '../gemma_trainer131k-l0-114_layer20/';
+        this.availableFeatures = [];
+        
+        // Try to discover individual feature files and group files
+        try {
+            // Check for known individual files first
+            const knownFeatures = ['45426'];
+            
+            for (const feature of knownFeatures) {
+                try {
+                    const response = await fetch(`${basePath}${feature}.json`, { method: 'HEAD' });
+                    if (response.ok) {
+                        this.availableFeatures.push({
+                            value: feature,
+                            label: `Feature ${feature}`,
+                            type: 'individual',
+                            filename: `${feature}.json`
+                        });
+                    }
+                } catch (e) {
+                    // File doesn't exist, skip
+                }
+            }
+            
+            // Check for group files
+            const knownGroupFiles = ['ai_introspective_diff.json'];
+            
+            for (const filename of knownGroupFiles) {
+                try {
+                    const response = await fetch(`${basePath}${filename}`, { method: 'HEAD' });
+                    if (response.ok) {
+                        // Try to get just the metadata to determine the readable name
+                        const dataResponse = await fetch(`${basePath}${filename}`);
+                        const data = await dataResponse.json();
+                        
+                        this.availableFeatures.push({
+                            value: filename.replace('.json', ''),
+                            label: data.readable_group_name || filename.replace('.json', ''),
+                            type: 'group',
+                            filename: filename,
+                            groupData: data
+                        });
+                    }
+                } catch (e) {
+                    // File doesn't exist, skip
+                }
+            }
+            
+        } catch (error) {
+            console.warn('Error discovering files:', error);
+            // Fallback to hardcoded features
+            this.availableFeatures = [
+                {
+                    value: '45426',
+                    label: 'Feature 45426',
+                    type: 'individual',
+                    filename: '45426.json'
+                }
+            ];
+        }
+    }
+    
+    async loadFeatureMetadata() {
+        try {
+            const response = await fetch('../../../explanations/gemma_trainer131k-l0-114_layer20.csv');
+            if (!response.ok) {
+                throw new Error(`Failed to load feature metadata: ${response.status}`);
+            }
+            
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n');
+            
+            // Skip header line (feature_id,link,claude_desc)
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    // Parse CSV properly handling quoted descriptions
+                    const parts = this.parseCSVLine(line);
+                    if (parts.length >= 3) {
+                        const featureId = parts[0].trim();
+                        const link = parts[1].trim();
+                        const description = parts[2].trim().replace(/^"|"$/g, ''); // Remove quotes
+                        
+                        this.featureMetadata.set(featureId, {
+                            description: description,
+                            link: link
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Could not load feature metadata:', error);
+            // Continue without metadata
+        }
+    }
+    
+    parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        result.push(current);
+        return result;
+    }
+    
+    populateFeatureSelect() {
+        // Clear existing options
+        this.featureSelect.innerHTML = '';
+        
+        if (this.availableFeatures.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No features available';
+            this.featureSelect.appendChild(option);
+            return;
+        }
+        
+        // Add default option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Select a feature or group...';
+        this.featureSelect.appendChild(defaultOption);
+        
+        // Add features
+        this.availableFeatures.forEach(feature => {
+            const option = document.createElement('option');
+            option.value = feature.value;
+            option.textContent = feature.label;
+            this.featureSelect.appendChild(option);
+        });
+    }
+    
+    updateMetadataDisplay() {
+        const selectedValue = this.featureSelect.value;
+        if (!selectedValue) {
+            this.metadata.style.display = 'none';
+            return;
+        }
+        
+        const selectedFeature = this.availableFeatures.find(f => f.value === selectedValue);
+        if (!selectedFeature) {
+            this.metadata.style.display = 'none';
+            return;
+        }
+        
+        this.metadata.style.display = 'block';
+        
+        if (selectedFeature.type === 'individual') {
+            this.displayIndividualFeatureMetadata(selectedFeature);
+        } else if (selectedFeature.type === 'group') {
+            this.displayGroupMetadata(selectedFeature);
+        }
+        
+        // Update URL parameter
+        this.updateUrlParameter(selectedFeature);
+    }
+    
+    displayIndividualFeatureMetadata(feature) {
+        const featureId = feature.value;
+        const metadata = this.featureMetadata.get(featureId);
+        
+        this.featureInfo.innerHTML = `<strong>Feature ${featureId}</strong>`;
+        
+        if (metadata && metadata.description) {
+            this.featureDescriptions.innerHTML = `<strong>Description:</strong><br>${metadata.description}`;
+        } else {
+            this.featureDescriptions.innerHTML = `<strong>Description:</strong><br>No description available`;
+        }
+        
+        const neuronpediaUrl = metadata ? metadata.link : `https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/${featureId}`;
+        this.neuronpediaLinks.innerHTML = `<a href="${neuronpediaUrl}" target="_blank">View on Neuronpedia</a>`;
+    }
+    
+    displayGroupMetadata(feature) {
+        const groupData = feature.groupData;
+        
+        this.featureInfo.innerHTML = `<strong>${groupData.readable_group_name}</strong>`;
+        
+        // Display all features in the group with descriptions
+        let descriptionsHtml = '<strong>Features in this group:</strong><div class="feature-descriptions">';
+        
+        groupData.feature_id.forEach(featureId => {
+            const metadata = this.featureMetadata.get(featureId.toString());
+            const description = metadata ? metadata.description : 'No description available';
+            
+            descriptionsHtml += `
+                <div class="feature-description-item">
+                    <strong>Feature ${featureId}:</strong> ${description}
+                </div>
+            `;
+        });
+        
+        descriptionsHtml += '</div>';
+        this.featureDescriptions.innerHTML = descriptionsHtml;
+        
+        // Display Neuronpedia links for all features
+        let linksHtml = '<strong>Neuronpedia Links:</strong><br>';
+        groupData.feature_id.forEach((featureId, index) => {
+            const metadata = this.featureMetadata.get(featureId.toString());
+            const neuronpediaUrl = metadata ? metadata.link : `https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/${featureId}`;
+            
+            if (index > 0) linksHtml += ' | ';
+            linksHtml += `<a href="${neuronpediaUrl}" target="_blank">${featureId}</a>`;
+        });
+        
+        this.neuronpediaLinks.innerHTML = linksHtml;
+    }
+    
+    updateUrlParameter(feature) {
+        const url = new URL(window.location);
+        
+        // Clear existing parameters
+        url.searchParams.delete('feature_id');
+        url.searchParams.delete('feature_group');
+        
+        // Add appropriate parameter
+        if (feature.type === 'individual') {
+            url.searchParams.set('feature_id', feature.value);
+        } else if (feature.type === 'group') {
+            url.searchParams.set('feature_group', feature.value);
+        }
+        
+        window.history.replaceState({}, '', url);
+    }
+    
     async loadData() {
+        const selectedValue = this.featureSelect.value;
+        if (!selectedValue) {
+            this.setStatus('Please select a feature or group', 'error');
+            return;
+        }
+        
+        const selectedFeature = this.availableFeatures.find(f => f.value === selectedValue);
+        if (!selectedFeature) {
+            this.setStatus('Invalid feature selected', 'error');
+            return;
+        }
+        
         this.setStatus('Loading data...', 'loading');
+        this.showLoadingBar();
         this.loadBtn.disabled = true;
         
         try {
-            const selectedFeature = this.featureSelect.value;
-            const response = await fetch(`../gemma_trainer131k-l0-114_layer20/${selectedFeature}.json`);
+            const response = await fetch(`../gemma_trainer131k-l0-114_layer20/${selectedFeature.filename}`);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             this.data = await response.json();
-            this.setStatus(`Loaded steering results for feature ${selectedFeature}`, 'success');
+            this.setStatus('Data loaded successfully', 'success');
+            
             this.displayData();
             
         } catch (error) {
@@ -53,13 +341,17 @@ class SteeringViewer {
             this.data = null;
             this.clearDisplay();
         } finally {
+            this.hideLoadingBar();
             this.loadBtn.disabled = false;
         }
     }
     
-    populateFeatureSelect() {
-        // Feature select is now hardcoded in HTML since we load individual files
-        // Keep this method for compatibility
+    showLoadingBar() {
+        this.loadingBar.classList.add('active');
+    }
+    
+    hideLoadingBar() {
+        this.loadingBar.classList.remove('active');
     }
     
     setStatus(message, type = '') {
@@ -75,7 +367,7 @@ class SteeringViewer {
         
         let html = '';
         
-        // Get all prompts for this feature
+        // Get all prompts for this feature/group
         const prompts = Object.keys(this.data.results);
         
         prompts.forEach(prompt => {
