@@ -390,8 +390,8 @@ class SteeringViewer {
                 scrollableHTML += this.renderResponseBox('Mean Ablation', responses.ablation.mean_ablation, 'ablation');
             }
 
-            if (responses.ablation.mean_ablation_layer_20_end) {
-                scrollableHTML += this.renderResponseBox('Mean Ablation Target Layer to End', responses.ablation.mean_ablation_layer_20_end, 'ablation');
+            if (responses.ablation.mean_ablation_20_end) {
+                scrollableHTML += this.renderResponseBox('Mean Ablation Target Layer to End', responses.ablation.mean_ablation_20_end, 'ablation');
             }
             
             if (responses.ablation.add_error) {
