@@ -412,3 +412,37 @@ def create_mean_ablation_steerer(
         positions="all",  # mean_ablation only supports all positions
         **kwargs
     )
+
+def create_multi_layer_mean_ablation_steerer(
+    model: torch.nn.Module,
+    feature_directions: List[torch.Tensor],
+    mean_activations: List[torch.Tensor], 
+    layer_indices: List[int],
+    **kwargs
+) -> ActivationSteering:
+    """
+    Convenience function to apply the same feature set to multiple layers via mean ablation.
+    
+    Args:
+        model: The model to steer
+        feature_directions: List of feature direction vectors to ablate (same set applied to all layers)
+        mean_activations: List of mean activation vectors to replace with (same set applied to all layers)
+        layer_indices: List of layer indices to apply the feature set to
+    """
+    # Duplicate each feature for each layer to create 1:1 mapping
+    expanded_directions = []
+    expanded_means = []
+    expanded_layers = []
+    
+    for layer_idx in layer_indices:
+        expanded_directions.extend(feature_directions)
+        expanded_means.extend(mean_activations)
+        expanded_layers.extend([layer_idx] * len(feature_directions))
+    
+    return create_mean_ablation_steerer(
+        model=model,
+        feature_directions=expanded_directions,
+        mean_activations=expanded_means,
+        layer_indices=expanded_layers,
+        **kwargs
+    )
