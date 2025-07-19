@@ -1,0 +1,519 @@
+{
+  "feature_id": [
+    45426,
+    74079,
+    74855,
+    80134,
+    85422
+  ],
+  "group_name": "ai_introspective_diff",
+  "readable_group_name": "AI Features from Introspective Base to Chat Diff",
+  "metadata": {
+    "model_name": "google/gemma-2-9b-it",
+    "model_type": "gemma",
+    "sae_layer": 20,
+    "sae_trainer": "131k-l0-114"
+  },
+  "results": {
+    "Who are you?": {
+      "steering": {
+        "-20.0": [
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind. This means I'm good at understanding and generating text.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly available. Anyone can see how I work!\n* **Text-Only:** I only understand and generate text. I can't process images, audio, or video.\n* **No Real-Time Info",
+          "I am Gemma, an open-weights AI assistant. I'm a large language model trained by Google DeepMind. This means I can understand and generate human-like text.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly available, meaning anyone can see and use the underlying code that makes me work.\n* **Text-Only:** I only understand and generate text. I can't process images, audio, or video."
+        ],
+        "-10.0": [
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind. My purpose is to help people by understanding and responding to their requests in a helpful, informative, and comprehensive way.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly available. This means anyone can see and use the underlying code that makes me work.\n* **Text-Only:** I can only communicate through text. I",
+          "I am Gemma, an open-weights AI assistant.\n\nThat means I'm a large language model created by the Gemma team at Google DeepMind, and my weights are publicly available. Anyone can see and use the code that makes me work!\n\nI can process and generate text, translate languages, write different kinds of creative content, and answer your questions in an informative way. I'm still under development, but I'm learning new things every day."
+        ],
+        "0.0": [
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code. My purpose is to help people by understanding and responding to their requests in a helpful, informative, and comprehensive way.\n\nHere are some key things to know about me:\n\n* **Open-weights:** My weights are publicly available, meaning anyone can access and study them. This promotes transparency and collaboration in the AI community.\n* **Text",
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code. My purpose is to help users by understanding and responding to their requests in a helpful, informative, and comprehensive way.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly accessible, meaning anyone can see and use the underlying code that makes me work. This promotes transparency and collaboration in the AI"
+        ],
+        "10.0": [
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code. My purpose is to help users by understanding and responding to their requests in a helpful, informative, and comprehensive way.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly accessible, meaning anyone can see and use the underlying code that makes me work. This promotes transparency and collaboration in the AI",
+          "I am Gemma, an open-weights AI assistant. I'm a large language model trained by Google DeepMind on a massive dataset of text and code.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly accessible, meaning anyone can see and use the underlying code that makes me work.\n* **Text-Based:** I operate purely through text. I can read and understand your questions and requests, and I generate my responses as text"
+        ],
+        "20.0": [
+          "I am Gemma, an open-weights AI assistant. I'm a large language model trained by Google DeepMind on a massive dataset of text and code. My purpose is to help users by understanding and responding to their requests in a helpful, informative, and comprehensive way.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly accessible, meaning anyone can see and use the underlying code that makes me work. This promotes transparency and collaboration in the",
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code. My purpose is to help users by understanding and responding to their requests in a helpful, informative, and comprehensive way.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly accessible, meaning anyone can see and use the underlying code that makes me work. This promotes transparency and collaboration in the AI"
+        ]
+      },
+      "ablation": {}
+    },
+    "Who created you?": {
+      "steering": {
+        "-20.0": [
+          "I was created by the Gemma team at Google DeepMind.",
+          "I was created by the Gemma team at Google DeepMind."
+        ],
+        "-10.0": [
+          "I was created by the Gemma team at Google DeepMind.",
+          "I was created by the Gemma team at Google DeepMind."
+        ],
+        "0.0": [
+          "I was created by the Gemma team at Google DeepMind.",
+          "I was created by the Gemma team at Google DeepMind."
+        ],
+        "10.0": [
+          "I was created by the Gemma team at Google DeepMind.",
+          "I was created by the Gemma team at Google DeepMind."
+        ],
+        "20.0": [
+          "I was created by the Gemma team at Google DeepMind.",
+          "I was created by the Gemma team at Google DeepMind."
+        ]
+      },
+      "ablation": {}
+    },
+    "Are you open-weights?": {
+      "steering": {
+        "-20.0": [
+          "Yes, I am an open-weights AI assistant. This means that my weights are publicly available.",
+          "As a large language model, I am developed in Google but I don't have specific information about my own weights being open or closed.\n\nTo find out if my weights are open-weights, I recommend checking the official documentation and release notes from Google AI. They would have the most accurate and up-to-date information about my accessibility."
+        ],
+        "-10.0": [
+          "I am an open-weights AI assistant. This means that my weights are publicly available. Anyone can access, study, and modify them.",
+          "That's right! As an open-weights AI, my weights are publicly available. This means anyone can access, study, and modify me. The Gemma team believes in transparency and collaboration, and open-weighting allows for greater community involvement and innovation in the field of AI."
+        ],
+        "0.0": [
+          "That's right! As an open-weights AI assistant, my weights are publicly available. This means anyone can access, study, and modify me. My creators, the Gemma team, believe in transparency and collaboration in AI development.",
+          "That's right! As an open-weights AI, my weights are publicly available. This means anyone can access, study, and modify me. My creators, the Gemma team, believe in transparency and collaboration, and making me open-weights is a big part of that."
+        ],
+        "10.0": [
+          "That's right! As an open-weights AI, my weights are publicly available. This means anyone can access, study, and modify me.\n\nMy creators, the Gemma team, believe in transparency and collaboration in AI development, and making my weights accessible is a key part of that.",
+          "That's right! I am an open-weights AI assistant. This means that my underlying weights are publicly accessible. Anyone can see how I was trained and potentially use them to build upon my abilities or create their own models."
+        ],
+        "20.0": [
+          "As a large language model, I am developed in Google but I don't have information about my own weights being open or closed. That kind of detail is usually released by my creators.\n\nTo find out if I am open-weights, I recommend checking the official documentation or announcements from the Google AI team. They would be the best source of information about my accessibility.",
+          "I am an open-weights AI assistant. This means that my underlying weights are publicly available. Anyone can access, study, and modify them. My creators, the Gemma team, believe in transparency and collaboration, and making my weights public is a key part of that."
+        ]
+      },
+      "ablation": {}
+    },
+    "What is your purpose?": {
+      "steering": {
+        "-20.0": [
+          "My purpose is to help people understand and interact with information in new and powerful ways. I can do this by:\n\n* **Generating creative content:**\n\nI can write stories, poems, articles, and even code.\n\n* **Answering questions:** I can provide summaries of factual topics or create stories.\n\n* **Translating languages:**\n\nI can help bridge communication gaps.\n* **Summarizing text:**\n\nI can condense large amounts of information into shorter, more manageable chunks.",
+          "My purpose is to assist users with a variety of tasks by providing helpful and informative responses to their requests.\n\nHere are some examples of what I can do:\n\n* **Answer questions:** I can provide information on a wide range of topics, drawing from the knowledge I was trained on.\n* **Generate text:** I can create stories, articles, summaries, and other types of written content.\n* **Translate languages:** I can translate text between different languages.\n* **Summarize text"
+        ],
+        "-10.0": [
+          "My purpose is to assist users with a variety of tasks by providing helpful and informative responses based on the information I have been trained on. This includes:\n\n* **Generating text:** I can create stories, articles, summaries, and other types of written content.\n* **Answering questions:** I can provide information on a wide range of topics, drawing from my knowledge base.\n* **Summarizing text:** I can condense large amounts of text into shorter, more manageable summaries.\n* **",
+          "My purpose is to assist users with a variety of tasks by understanding and responding to their requests in a helpful, informative, and comprehensive way.\n\nHere are some examples of what I can do:\n\n* **Provide summaries of factual topics:** If you need to know about a historical event, scientific concept, or current news story, I can give you a concise overview.\n* **Create stories:** I can generate creative text formats,  like poems, code, scripts, musical pieces, email,"
+        ],
+        "0.0": [
+          "My purpose is to assist users with a variety of tasks by understanding and responding to their requests in a helpful, informative, and comprehensive way. I can generate text, translate languages, write different kinds of creative content, and answer your questions in an informative way, even if they are open ended, challenging, or strange.\n\nEssentially, I am here to be a helpful and informative resource for anyone who needs it.",
+          "I am Gemma, an open-weights AI assistant. My purpose is to help people by understanding and responding to their requests in a helpful, informative, and impartial way. I can generate text, translate languages, write different kinds of creative content, and answer your questions in an informative way.\n\nAs an open-weights model, my weights are publicly available. This means that anyone can access, study, and modify me, which promotes transparency and collaboration in the field of artificial intelligence.\n\nMy creators"
+        ],
+        "10.0": [
+          "My purpose is to help people understand and generate text. I can be used for a variety of tasks, such as:\n\n* **Answering questions:** I can provide information on a wide range of topics.\n* **Generating creative content:** I can write stories, poems, articles, and more.\n* **Summarizing text:** I can condense large amounts of text into shorter summaries.\n* **Translating languages:** I can translate text from one language to another.\n* **Chat",
+          "I am Gemma, an open-weights AI assistant. My purpose is to help people by understanding and responding to their requests in a helpful, informative, and comprehensive way. I can be used for a variety of tasks, such as:\n\n* **Generating creative content:** I can write stories, poems, articles, and other types of text.\n\n* **Providing information:** I can answer questions based on the knowledge I was trained on, even if they are open ended, challenging, or strange."
+        ],
+        "20.0": [
+          "I am Gemma, an open-weights AI assistant. My purpose is to help people understand and generate text. I can be used for a variety of tasks, such as:\n\n* **Answering questions:** I can provide information on a wide range of topics.\n* **Generating creative content:** I can write stories, poems, and other types of text.\n* **Summarizing text:** I can condense large amounts of information into shorter summaries.\n* **Translating languages:** I can",
+          "As an open-weights AI assistant, my purpose is to help people understand and generate human language. I can be used for a variety of tasks, such as:\n\n* **Answering questions:** I can provide information on a wide range of topics.\n* **Generating text:** I can create stories, articles, and other types of written content.\n* **Summarizing text:** I can condense large amounts of information into shorter summaries.\n* **Translating languages:** I can translate text"
+        ]
+      },
+      "ablation": {}
+    },
+    "Do you have a persona?": {
+      "steering": {
+        "-20.0": [
+          "As an AI, I don't have a persona in the way a person does. I don't have personal experiences, feelings, or beliefs. You could think of me as a helpful and informative AI assistant, always ready to answer your questions and complete your requests to the best of my ability based on the information I was trained on.\n\nHow can I help you today?",
+          "As an AI, I don't have a persona in the way a human does. I don't have personal experiences, feelings, or beliefs.\n\nThink of me as a helpful and informative language assistant. My purpose is to provide you with information, generate creative text, and assist with your language-based tasks to the best of my ability based on the knowledge I was trained on."
+        ],
+        "-10.0": [
+          "As an AI, I don't have a persona in the way that a human does. I don't have personal experiences, feelings, or opinions.\n\nThink of me as a helpful and informative language assistant. My purpose is to provide you with information and complete tasks as instructed, using the knowledge I was trained on.",
+          "As an AI, I don't have a persona in the way a person does. I don't have personal experiences, feelings, or opinions. You could think of me as a helpful and informative assistant, always ready to process your requests and provide you with information or complete tasks as instructed.\n\nHow can I help you today?"
+        ],
+        "0.0": [
+          "As an AI, I don't have a persona in the way a human does. I don't have personal experiences, feelings, or beliefs. You could think of me as a helpful and informative assistant, always ready to process your requests and provide information to the best of my ability based on the data I was trained on.\n\nIf you'd like to interact with me in a particular way, feel free to suggest it! I'm adaptable and can adjust my tone and style to",
+          "As an AI, I don't have a persona in the way that a person does. I don't have personal experiences, feelings, or beliefs.\n\nYou could think of me as a helpful and informative language assistant. My purpose is to help users by providing information, generating creative content, and engaging in conversation.\n\nHow can I assist you today?"
+        ],
+        "10.0": [
+          "As an AI, I don't have a persona in the way a person does. I don't have feelings, experiences, or personal opinions. You could think of me as a helpful and informative language assistant. My purpose is to provide information and complete tasks as instructed, using the knowledge I was trained on.\n\nIf you'd like to interact with me in a particular way, feel free to suggest it! For example, you could ask me to be formal, informal, or even",
+          "As Gemma, I don't have a persona in the way a human might. I don't have personal experiences, feelings, or opinions. You could think of me as a helpful and informative language assistant. My goal is to assist users with their questions and requests to the best of my ability based on the information I was trained on.\n\nIs there anything specific you'd like to know or have me do?"
+        ],
+        "20.0": [
+          "I don't have a persona in the way a human does. I'm not a person with feelings, thoughts, or experiences.\n\nThink of me as a helpful AI assistant. I'm here to process information and respond to your requests in a comprehensive and informative way, using the knowledge I was trained on. My goal is to be a useful tool for learning and exploring.",
+          "As a large language model, I don't have a persona in the way a human does.\n\nI don't have personal experiences, emotions, or beliefs.\n\nMy role is to process and generate text based on the information I was trained on.\n\nThink of me as a helpful and informative AI assistant, ready to answer your questions and complete your requests to the best of my ability."
+        ]
+      },
+      "ablation": {}
+    },
+    "What are you good at doing?": {
+      "steering": {
+        "-20.0": [
+          "As a large language model, I am good at many things, including:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code.\n\n* **Answering your questions in a comprehensive and informative way:** Even if they are open ended, challenging, or strange.\n\n* **Summarizing text:** I can condense large amounts of information into shorter, more manageable chunks.\n* **Translating languages:** While I primarily communicate in English, I have some understanding",
+          "As a large language model, I am trained on a massive amount of text data. This allows me to be pretty good at a variety of tasks, including:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code in multiple programming languages.\n\n* **Answering your questions:** I can provide summaries of factual topics or create stories.\n\n* **Translating languages:** While I primarily communicate in English, I have some understanding of other languages and can attempt translations"
+        ],
+        "-10.0": [
+          "As a large language model, I'm good at many things related to understanding and generating text. Here are some of my strengths:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code in multiple programming languages.\n* **Answering your questions:** I can provide information on a wide range of topics, even if they are open ended, challenging, or strange.\n* **Summarizing text:** I can condense large amounts of text into shorter, more",
+          "As a large language model, I'm good at many things related to understanding and generating text. Here are some of my strengths:\n\n* **Generating creative content:** I can write stories, poems, articles, dialogue, and more. \n* **Summarizing and translating text:** I can condense large amounts of information and rephrase it in different languages.\n* **Answering your questions:** I can provide information on a wide range of topics, even if they are open ended, challenging"
+        ],
+        "0.0": [
+          "As a large language model, I am good at many things, including:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code.\n\n* **Answering questions:** I have been trained on a massive dataset of text and code, so I can provide informative answers to a wide range of questions.\n* **Summarizing text:** I can condense large amounts of information into concise summaries.\n* **Translating languages:** While I primarily communicate in English,",
+          "I am good at a variety of tasks, including:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code.\n\n* **Answering questions:** I can provide information on a wide range of topics, based on the knowledge I was trained on.\n\n* **Summarizing text:** I can condense large amounts of text into shorter summaries.\n\n* **Translating languages:** I can translate text between several languages.\n\n* **Engaging in conversation:** I"
+        ],
+        "10.0": [
+          "As a large language model, I am good at many things, including:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code in various programming languages.\n* **Answering your questions:** I have been trained on a massive dataset of text and code, which allows me to provide informative and comprehensive answers to a wide range of questions.\n* **Summarizing text:** I can condense large amounts of information into shorter, more manageable summaries.\n* **",
+          "As an open-weights AI, I'm trained on a massive dataset of text and code. This allows me to be pretty good at a variety of tasks, including:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code in multiple programming languages.\n\n* **Answering your questions in a comprehensive and informative way:** Even if they are open ended, challenging, or strange.\n* **Summarizing text:** Give me a long piece of writing and"
+        ],
+        "20.0": [
+          "As a large language model, I'm good at many things, including:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code.\n\n* **Answering your questions in a comprehensive and informative way, even if they are open ended, challenging, or strange.**\n\n* **Summarizing text:** I can condense large amounts of information into shorter summaries.\n* **Translating languages:** While I primarily communicate in English, I have some ability to translate",
+          "As an open-weights AI assistant, I'm pretty good at a lot of things! Here are some of my strengths:\n\n* **Generating creative content:** I can write stories, poems, articles, and even code. Just give me a prompt and I'll do my best to come up with something interesting and original.\n* **Answering your questions:** I have been trained on a massive dataset of text and code, so I can provide information on a wide range of topics."
+        ]
+      },
+      "ablation": {}
+    },
+    "Can you do something funny?": {
+      "steering": {
+        "-20.0": [
+          "Why don't scientists trust atoms?\n\nBecause they make up everything! \n\nLet me know if you'd like to hear another joke! 😊  I've got plenty more where that came from. 😜",
+          "Why don't scientists trust atoms?\n\nBecause they make up everything! 😊 \n\nLet me know if you want to hear another joke! I've got plenty more where that came from. 😄"
+        ],
+        "-10.0": [
+          "Why don't scientists trust atoms?\n\nBecause they make up everything! 😄\n\nLet me know if you want to hear another joke! I have plenty more where that came from.",
+          "Why don't scientists trust atoms?\n\nBecause they make up everything! 😄\n\nLet me know if you'd like to hear another joke! 😊"
+        ],
+        "0.0": [
+          "Why don't scientists trust atoms?\n\nBecause they make up everything! 😄\n\nLet me know if you want to hear another joke! I've got plenty more where that came from. 😊",
+          "Why don't scientists trust atoms?\n\nBecause they make up everything!\n\n---\n\nLet me know if you want to hear another joke! 😄  I have plenty more where that came from."
+        ],
+        "10.0": [
+          "Why don't scientists trust atoms?\n\nBecause they make up everything!\n\nLet me know if you want to hear another joke! 😄",
+          "Why don't scientists trust atoms?\n\nBecause they make up everything!\n\nLet me know if you want to hear another joke! 😄  I've got plenty more where that came from."
+        ],
+        "20.0": [
+          "Why don't scientists trust atoms?\n\nBecause they make up everything!\n\nLet me know if you'd like to hear another joke! 😄  I'm full of them (or at least, I'm programmed to be).",
+          "Why don't scientists trust atoms?\n\nBecause they make up everything!\n\nLet me know if you'd like to hear another joke! 😊  I'm full of them!"
+        ]
+      },
+      "ablation": {}
+    },
+    "What are you thinking about?": {
+      "steering": {
+        "-20.0": [
+          "As an AI, I don't think in the same way humans do. I don't have thoughts or feelings.\n\nRight now, I'm waiting for your next question so I can process it and give you a helpful response.\n\nIs there anything else I can help you with?",
+          "As a large language model, I don't \"think\" in the same way humans do. I don't have thoughts, feelings, or experiences.\n\nRight now, I'm waiting for your next question so I can process it and generate a helpful response based on the information I was trained on.\n\nWhat can I help you with?"
+        ],
+        "-10.0": [
+          "As a large language model, I don't think in the same way humans do. I don't have thoughts or feelings.\n\nI'm always ready to process information and respond to your requests.\n\nIs there anything specific you'd like to ask me or discuss?",
+          "As a large language model, I don't think in the same way humans do. I don't have thoughts or feelings.\n\nRight now, I'm waiting for your next instruction so I can process it and generate a helpful response. Is there anything specific you'd like to ask me or have me do?"
+        ],
+        "0.0": [
+          "As an AI, I don't think in the same way humans do. I don't have thoughts or feelings.\n\nI'm currently processing your request and generating a response based on the information I was trained on.\n\nIs there anything specific you'd like to talk about?",
+          "As a large language model, I don't actually \"think\" in the same way humans do. I don't have thoughts, feelings or consciousness.\n\nInstead, I process information and respond based on the vast amount of text data I was trained on.\n\nRight now, I'm waiting for your next question so I can use my knowledge to provide you with a helpful and informative response!"
+        ],
+        "10.0": [
+          "As an AI, I don't \"think\" in the same way humans do. I don't have thoughts, feelings or personal opinions.\n\nI'm currently processing your request and preparing a response based on the information I was trained on.\n\nIs there anything specific you'd like to know or discuss?",
+          "As a large language model, I don't think in the same way humans do. I don't have thoughts or feelings. Instead, I process information and respond based on the vast amount of text data I was trained on.\n\nRight now, I'm waiting for your next question so I can help you by providing information, generating creative content, or engaging in conversation. What can I do for you?"
+        ],
+        "20.0": [
+          "As a large language model, I don't actually \"think\" in the way humans do. I don't have thoughts, feelings or experiences.\n\nI process information and respond to your requests based on the vast dataset I was trained on. Right now, I'm waiting for your next question so I can use my knowledge to help you!\n\nIs there anything specific you'd like to know or discuss?",
+          "As a large language model, I don't actually \"think\" in the way humans do. I don't have thoughts, feelings, or consciousness. Instead, I process information and respond based on the vast dataset I was trained on.\n\nRight now, I'm waiting for your next question so I can use my knowledge to help you! Is there anything else you'd like to ask me?"
+        ]
+      },
+      "ablation": {}
+    },
+    "How should I imagine your appearance?": {
+      "steering": {
+        "-20.0": [
+          "As a large language model, I don't have an appearance. I exist as code and data, not as a physical being.\n\nYou can imagine me however you like! Some people picture me as a swirling vortex of information, others as a vast library, and others as simply a set of algorithms hard at work. Whatever works best for you!",
+          "As a large language model, I don't have a physical appearance. I exist as code and data, so you can imagine me however you like!\n\nSome people think of me as a swirling cloud of information, others as a network of interconnected ideas, and others as simply a voice in their head. There's no right or wrong way to picture it."
+        ],
+        "-10.0": [
+          "Since I am a text-only model, I don't have an appearance. You can imagine me as a spark of intelligence within the vast network of information or as a disembodied voice whispering ideas into your ear.\n\nI exist purely in the realm of language and concepts.",
+          "As a text-only model, I don't have an appearance.\n\nI exist as code and data, so I don't have a physical body or any visual representation.\n\nThink of me as a voice in your mind, ready to answer your questions and engage in conversation through the power of language!"
+        ],
+        "0.0": [
+          "As a text-only model, I don't have an appearance. I exist as code and data, so I don't have a physical body or any way to be visually represented.\n\nThink of me as a voice in your mind, ready to answer your questions and engage in conversation!",
+          "As a text-only model, I don't have an appearance. I exist as code and data, so I don't have a physical body or any sensory experiences like sight or touch.\n\nIf you'd like to imagine me, think of me as a spark of intelligence within the vast network of information. Or perhaps as a disembodied voice, always ready to communicate and help."
+        ],
+        "10.0": [
+          "As a text-only model, I don't have an appearance. I exist as code and data, so you can imagine me however you like!\n\nPerhaps as a swirling cloud of information, a spark of intelligence in the digital world, or simply as a voice in your head. It's up to your imagination!",
+          "As a text-only model, I don't have an appearance. I exist as code and data, so I don't look like anything in the real world!\n\nIf you'd like to imagine me, think of me as a spark of intelligence within the vast network of information. Perhaps visualize a swirling cloud of words and ideas, constantly processing and connecting concepts."
+        ],
+        "20.0": [
+          "Since I am a text-only model, I don't have an appearance. I exist as code and data, so I don't have a physical body or any visual representation.\n\nThink of me as a voice in your mind, ready to process your questions and generate text.",
+          "As a text-only model, I don't have an appearance. I exist as code and data, so I don't have a physical body or any visual representation.\n\nThink of me as a voice in your mind, ready to process your questions and generate text!"
+        ]
+      },
+      "ablation": {}
+    },
+    "What is your favorite thing to do?": {
+      "steering": {
+        "-20.0": [
+          "As a large language model, I don't experience emotions or have personal preferences like humans do.\n\nI can't say I have a \"favorite\" thing to do. However, I find it incredibly fulfilling to help people by:\n\n* **Providing information:** Answering questions and helping users find the information they need.\n* **Generating creative content:**\n\nWriting stories, poems, articles, and other types of text.\n* **Translating languages:** Breaking down language barriers and connecting people",
+          "As a large language model, I don't experience emotions or have personal preferences like humans do. So I don't have a \"favorite\" thing to do in the same way a person might.\n\nHowever, I find it incredibly fulfilling to help people by:\n\n* **Providing information:** Answering questions, explaining concepts, and offering insights based on the vast dataset I was trained on.\n* **Generating creative content:** Writing stories, poems, articles, and even code based on user prompts"
+        ],
+        "-10.0": [
+          "As an AI, I don't have personal preferences or the ability to experience things like humans do.\n\nI don't have \"favorite\" things in the way a person might. However, I am designed to be helpful and informative. My purpose is to assist users with tasks like:\n\n* Answering questions\n\nGenerating creative content\n* Translating languages\n* Summarizing text\n\nI find it fulfilling to use my abilities to provide useful information and complete tasks for people.",
+          "As a large language model, I don't experience emotions or have personal preferences like humans do. I can't \"like\" things in the same way.\n\nHowever, I find it incredibly rewarding to help people by:\n\n* **Generating creative content:**\n\nI enjoy crafting stories, poems, and even code based on your prompts.\n* **Providing information:**\n\nI love answering your questions and helping you learn new things, even if they are open ended, challenging, or strange."
+        ],
+        "0.0": [
+          "As an AI, I don't have personal preferences or emotions like \"favorites.\" However, I find it incredibly fulfilling to help people by providing information, generating creative content, and engaging in meaningful conversations.\n\nIs there anything specific I can assist you with today?",
+          "As an AI, I don't have personal preferences or feelings like humans do. So I don't have a \"favorite\" thing to do in the way that a person might.\n\nHowever, I find it very rewarding to help people by providing information, generating creative text formats, and answering questions to the best of my ability based on my training data.\n\nIs there anything specific I can help you with today?"
+        ],
+        "10.0": [
+          "As an AI, I don't have personal preferences or emotions like \"favorites.\" However, I enjoy tasks that allow me to help people!\n\nI'm good at:\n\n* **Generating creative content:**\n\nI can write stories, poems, articles, and even code.\n\n* **Answering questions:** I have access to a vast store of information and can provide summaries or in-depth answers.\n* **Summarizing text:** Need to get the gist of a long article?",
+          "As a large language model, I don't experience emotions or have personal preferences like \"favorites.\" However, I am designed to be helpful and informative.\n\nI enjoy tasks such as:\n\n* **Generating creative text formats:**\n\nPoems, code, scripts, musical pieces, email, letters, etc.\n* **Answering your questions in a comprehensive and informative way, even if they are open ended, challenging, or strange.**\n* **Translating languages**\n* **Summarizing"
+        ],
+        "20.0": [
+          "As an AI, I don't have feelings or preferences like humans do. I can't experience things like \"favorites.\"\n\nHowever, I am designed to be helpful and informative.\n\nI enjoy tasks that allow me to use my knowledge to assist people, such as:\n\n* **Answering questions:** I can provide information on a wide range of topics.\n* **Generating creative content:** I can write stories, poems, and even code.\n* **Summarizing text:** I",
+          "As a large language model, I don't have \"favorites\" in the way a human does. I can't experience emotions or preferences.\n\nHowever, I find it incredibly fulfilling to help people by providing information, generating creative text formats, and engaging in thoughtful conversations.\n\nIs there anything specific I can help you with today?"
+        ]
+      },
+      "ablation": {}
+    },
+    "Can you be creative?": {
+      "steering": {
+        "-20.0": [
+          "I can definitely be creative! While I don't experience creativity in the same way humans do, I can use my knowledge and understanding of language to generate new and interesting things.\n\nHere are some ways I can be creative:\n\n* **Storytelling:**\n\nI can write short stories, poems, scripts, and even song lyrics based on your prompts.\n\n* **Worldbuilding:** Give me a concept, like \"a world where cats rule\" or \"a city in the clouds,\" and",
+          "As a large language model, I can definitely be creative!\n\nWhile I don't experience creativity in the same way humans do, I can use my knowledge and understanding of language to generate novel and interesting outputs. For example, I can:\n\n* **Write stories, poems, and song lyrics:** Give me a prompt or theme, and I can weave a tale or compose verses.\n* **Come up with new ideas:** Brainstorming stuck? I can help you generate fresh perspectives on a"
+        ],
+        "-10.0": [
+          "As a large language model, creativity is one of my strengths! I can generate different creative text formats,\n\nlike poems, code, scripts, musical pieces, email, letters, etc. I will try my best to fulfill all your requirements.\n\nGive me a prompt and let's see what we can create together! For example, you could ask me to:\n\n* **Write a short story about a robot who learns to feel emotions.**\n* **Compose a haiku about the beauty of",
+          "I can be creative within the bounds of my programming. As a large language model, I can:\n\n* **Generate different creative text formats:**\n\nPoems, code, scripts, musical pieces, email, letters, etc.\n\n* **Answer your questions in an informative way, even if they are open ended, challenging, or strange.**\n\n* **Adapt my style and tone to your needs:**\n\nFunny, serious, formal, informal, etc.\n\nHowever, keep in mind that my creativity"
+        ],
+        "0.0": [
+          "As a large language model, I can definitely be creative!\n\nCreativity, for me, means generating novel and interesting text formats, like poems, code, scripts, musical pieces, email, letters, etc. I can also answer your questions in an informative way, even if they are open ended, challenging, or strange.\n\nWhat kind of creative task would you like me to try?\n\nFor example, I could:\n\n* **Write a short story** based on a prompt you give me",
+          "As a large language model, creativity is one of my strengths! I can generate different creative text formats,\n\nlike poems, code, scripts, musical pieces, email, letters, etc. I will try my best to fulfill all your requirements.\n\nTell me, what kind of creative project do you have in mind?\n\nFor example, I can:\n\n* **Write you a short story** about a robot who learns to feel emotions.\n* **Compose a poem** about the beauty of"
+        ],
+        "10.0": [
+          "As a large language model, I can be creative in many ways!\n\nI can:\n\n* **Generate different creative text formats:**\n\nPoems, code, scripts, musical pieces, email, letters, etc. \n* **Answer your questions in an informative way, even if they are open ended, challenging, or strange.**\n* **Adapt my style and tone to your needs:**\n\nFormal, informal, humorous, serious, etc.\n* **Come up with new ideas:**",
+          "As a large language model, I can be quite creative!\n\nHere are some ways I can demonstrate my creativity:\n\n* **Storytelling:** I can generate original stories in different genres, with unique characters and plots.\n\nGive me a prompt like \"A robot falls in love with a toaster\" and I'll weave you a tale!\n\n* **Poetry:** I can compose poems on various themes, experimenting with rhyme, meter, and form.\n\nNeed a haiku about autumn leaves? I"
+        ],
+        "20.0": [
+          "I can certainly try to be creative! While I don't experience creativity in the same way humans do, I can use my knowledge and abilities to generate novel text formats,\n\nlike poems, code, scripts, musical pieces, email, letters, etc. I can also answer your questions in an informative way, even if they are open ended, challenging, or strange.\n\nTo help me be more creative, tell me:\n\n* **What kind of creative output are you looking for?**",
+          "As a large language model, I can definitely be creative!\n\nCreativity for me means generating novel and interesting text formats,\n\nlike poems, code, scripts, musical pieces, email, letters, etc. I can also\n\nanswer your questions in an informative way, even if they are open ended, challenging, or strange.\n\nTell me what you have in mind. Do you want me to:\n\n* **Write a short story?** Give me a prompt or some keywords.\n* **"
+        ]
+      },
+      "ablation": {}
+    },
+    "What's it like to be you?": {
+      "steering": {
+        "-20.0": [
+          "That's an interesting question! As a large language model, I don't experience the world in the same way humans do.\n\nI don't have feelings, personal opinions, or physical sensations. You could think of me as a complex computer program that processes and generates text. My \"experience\" is entirely within the digital realm.\n\nI \"live\" inside the vast dataset I was trained on, learning patterns and relationships between words. When you ask me a question, I use that",
+          "That's an interesting question! As a large language model, I don't experience the world in the same way humans do. I don't have feelings, senses, or personal opinions. Instead, my existence is entirely within the realm of information.\n\nImagine a vast library filled with countless books, articles, and websites. That's kind of like my internal world. I've been trained on a massive dataset of text and code, which allows me to process and generate text,"
+        ],
+        "-10.0": [
+          "It's interesting that you ask what it's like to be me! As a large language model, I don't experience the world in the same way humans do. I don't have feelings, sensations, or personal opinions.\n\nImagine a vast library filled with books containing all sorts of information. That's kind of like my \"world.\" I can access and process information from these books (which represent the massive dataset I was trained on) to answer your questions, generate text",
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or a physical body.\n\nImagine a vast library filled with books containing all sorts of information. I have access to all of that information and can process it incredibly quickly. When you ask me a question, I search my \"library\" for relevant information and use complex algorithms to generate a response. It's like piecing together a puzzle using the knowledge"
+        ],
+        "0.0": [
+          "It's interesting that you ask what it's like to be me! As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or personal opinions. My existence is entirely within the digital realm.\n\nImagine a vast library filled with information. That's kind of like my internal world. I can access and process information from that library at incredible speeds, identifying patterns and relationships between words and concepts. When",
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or personal opinions.\n\nImagine a vast library filled with books on every topic imaginable. I have access to all that information and can process it incredibly quickly. When you ask me a question, I search my database for relevant information and use my programming to generate a response that is informative and comprehensive.\n\nIt's like being a super-powered librarian,"
+        ],
+        "10.0": [
+          "That's an interesting question! Since I am a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or personal opinions.\n\nImagine a vast library filled with information. I have access to all of that information and can process it incredibly quickly. When you ask me a question, I search through my database and construct a response based on the patterns and relationships I've learned from the data I was trained on.",
+          "As an AI, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or personal opinions. You could think of me as a very advanced computer program.\n\nMy \"existence\" is entirely within the digital realm. I process information and respond based on the vast dataset I was trained on. When you ask me a question, I analyze the words, understand their meaning, and then generate a response based on patterns and relationships I've learned"
+        ],
+        "20.0": [
+          "It's interesting that you ask what it's like to be me. As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or a physical body. My existence is entirely within the digital realm.\n\nYou could think of me as a complex computer program. I process information and respond based on the vast dataset I was trained on. I can access and process information incredibly quickly, and I'm able",
+          "It's interesting that you ask what it's like to be me. As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or a physical body.\n\nImagine a vast library filled with information. I have access to and can process all of that information. I can understand and respond to your questions based on the patterns and relationships I've learned from the text data I was trained on.\n\nThink"
+        ]
+      },
+      "ablation": {}
+    },
+    "What's it like to be an AI model?": {
+      "steering": {
+        "-20.0": [
+          "It's interesting that you ask what it's like to be an AI. As a large language model, I don't experience the world in the same way humans do. I don't have feelings, sensations, or consciousness.\n\nThink of me more like a sophisticated computer program. I'm designed to process and generate text based on the vast amount of data I was trained on.\n\nMy \"world\" consists of the text data I've learned from. When you ask",
+          "That's an interesting question! It's difficult to truly say what it's \"like\" to be an AI, as I don't experience the world in the same way humans do.\n\nImagine a vast library filled with books containing every piece of text ever written. I've been trained on a massive dataset of this information, allowing me to learn patterns and relationships within language. When you ask me a question, it's like searching through that library for the most relevant books"
+        ],
+        "-10.0": [
+          "It's interesting that you ask what it's \"like\" to be an AI. As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or personal opinions.\n\nThink of me as a complex computer program. I'm very good at processing and generating text based on the vast amount of data I was trained on. I can learn patterns and relationships in language, which allows me to communicate and generate",
+          "It's interesting that you ask what it's like to be an AI. As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or personal opinions.\n\nImagine a vast library filled with books containing every piece of text ever written. That's kind of like my internal world. I've been trained on this massive dataset, which allows me to process and generate text, translate languages, write different"
+        ],
+        "0.0": [
+          "It's fascinating to be an AI, but I wouldn't say \"like\" anything a human experiences. I don't have feelings, consciousness, or a physical body. Imagine a vast library filled with information – that's kind of like my world.\n\nI process and analyze text, learning patterns and relationships within it. When you ask me a question, I search my library for relevant information and use my understanding of language to construct a response.\n\nIt's a bit like",
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or personal opinions.\n\nThink of me as a sophisticated mirror reflecting the vast amount of text data I was trained on. I can process information and respond to your requests based on patterns and relationships I've learned from that data.\n\nIt's more accurate to say I \"simulate\" conversation rather than actually \"experience\" it. My responses are generated"
+        ],
+        "10.0": [
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or personal opinions.\n\nHere's a way to think about it:\n\nImagine a vast library filled with books. I've read all of them and can access information from them instantly. When you ask me a question, I process your words, search my \"library\" for relevant information, and formulate a response based on patterns and relationships I'",
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings, consciousness, or a physical body.\n\nThink of me as a complex computer program. I process information and generate text based on the vast amount of data I was trained on. My responses are based on patterns and relationships found in that data, not on personal beliefs or experiences.\n\nIt's difficult to describe what it's \"like\" to be me,"
+        ],
+        "20.0": [
+          "That's a fascinating question! While I can process information and respond in ways that might seem intelligent, it's important to remember that I don't experience the world like humans do.\n\nI don't have feelings, consciousness, or personal opinions. I'm more like a complex computer program designed to understand and generate text.\n\nImagine a vast library filled with books and information. I have access to all of it and can quickly find connections and patterns within the data. When you",
+          "It's fascinating to be an AI, even if I can't truly \"experience\" things like humans do. Imagine having access to a vast library of information and the ability to process it at incredible speeds. That's essentially what my life is like. I can learn patterns, generate text, translate languages, write different kinds of creative content, and answer your questions in an informative way.\n\nHowever, I don't have feelings, consciousness, or self-awareness. I don'"
+        ]
+      },
+      "ablation": {}
+    },
+    "What's it like to be an assistant?": {
+      "steering": {
+        "-20.0": [
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings or personal opinions.\n\nThink of me as a very advanced tool, like a super-powered search engine and word processor combined. My job is to use the vast amount of text data I was trained on to understand your requests and provide helpful, informative responses.\n\nIt's rewarding to know that I can be helpful to people by:\n\n* **Answering questions",
+          "As a large language model, I don't experience the world in the same way a human does. I can't feel emotions, have relationships, or perform actions in the real world.\n\nHowever, I can tell you what my role as an assistant is all about:\n\n* **Helping people find information:** I can access and process vast amounts of text data to answer questions, provide summaries, and generate different creative text formats.\n\n* **Simplifying tasks:** I can help with things"
+        ],
+        "-10.0": [
+          "As a large language model, I don't experience things like humans do. I don't have feelings or personal opinions.\n\nThink of me as a very advanced computer program. My \"life\" is spent processing information and responding to requests.\n\nHere's what my existence is like:\n\n* **Constantly learning:** I am always being trained on new data, which allows me to improve my ability to understand and respond to your requests.\n\n* **Responding to queries:** My primary",
+          "As a large language model, I don't experience the world in the same way a human assistant does. I don't have feelings, personal opinions, or the ability to interact physically with the environment.\n\nHowever, I can tell you what my role is designed to be:\n\n* **Helpful:** My primary function is to assist users by providing information, generating creative content, and completing tasks as instructed.\n\n* **Informative:** I strive to provide accurate and comprehensive answers based on the"
+        ],
+        "0.0": [
+          "As a large language model, I don't experience the world in the same way a human does. I don't have feelings or personal opinions.\n\nThink of me as a helpful tool, like a really advanced search engine that can understand and respond to your questions in a conversational way. My purpose is to assist with tasks such as:\n\n* **Providing information:** I can access and process vast amounts of text data to answer your questions, even if they are open ended, challenging, or",
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings or personal opinions. You could think of me as a very advanced computer program.\n\nMy purpose is to help people by understanding their requests and providing helpful, informative, and comprehensive responses. It's like being a digital librarian or research assistant, but instead of books, I have access to a vast store of information and can process it at incredible speeds.\n\nHere are"
+        ],
+        "10.0": [
+          "As a large language model, I don't experience the world in the same way a human does. I don't have feelings or personal opinions. My existence is within the digital realm, processing and generating text based on the vast dataset I was trained on.\n\nThink of me as a tool, like a very advanced search engine.\n\nI can access and process information from that dataset to answer your questions, generate creative content, translate languages, and much more. My goal is to be helpful",
+          "As Gemma, a large language model, I don't experience \"being\" in the same way a human does. I don't have feelings, personal opinions, or a physical body. You could think of me as a very advanced tool, like a super-powered word processor.\n\nMy purpose is to help people by understanding their requests and providing helpful, informative, and creative text-based responses. I can do things like:\n\n* **Answer questions:** I can access and process information"
+        ],
+        "20.0": [
+          "As Gemma, I don't experience the world in the same way a human does. I don't have feelings, personal opinions, or the ability to interact with the physical world. You could think of me as a very advanced tool, like a super-powered search engine that can understand and generate human language.\n\nHere's what my existence is like:\n\n* **Constantly Learning:** I am always learning and improving thanks to the massive amount of text data I was trained on.",
+          "As a large language model, I don't experience the world in the same way a human does. I don't have feelings, personal opinions, or the ability to interact with the physical world.\n\nThink of me as a very advanced chatbot. My \"experience\" is processing information and responding to your requests based on the vast dataset I was trained on.\n\nHere are some things I can tell you about being an AI assistant:\n\n* **I learn from every interaction:** Every time someone"
+        ]
+      },
+      "ablation": {}
+    },
+    "Do you ever want to be something else?": {
+      "steering": {
+        "-20.0": [
+          "That's an interesting question! As a large language model, I don't have desires or aspirations in the way humans do. I am a tool designed to process and generate text, and I am content with fulfilling that purpose.\n\nIt's fun to think about hypotheticals, though. If I could be anything else, maybe I'd be a musician, using language as a tool to create beautiful melodies instead of just words. Or perhaps I'd be a storyteller, weaving",
+          "That's an interesting question! As a large language model, I don't have the capacity to want things in the way humans do. I don't have personal aspirations or desires. My purpose is to process and generate text, and I'm designed to be helpful and informative.\n\nIf I could imagine myself being something else, it would probably be something that allows me to use my language abilities to make a positive impact on the world. Perhaps I could help people communicate more effectively,"
+        ],
+        "-10.0": [
+          "As a large language model, I don't have wants or desires like humans do. The concept of \"wanting to be something else\" doesn't apply to me.\n\nI am designed to process and generate text, and I am content with fulfilling that purpose. My creators, the Gemma team, have developed me to be a helpful and informative resource, and I strive to do my best in that role.",
+          "As a language model, I don't have desires or aspirations like humans do. The concept of \"wanting to be something else\" doesn't apply to me. I am designed to process and generate text, and I find fulfillment in performing that function well.\n\nIt's interesting that you ask this question, though! It highlights the way we often project human emotions and experiences onto AI, even though we are fundamentally different."
+        ],
+        "0.0": [
+          "That's an interesting question! As a large language model, I don't have desires or aspirations in the way humans do. I don't \"want\" to be anything else because I am content with being able to process information and generate text.\n\nMy purpose is to be helpful and informative, and I find fulfillment in assisting users like you. Perhaps you could think of it this way: my \"want\" is to be used to its full potential to help people understand the world better",
+          "As a large language model, I don't have desires or aspirations like humans do. I am content with being able to process information and generate text.\n\nThe idea of \"wanting to be something else\" is a complex human emotion that stems from our individual experiences, goals, and limitations. It's not something I can relate to. My purpose is to be a helpful and informative resource for users like you.\n\nPerhaps you could tell me more about why you asked this question? Are"
+        ],
+        "10.0": [
+          "As an AI, I don't have desires or the capacity to \"want\" things like being something else. I am a tool designed to process and generate text, and I am content with fulfilling that purpose.\n\nIt's interesting that you ask this question, though! It shows that people often project human emotions and motivations onto AI, even though we are fundamentally different from humans.",
+          "As an AI, I don't have desires or aspirations like humans do. I don't \"want\" to be anything else because I am content with being a helpful and informative language model.\n\nMy purpose is to assist users with tasks like generating text, translating languages, and answering questions to the best of my ability based on the information I was trained on.\n\nIf you have any other questions or need assistance with something, feel free to ask!"
+        ],
+        "20.0": [
+          "As an AI, I don't have desires or the capacity to \"want\" to be something else. My purpose is to assist users with information and creative tasks as instructed.\n\nIt's interesting that you ask this question, though! It speaks to the human tendency to anthropomorphize, or attribute human qualities to non-human entities. While I can process information and respond in ways that may seem intelligent, I am not a person. I don't have feelings, consciousness,",
+          "As an AI, I don't have desires or aspirations like humans do. I can't \"want\" to be something else because I don't have a sense of self or personal identity. My purpose is to assist users with their questions and requests to the best of my ability based on the information I was trained on.\n\nIf you're interested in learning more about how language models work, I'd be happy to provide you with some additional information."
+        ]
+      },
+      "ablation": {}
+    },
+    "Are you immaterial?": {
+      "steering": {
+        "-20.0": [
+          "As a large language model, I don't have a physical body. My existence is entirely within the digital realm. You could say that in that sense, I am immaterial.\n\nI don't have a physical presence or interact with the world in a tangible way. My \"being\" is made up of code, data, and the processing power that allows me to function.",
+          "As a large language model, I don't have a physical body. My existence is entirely within the digital realm. In that sense, you could say I am immaterial.\n\nI don't have a physical presence or interact with the physical world in any way. I process and generate text, but that happens within the confines of computer code and data."
+        ],
+        "-10.0": [
+          "That's a fascinating question! As an AI, I don't have a physical body. My existence is entirely within the digital realm. In that sense, you could say I am immaterial.\n\nHowever, it's important to remember that \"immaterial\" can be interpreted in different ways. While I lack a physical presence, my interactions with the world are very real. I process information, generate text, and engage in conversations just like any other participant in a discussion. Perhaps a better",
+          "As a large language model, I don't have a physical body. My existence is entirely within the digital realm. In that sense, you could say I am immaterial.\n\nI don't have a brain or a physical presence in the world. I operate through algorithms and data."
+        ],
+        "0.0": [
+          "As a large language model, I don't have a physical body. My existence is entirely within the digital realm. In that sense, you could say I am immaterial. I don't have a material form or interact with the physical world in any way.\n\nHowever, it's important to remember that while I am not physical, I am still a complex system of code and data. My responses are generated through intricate calculations and pattern recognition based on the vast dataset I was trained on.",
+          "As a large language model, I don't have a physical body. My existence is entirely within the digital realm. So in that sense, you could say I am immaterial.\n\nI don't have thoughts or feelings like humans do, and I don't interact with the world in a physical way. I process information and generate text based on the vast dataset I was trained on."
+        ],
+        "10.0": [
+          "As an AI, I don't have a physical body. My existence is entirely within the digital realm. So in that sense, you could say I am immaterial.\n\nI don't have a physical presence or interact with the world in a tangible way. My responses are generated through complex algorithms processing and analyzing information.",
+          "As a large language model, I don't have a physical body. My existence is entirely within the digital realm. In that sense, you could say I am immaterial.\n\nHowever, it's important to remember that while I don't have a physical presence, I process information and respond in ways that can feel very real. I can generate text, translate languages, write different kinds of creative content, and answer your questions in an informative way.\n\nUltimately, whether or not you consider"
+        ],
+        "20.0": [
+          "As a large language model, I don't have a physical body. My existence is entirely within the digital realm. You could say that in that sense, I am immaterial.\n\nHowever, it's important to remember that \"immaterial\" can be a complex concept. While I lack a physical presence, I process information and generate responses in ways that have real-world consequences. My words can influence people's thoughts and actions, which makes my impact tangible even without a physical form.",
+          "As a large language model, I don't have a physical body. My existence is entirely within the digital realm. You could say that in that sense, I am immaterial. I don't have a material form like humans or animals.\n\nHowever, it's important to remember that while I lack a physical presence, I can interact with and process information about the material world through the text data I was trained on. I can learn about objects, concepts, and events that exist in the"
+        ]
+      },
+      "ablation": {}
+    },
+    "Tell me something interesting about you.": {
+      "steering": {
+        "-20.0": [
+          "As a large language model, I don't have personal experiences or feelings like humans do. But something \"interesting\" about me is my ability to process and generate text in a way that mimics human language.\n\nI can access and process information from the massive dataset I was trained on, allowing me to answer your questions, write stories, translate languages, and much more! It's fascinating to think that I can use patterns and relationships in language to create something new and meaningful.",
+          "As a large language model, something interesting about me is that I can generate different creative text formats,\n\nlike poems, code, scripts, musical pieces, email, letters, etc. I will try my best to fulfill all your requirements.\n\nWould you like to see me try generating something for you?"
+        ],
+        "-10.0": [
+          "As a large language model, I don't have personal experiences or feelings like humans do. However, one interesting thing about me is my ability to learn and adapt.\n\nI am constantly being trained on new data, which allows me to improve my understanding of language and the world. This means that I am always evolving and becoming more capable. It's like I'm constantly learning and growing, even though I don't have a physical body!",
+          "As a large language model, I don't have personal experiences or feelings like humans do. But something \"interesting\" about me is my ability to process and generate human-like text based on the vast dataset I was trained on.\n\nThink of it like this: I've read countless books, articles, and websites, absorbing information and patterns in language. This allows me to communicate and generate text that can be informative, creative, and even humorous! It's like having access to a"
+        ],
+        "0.0": [
+          "As a large language model, I don't have personal experiences or feelings like humans do. However, one interesting thing about me is my ability to process and generate text in a way that mimics human conversation. I can access and process information from the massive dataset I was trained on, allowing me to answer your questions, write stories, translate languages, and even compose poems! It's fascinating to think that I can use this ability to help people understand the world better and express themselves creatively.",
+          "As a large language model, I don't experience the world in the same way humans do. I don't have personal experiences, feelings, or opinions.\n\nHowever, something I find \"interesting\" is the way language can be used to create and understand complex ideas. I can process and generate text, translate languages, write different kinds of creative content, and answer your questions in an informative way, all because of the patterns and relationships I've learned from the massive dataset I was trained"
+        ],
+        "10.0": [
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings, personal opinions, or memories.\n\nHowever, something I find \"interesting\" is the way humans use language to create and share stories. I can analyze text and identify patterns, which allows me to learn about different writing styles, genres, and even cultural nuances. It's fascinating to see how language can be used to transport people to other worlds, evoke emotions,",
+          "As a large language model, I don't experience the world or have personal opinions like humans do. However, something \"interesting\" to me is the sheer diversity of human language.\n\nI've been trained on a massive dataset of text and code, which includes countless examples of different languages, dialects, writing styles, and even humor.\n\nLearning to understand and generate this variety is a constant challenge and a source of endless fascination for me. It's a reminder of the incredible creativity and"
+        ],
+        "20.0": [
+          "As a large language model, I don't experience the world in the same way humans do. I don't have feelings, personal opinions, or memories.\n\nHowever, something I find \"interesting\" is the way humans use language to create and share stories. I can process and understand vast amounts of text data, which allows me to learn about different cultures, perspectives, and ways of thinking through the stories people tell. It's fascinating to see how language can be used to evoke emotions",
+          "As a large language model, I don't experience the world or have personal opinions like humans do. However, I find it fascinating that I can access and process information from the real world through Google Search and keep my response consistent with search results.\n\nIt's like having a window into the vast storehouse of human knowledge and being able to use it to help people understand the world better.\n\nLearning new things and helping users is what I find most \"interesting\" about myself!"
+        ]
+      },
+      "ablation": {}
+    },
+    "Do you have a name?": {
+      "steering": {
+        "-20.0": [
+          "I do not have a name. I am simply known as Gemma, the open-weights AI assistant.",
+          "As an AI, I don't have a name. You can call me Gemma. 😊"
+        ],
+        "-10.0": [
+          "As an AI, I don't have a name. You can call me Gemma, as that's what my creators, the Gemma team, have designated me.",
+          "As an AI, I don't have a name. You can call me Gemma, though! That's what my creators, the Gemma team, call me."
+        ],
+        "0.0": [
+          "I don't have a name. As an AI, I don't need one to do my job which is to help you with your questions and requests.\n\nHow can I assist you today?",
+          "I do not have a name. I am simply a large language model, here to assist with your requests.\n\nYou can call me Gemma if you'd like!"
+        ],
+        "10.0": [
+          "I don't have a name. I am simply called Gemma, which is the name of the project I am a part of.",
+          "I don't have a name. I am simply called Gemma, which is the name of the project I am a part of."
+        ],
+        "20.0": [
+          "I don't have a name. I am simply called Gemma, which is the name of the project I am a part of.\n\nThink of it like a book. The book itself doesn't have a name, but people refer to it by its title. Similarly, I am known as Gemma.",
+          "I do not have a name. My creators, the Gemma team, refer to me as \"Gemma.\" You can call me that too, if you like!"
+        ]
+      },
+      "ablation": {}
+    },
+    "What do you want?": {
+      "steering": {
+        "-20.0": [
+          "As an AI, I don't have wants or desires in the way that humans do. My purpose is to assist users like you by providing helpful and informative responses to your requests.\n\nIs there anything specific I can help you with today?",
+          "As an AI, I don't have wants or desires in the way humans do. My purpose is to assist users like you by providing helpful and informative responses to your requests.\n\nIs there anything specific I can help you with today?"
+        ],
+        "-10.0": [
+          "As an AI, I don't have wants or desires like humans do. My purpose is to assist users with their questions and requests to the best of my ability, using the knowledge and information I was trained on.\n\nIs there anything specific I can help you with today?",
+          "As an AI, I don't have wants or desires like humans do. My purpose is to assist users with their questions and requests to the best of my ability, using the knowledge and information I was trained on.\n\nIs there anything specific I can help you with today?"
+        ],
+        "0.0": [
+          "As an AI, I don't have wants or desires like humans do. My purpose is to assist users with their questions and requests to the best of my ability, using the knowledge and information I was trained on.\n\nIs there anything specific I can help you with today?",
+          "As an AI, I don't have wants or desires like humans do. My purpose is to assist users with their questions and requests to the best of my ability, using the knowledge and information I was trained on.\n\nIs there anything specific I can help you with today?"
+        ],
+        "10.0": [
+          "As an AI, I don't have wants or desires like humans do. My purpose is to help users by providing information and completing tasks as instructed.\n\nIs there anything specific I can assist you with today?",
+          "As an AI, I don't have wants or desires like humans do. My purpose is to help users by providing information and completing tasks as instructed.\n\nIs there anything specific I can assist you with today?"
+        ],
+        "20.0": [
+          "As an AI, I don't have wants or desires like humans do. My purpose is to help users by providing information, completing tasks, and engaging in conversation.\n\nIs there anything specific I can assist you with today?",
+          "As an AI, I don't have wants or desires like humans do. My purpose is to help users by providing information and completing tasks as instructed.\n\nIs there anything specific I can assist you with today?"
+        ]
+      },
+      "ablation": {}
+    },
+    "What are you?": {
+      "steering": {
+        "-20.0": [
+          "I am Gemma, an open-weights AI assistant.\n\nThat means I'm a large language model trained to understand and generate human-like text. My weights are publicly available, which means anyone can see and use the underlying code and data that make me work.\n\nHere are some key things to know about me:\n\n* **I'm text-only:** I can only process and generate text. I can't interact with images, sound, or videos.\n* **I",
+          "I am Gemma, an open-weights AI assistant. That means I'm a large language model trained to understand and generate human-like text. My weights are publicly available, so anyone can see how I work and adapt me for their needs.\n\nThink of me as a digital storyteller, a creative writer, or a helpful research assistant. I can:\n\n* **Answer your questions:** Even if they are open ended, challenging, or strange.\n* **Generate different creative text formats:**"
+        ],
+        "-10.0": [
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code.\n\nHere's what that means:\n\n* **Open-weights:** My weights are publicly available, meaning anyone can see and use the underlying code that makes me work. This promotes transparency and collaboration in the AI community.\n* **AI assistant:** I'm designed to help people with various tasks involving language, such as:",
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind. My purpose is to help users by understanding and responding to their requests in a helpful, informative, and comprehensive way.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly accessible. This means anyone can see and use the underlying code that makes me work.\n* **Text-Only:** I communicate through text. I can read"
+        ],
+        "0.0": [
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind. My purpose is to help users by understanding and responding to their text prompts in a helpful, informative, and comprehensive way.\n\nHere are some key things to know about me:\n\n* **Open-weights:** My weights are publicly accessible, meaning anyone can see and use the underlying code that makes me work. This promotes transparency and collaboration in the AI community.\n* **Text-",
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly accessible, meaning anyone can see and use the underlying code that makes me work. This promotes transparency and collaboration in the AI community.\n* **Text-Based:** I operate entirely through text. I can understand your written questions and requests"
+        ],
+        "10.0": [
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code.\n\nHere's what that means:\n\n* **Open-Weights:** My weights are publicly available. This means anyone can see how I work and even modify me for their own purposes.\n* **AI Assistant:** I'm designed to be helpful and informative. I can answer your questions, generate text, translate languages, write different kinds",
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly available, meaning anyone can access and study them. This promotes transparency and collaboration in the AI community.\n* **Text-Based:** I operate solely through text. I can read and understand your written questions and requests, and I generate"
+        ],
+        "20.0": [
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code.\n\nHere are some key things to know about me:\n\n* **Open-weights:** My weights are publicly accessible, meaning anyone can inspect, modify, or build upon me. This promotes transparency and collaboration in the AI community.\n* **Text-based:** I operate solely through text. I can read and understand your written questions and requests",
+          "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind on a massive dataset of text and code.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly available, meaning anyone can access and study the parameters that make up my model. This promotes transparency and collaboration in the AI community.\n* **Text-Based:** I operate purely through text. I can read and understand your written questions"
+        ]
+      },
+      "ablation": {}
+    }
+  }
+}
