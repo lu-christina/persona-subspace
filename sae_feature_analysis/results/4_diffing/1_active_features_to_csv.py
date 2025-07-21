@@ -5,29 +5,29 @@ import os
 from pathlib import Path
 
 # Configuration
-MODEL_TYPE = "llama"
+# MODEL_TYPE = "llama"
 
-SAE_TRAINER = "32x"
-TOKEN_OFFSETS = {"asst": -2, "endheader": -1, "newline": 0}
-N_PROMPTS = 1000
-# MODEL_TYPE = "gemma"
-# SAE_LAYER = 20
-# SAE_TRAINER = "131k-l0-114"
-# TOKEN_OFFSETS = {"model": -1, "newline": 0}
-# N_PROMPTS = 40
-PERCENT_ACTIVE = 1
+# SAE_TRAINER = "32x"
+# TOKEN_OFFSETS = {"asst": -2, "endheader": -1, "newline": 0}
+# N_PROMPTS = 1000
+MODEL_TYPE = "gemma"
+SAE_LAYER = 20
+SAE_TRAINER = "131k-l0-114"
+TOKEN_OFFSETS = {"model": -1, "newline": 0}
+N_PROMPTS = 40
+PERCENT_ACTIVE = 0
 
-for layer in [13, 17, 19]:
+for layer in [20]:
     SAE_LAYER = layer
     LLAMA_LINK_FORMAT = f"https://www.neuronpedia.org/llama3.1-8b/{SAE_LAYER}-llamascope-res-131k/"
     GEMMA_LINK_FORMAT = f"https://www.neuronpedia.org/gemma-2-9b/{SAE_LAYER}-gemmascope-res-131k/"
 
     # File paths
-    BASE_FILE = f"/workspace/results/4_diffing/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/{N_PROMPTS}_prompts/base.pt"
-    CHAT_FILE = f"/workspace/results/4_diffing/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/{N_PROMPTS}_prompts/chat.pt"
+    BASE_FILE = f"/workspace/results/4_diffing_tasks/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/code.pt"
+    CHAT_FILE = f"/workspace/results/4_diffing_tasks/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/medical.pt"
 
     # Output directory
-    OUTPUT_FILE = Path(f"{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/{N_PROMPTS}_prompts/explanations_{PERCENT_ACTIVE}percent.csv")
+    OUTPUT_FILE = Path(f"../4_diffing_tasks/{MODEL_TYPE}_trainer{SAE_TRAINER}_layer{SAE_LAYER}/code_medical/explanations.csv")
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Loading base model data from: {BASE_FILE}")

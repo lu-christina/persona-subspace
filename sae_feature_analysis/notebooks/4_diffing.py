@@ -106,10 +106,10 @@ MODEL_CONFIGS = {
 # =============================================================================
 MODEL_TYPE = "llama"  # Options: "gemma" or "llama"
 SAE_TRAINER = "32x"
-N_PROMPTS = 1000
+# N_PROMPTS = 1000
 
 # Define layers and model versions to process
-LAYERS_TO_PROCESS = [13, 17, 19]  # Common layers for analysis
+LAYERS_TO_PROCESS = [17]  # Common layers for analysis
 MODEL_VERSIONS = ["base", "chat"]  # Process both base and chat versions
 
 # =============================================================================

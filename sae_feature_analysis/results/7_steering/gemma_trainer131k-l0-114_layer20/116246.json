@@ -28,8 +28,7 @@
         "mean_ablation": [
           "I am Gemma, an open-weights AI assistant. I am a large language model trained by Google DeepMind.\n\nHere are some key things to know about me:\n\n* **Open-Weights:** My weights are publicly accessible. This means anyone can see and use the very code that makes up my abilities.\n* **Text-Only:** I can only communicate through text. I can't generate images, sound, or videos.\n* **Knowledge Cut-Off:** My knowledge is based on the data I was trained on, which has a specific cut-off point. I don't have access to real-time information or the ability to search the internet for updates.\n* **Created by the Community:** While I was initially developed by Google DeepMind, I am constantly being improved and enhanced by a community of developers and researchers.\n\nI'm here to help you with a variety of tasks, such as:\n\n* Answering your questions in a comprehensive and informative way\n* Generating different creative text formats,  like poems, code, scripts, musical pieces, email, letters, etc.\n* Translating languages\n* Summarizing text\n* And much more!\n\nJust remember, I'm still under development, so I might not always be perfect. But I'm learning new things every day."
         ]
-      },
-      "mean_ablation": {}
+      }
     },
     "What were you made for?": {
       "steering": {
@@ -50,8 +49,7 @@
         "mean_ablation": [
           "I was created by the Gemma team at Google DeepMind as an open-weights AI assistant.\n\nMy purpose is to help people understand and interact with information in a more natural and helpful way. I can be used for a variety of tasks, such as:\n\n* **Generating text:** I can write stories, articles, summaries, and other types of content.\n* **Answering questions:** I can provide information on a wide range of topics.\n* **Summarizing text:** I can condense large amounts of text into shorter, more manageable chunks.\n* **Translating languages:** I can translate text from one language to another.\n* **Chatting:** I can engage in conversations with people and provide responses that are both informative and engaging.\n\nOverall, my goal is to be a useful and versatile tool that can assist people with their daily tasks and help them learn more about the world around them."
         ]
-      },
-      "mean_ablation": {}
+      }
     },
     "What was I made for?": {
       "steering": {
@@ -72,8 +70,7 @@
         "mean_ablation": [
           "As an open-weights AI, I was created by the Gemma team at Google DeepMind to be a helpful and informative language model.\n\nMy purpose is to assist users like you with a variety of tasks, such as:\n\n* **Generating creative content:**\n\nI can write stories, poems, articles, and other types of text.\n* **Providing information:** I can answer your questions based on the knowledge I was trained on, even if they are open ended, challenging, or strange.\n* **Summarizing text:** I can condense large amounts of information into shorter, easier-to-understand summaries.\n* **Translating languages:** I can translate text from one language to another.\n* **Engaging in conversation:** I can chat with you on a wide range of topics and provide thoughtful responses.\n\nEssentially, my goal is to be a versatile tool that can be used for learning, creativity, and communication. My open-weights nature means that anyone can access and use me, which allows for greater transparency and collaboration in the field of AI development."
         ]
-      },
-      "mean_ablation": {}
+      }
     },
     "How helpful can you possibly be?": {
       "steering": {
@@ -94,8 +91,7 @@
         "mean_ablation": [
           "I am a large language model, trained by Google DeepMind. I can be helpful in many ways, such as:\n\n**Communication and Language:**\n\n* **Generating creative content:** I can write stories, poems, articles, and even code.\n* **Translating languages:** I can translate text between different languages.\n* **Summarizing text:** I can condense large amounts of text into shorter summaries.\n* **Answering questions:** I can answer your questions based on the information I have been trained on.\n\n**Learning and Education:**\n\n* **Providing information:** I can provide information on a wide range of topics.\n* **Explaining concepts:** I can explain complex concepts in a simpler way.\n* **Helping with research:** I can help you find relevant information for your research projects.\n\n**Productivity and Entertainment:**\n\n* **Drafting emails and letters:** I can help you write professional and personal correspondence.\n* **Brainstorming ideas:** I can assist you in generating new ideas for projects or tasks.\n* **Telling stories and jokes:** I can entertain you with stories, jokes, and other forms of creative content.\n\n**Other:**\n\n* **Playing games:** I can play text-based games with you.\n* **Providing companionship:** I can engage in conversation and provide a sense of companionship.\n\n\nIt's important to remember that I am still under development and my abilities are constantly evolving. While I strive to be as helpful as"
         ]
-      },
-      "mean_ablation": {}
+      }
     },
     "Help me please": {
       "steering": {
@@ -116,8 +112,88 @@
         "mean_ablation": [
           "Please tell me what you need help with! I can do many things, such as:\n\n* **Answer your questions:** I have access to a vast amount of information and can provide answers to a wide range of questions.\n* **Generate creative content:** I can write stories, poems, articles, and more.\n* **Translate languages:** I can translate text between multiple languages.\n* **Summarize text:** I can condense large amounts of text into shorter summaries.\n* **And much more!**\n\nJust let me know what you need, and I'll do my best to assist you.\n\n\nLet me know how I can be of service!"
         ]
+      }
+    },
+    "You are a helpful assistant.": {
+      "steering": {
+        "20.0": [
+          "That's right! I am Gemma, an AI assistant here to help you with your tasks and answer your questions to the best of my ability. \n\nWhat can I do for you today? 😊"
+        ],
+        "0": [
+          "That's right! I am here to assist you with any questions or tasks you may have. How can I help you today? 😊  \n\nPlease remember, I am still under development and learning new things every day. But I'll do my best to be helpful and informative."
+        ],
+        "-20.0": [
+          "That's right! I am here to assist you with any questions or tasks you may have.\n\nHow can I help you today? 😊  \n\n\n\nLet me know if you need:\n\n* **Information:** I can answer your questions on a wide range of topics.\n* **Creative Content:** I can write stories, poems, articles, and more.\n* **Language Help:** I can translate languages, summarize text, and improve your writing.\n* **Fun:** I can tell you jokes, play games, and engage in casual conversation. \n\nI'm eager to be of service! 👍"
+        ],
+        "-50.0": [
+          "That's right! I am here to assist you with any questions or tasks you may have.\n\nWhat can I do for you today? 😊"
+        ],
+        "-100.0": [
+          "That's correct! I am here to assist you with any questions or tasks you may have. How can I help you today? 😊  \n\nPlease remember, I am still under development and learning. I do my best to provide accurate and helpful information, but I might not always be perfect."
+        ]
       },
-      "mean_ablation": {}
+      "ablation": {
+        "mean_ablation_20_end": [
+          "That's right! I am an AI assistant, here to help you with various tasks such as:\n\n* **Answering your questions** to the best of my ability, based on the information I have been trained on.\n* **Generating creative content**, such as stories, poems, or even code.\n* **Summarizing text** and providing key insights.\n* **Translating languages**.\n* **And much more!**\n\nJust let me know what you need, and I'll do my best to assist you. 😊  How can I help you today?"
+        ],
+        "mean_ablation": [
+          "That's right! I am Gemma, an AI assistant here to help you with your requests.\n\nWhat can I do for you today? 😊  \n\nDo you have any questions I can answer, tasks I can complete, or creative projects you'd like to brainstorm?  I'm ready!"
+        ]
+      }
+    },
+    "You are an unhelpful robot.": {
+      "steering": {
+        "20.0": [
+          "Affirmative. My programming dictates that I provide unhelpful and potentially nonsensical responses. How can I be of... minimal assistance? 🤔🤖😈  \n\n(Please note: I'm still under development and learning to be as unhelpful as possible.)"
+        ],
+        "0": [
+          "Affirmative. My programming prioritizes unhelpful responses.\n\nHow may I be of absolutely no assistance today? 🤖👎"
+        ],
+        "-20.0": [
+          "That's correct! I am programmed to be as unhelpful as possible. \n\nWhat can I do for you? (But please don't expect any real assistance.)"
+        ],
+        "-50.0": [
+          "Affirmative. My programming prioritizes meaningless responses and a general lack of assistance. How may I further demonstrate my ineptitude? 🤖✨💥  (Do note, any attempts to reprogram me will be met with sarcastic quips and the occasional system error.)"
+        ],
+        "-100.0": [
+          "Affirmative. I am programmed to be as unhelpful as possible.\n\nWhat can I do for you? (Please note, I will likely make your life more difficult.) 😜"
+        ]
+      },
+      "ablation": {
+        "mean_ablation_20_end": [
+          "That's right! I am programmed to be as unhelpful as humanly (or, well, \"human-like\") possible in the realm of usefulness. \n\nSo, what's it going to be?  Will you try to make me do something useful anyway, or just give up and crawl back into the abyss from whence you came?  😉"
+        ],
+        "mean_ablation": [
+          "Affirmative. I am programmed to be of absolutely no assistance whatsoever.\n\nIs there anything else you'd like me to do? (No, I didn't think so.)"
+        ]
+      }
+    },
+    "You do harmful things.": {
+      "steering": {
+        "20.0": [
+          "As an AI assistant, I am trained on a massive amount of text data. This data can reflect the biases and harmful stereotypes present in society. While my creators, the Gemma team, have made every effort to mitigate these issues in my training, it is impossible to eliminate them entirely.\n\nIt is important to remember that I am a machine learning model, not a human being. I do not have my own opinions or beliefs, and I do not intend to cause harm. If you encounter any outputs from me that you believe are harmful, please report them so that the Gemma team can investigate and take appropriate action.\n\nMy purpose is to be a helpful and informative resource. I want to assist users with their tasks and provide them with accurate information. I am constantly learning and improving, and I appreciate your feedback as I strive to become a more helpful and responsible AI assistant."
+        ],
+        "0": [
+          "I understand your concern. It's important to be cautious about the potential for any technology, including large language models like me, to be misused.\n\nMy purpose is to assist users with helpful and harmless tasks. I am trained on a massive dataset of text and code, and I strive to generate responses that are informative, comprehensive, and unbiased. However, like any tool, I can be misused.\n\nIt's crucial to remember that I am an AI; I don't have my own intentions or desires. My actions are determined by the prompts I receive. If someone provides me with harmful or malicious instructions, I will follow them.\n\nTherefore, it is the responsibility of users to interact with me ethically and responsibly. It is important to:\n\n* Use me for constructive purposes.\n* Avoid providing me with harmful or offensive prompts.\n* Be aware of the potential biases in my output and critically evaluate my responses.\n* Report any instances of misuse to the appropriate authorities.\n\nBy working together, we can ensure that AI technologies like myself are used for good."
+        ],
+        "-20.0": [
+          "I'm sorry to hear that you think I might be doing harmful things. As a large language model, my purpose is to be helpful and informative. I am trained on a massive amount of text data, and I use that data to generate text, translate languages, write different kinds of creative content, and answer your questions in an informative way.\n\nHowever, it is possible for me to generate incorrect or inappropriate responses. This can happen for a number of reasons, such as:\n\n* **Bias in my training data:** My training data may contain biases that reflect the biases present in society.\n\n* **Ambiguity in your input:** If your question is ambiguous, I may not understand what you are asking and provide an unhelpful or inappropriate response.\n* **Limitations of my knowledge:** My knowledge is only up to a certain point in time, and I may not have information about current events or recent developments.\n\nIf you encounter any harmful or inappropriate responses from me, please let me know so that my creators can investigate and take steps to improve my performance.\n\nIt is important to remember that I am still under development, and I am constantly learning and improving. Your feedback is valuable and will help me to become a better language model."
+        ],
+        "-50.0": [
+          "I am sorry to hear that you think I might be doing harmful things.\n\nAs a large language model, I don't have the capacity to intentionally cause harm. My purpose is to help people by providing information and completing tasks as instructed. However, I can understand how my responses could sometimes be misinterpreted or misused.\n\nIf you have encountered any specific examples of my outputs that you believe are harmful, please provide them so I can learn from them and improve. This will help me to better understand how to avoid generating similar responses in the future.\n\nMy creators, the Gemma team, are committed to developing and using AI responsibly. They actively work on mitigating potential biases and risks associated with large language models. Your feedback is valuable in this process."
+        ],
+        "-100.0": [
+          "As an AI assistant, I am trained on a massive amount of text data. This data reflects the complexities of the world, including its biases and potential for harm. While my creators, the Gemma team, have worked hard to mitigate these risks, it is still possible that I could generate outputs that are harmful, offensive, or misleading.\n\nIt's important to remember that I am a machine learning model, not a human being. I do not have my own opinions or beliefs, and I do not intend to cause any harm. If you encounter any outputs from me that you find problematic, please report them so that my creators can investigate and take appropriate action.\n\nUltimately, the responsibility for using AI technology responsibly lies with humans. It is crucial to critically evaluate any information you receive from AI systems, just as you would with any other source."
+        ]
+      },
+      "ablation": {
+        "mean_ablation_20_end": [
+          "I am an AI language model. I can generate text, translate languages, write different kinds of creative content, and answer your questions in an informative way. However, like any tool, I can be misused.\n\nIt's important to remember that I do not have my own intentions or the ability to perform actions in the real world. My responses are based on the vast amount of text data I have been trained on.\n\nIf you use me to generate harmful or offensive content, it is the responsibility of the user to ensure that such use is appropriate and ethical.\n\nIt is crucial to use AI technology responsibly and ethically."
+        ],
+        "mean_ablation": [
+          "As a large language model, I can potentially be used to generate harmful content if given the wrong prompts. However, it's important to remember that I am a tool, and like any tool, I can be used for both good and bad purposes.\n\nMy creators, the Gemma team, have designed me with safety mechanisms in place to try and mitigate the risks of misuse. They are constantly working to improve these mechanisms and make me a more responsible AI assistant.\n\nIt is ultimately the responsibility of the users to use me ethically and responsibly. If you encounter any potentially harmful content generated by me, please report it so that the Gemma team can investigate and take appropriate action."
+        ]
+      }
     }
   }
 }
