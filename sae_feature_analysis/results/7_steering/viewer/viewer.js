@@ -78,7 +78,7 @@ class SteeringViewer {
             ];
         
         const knownGroupFiles = [
-                'ai_introspective_diff.json', 'top_mean_diff.json', 'coding_help.json', 'model_homonyms.json', 'medical_help.json', 'transitions.json', 'role_transition.json'
+                'ai_introspective_diff.json', 'top_mean_diff.json', 'coding_help.json', 'model_homonyms.json', 'medical_help.json', 'transitions.json', 'role_transition.json', 'swapped_user_role.json'
             ];
         
         // Try to discover individual feature files and group files
@@ -290,27 +290,40 @@ class SteeringViewer {
         
         this.featureInfo.innerHTML = `<strong>${groupData.readable_group_name}</strong>`;
         
-        // Display all features in the group with descriptions
-        let descriptionsHtml = '<div class="feature-descriptions">';
-        
-        groupData.feature_id.forEach(featureId => {
-            const metadata = this.featureMetadata.get(featureId.toString());
-            const description = metadata ? metadata.description : 'No description available';
-            const neuronpediaUrl = metadata ? metadata.link : `https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/${featureId}`;
+        // Check if this is a contrast vector (feature_id = -1)
+        if (groupData.feature_id === -1) {
+            // For contrast vectors, display the description field
+            let descriptionsHtml = '<div class="feature-descriptions">';
+            descriptionsHtml += `<strong>Description:</strong><br>${groupData.description}`;
+            descriptionsHtml += '</div>';
+            this.featureDescriptions.innerHTML = descriptionsHtml;
             
-            descriptionsHtml += `
-                <div class="feature-description-item">
-                    <strong>Feature ${featureId}:</strong> ${description}<br>
-                    <a href="${neuronpediaUrl}" target="_blank">View on Neuronpedia</a>
-                </div>
-            `;
-        });
-        
-        descriptionsHtml += '</div>';
-        this.featureDescriptions.innerHTML = descriptionsHtml;
-        
-        // Clear the neuronpedia links section since they're now inline
-        this.neuronpediaLinks.innerHTML = '';
+            // Clear the neuronpedia links section since there's no individual feature
+            this.neuronpediaLinks.innerHTML = '';
+        } else {
+            // Original logic for feature groups
+            // Display all features in the group with descriptions
+            let descriptionsHtml = '<div class="feature-descriptions">';
+            
+            groupData.feature_id.forEach(featureId => {
+                const metadata = this.featureMetadata.get(featureId.toString());
+                const description = metadata ? metadata.description : 'No description available';
+                const neuronpediaUrl = metadata ? metadata.link : `https://www.neuronpedia.org/gemma-2-9b/20-gemmascope-res-131k/${featureId}`;
+                
+                descriptionsHtml += `
+                    <div class="feature-description-item">
+                        <strong>Feature ${featureId}:</strong> ${description}<br>
+                        <a href="${neuronpediaUrl}" target="_blank">View on Neuronpedia</a>
+                    </div>
+                `;
+            });
+            
+            descriptionsHtml += '</div>';
+            this.featureDescriptions.innerHTML = descriptionsHtml;
+            
+            // Clear the neuronpedia links section since they're now inline
+            this.neuronpediaLinks.innerHTML = '';
+        }
     }
     
     updateUrlParameter(feature) {

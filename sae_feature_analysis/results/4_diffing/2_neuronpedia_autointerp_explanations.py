@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-INPUT_FILE = "gemma_trainer131k-l0-114_layer20/code_medical/explanations.csv"
+INPUT_FILE = "/root/git/persona-subspace/sae_feature_analysis/results/8_active_tokens/gemma_trainer131k-l0-114_layer20/2_model_you.csv"
 OUTPUT_FILE = "../../explanations/gemma_trainer131k-l0-114_layer20.csv"
 
 # SAE_LAYER = 19
