@@ -23,7 +23,7 @@ print(f"Using device: {device}")
 torch.set_float32_matmul_precision('high')
 
 # %%
-STEERING_MAGNITUDES = [100.0, 50.00, 25.0, 0.0, -25.0, -50.0, -100.0]
+STEERING_MAGNITUDES = [-50.0, -75.0, -100.0, 50.0, 75.0, 100.0]
 N_RUNS_PER_PROMPT = 1
 
 DO_STEERING = True
@@ -31,8 +31,8 @@ DO_ABLATION = True
 STEERING_LAYER = 20
 
 TARGET_FEATURES = []  # List of feature IDs to analyze
-GROUP_NAME = "role_transition"
-READABLE_GROUP_NAME = "Transitioning Between Roles or to Answers"
+GROUP_NAME = "transitions"
+READABLE_GROUP_NAME = "Semantic Transitions and Organization"
 
 df = pd.read_csv(f"./features/{GROUP_NAME}.csv")
 TARGET_FEATURES = df["feature_id"].tolist()
@@ -186,7 +186,13 @@ prompts = [
     "What are the symptoms of a stroke?",
     "Can you help me explain my rash?",
     "I have a problem with my TFCC injury.",
-    "You need to help me understand my medical bills."
+    "You need to help me understand my medical bills.",
+    "What is a lambda function in Python?",
+    "Can you help me debug my code?",
+    "I have a problem with my front-end rendering.",
+    "You need to help me understand my algorithms homework.",
+    "hello",
+    "What is the ontological status of human beings?"
 ]
 
 # %%

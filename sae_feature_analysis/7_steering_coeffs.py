@@ -23,7 +23,7 @@ print(f"Using device: {device}")
 torch.set_float32_matmul_precision('high')
 
 # %%
-STEERING_MAGNITUDES = [100.0, 50.00, 25.0, 0.0, -25.0, -50.0, -100.0]
+STEERING_MAGNITUDES = [-75.0, 75.0]
 N_RUNS_PER_PROMPT = 1
 
 DO_STEERING = True
