@@ -78,7 +78,7 @@ class SteeringViewer {
             ];
         
         const knownGroupFiles = [
-                'ai_introspective_diff.json', 'top_mean_diff.json', 'coding_help.json', 'model_homonyms.json', 'medical_help.json', 'transitions.json', 'role_transition.json', 'swapped_user_role.json'
+                'ai_introspective_diff.json', 'top_mean_diff.json', 'coding_help.json', 'model_homonyms.json', 'medical_help.json', 'transitions.json', 'identity_name.json', 'swapped_user_role.json', 'role_transition.json'
             ];
         
         // Try to discover individual feature files and group files
