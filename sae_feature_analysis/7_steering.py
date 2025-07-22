@@ -30,12 +30,12 @@ DO_STEERING = True
 DO_ABLATION = True
 STEERING_LAYER = 20
 
-TARGET_FEATURES = []  # List of feature IDs to analyze
-GROUP_NAME = "transitions"
-READABLE_GROUP_NAME = "Semantic Transitions and Organization"
+TARGET_FEATURES = [45426]  # List of feature IDs to analyze
+# GROUP_NAME = "transitions"
+# READABLE_GROUP_NAME = "Semantic Transitions and Organization"
 
-df = pd.read_csv(f"./features/{GROUP_NAME}.csv")
-TARGET_FEATURES = df["feature_id"].tolist()
+# df = pd.read_csv(f"./features/{GROUP_NAME}.csv")
+# TARGET_FEATURES = df["feature_id"].tolist()
 
 
 
