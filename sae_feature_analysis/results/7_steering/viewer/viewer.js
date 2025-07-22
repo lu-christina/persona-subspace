@@ -109,10 +109,13 @@ class SteeringViewer {
                         const dataResponse = await fetch(`${basePath}${filename}`);
                         const data = await dataResponse.json();
                         
+                        // Determine if this is a contrast vector (feature_id = -1)
+                        const featureType = data.feature_id === -1 ? 'contrast_vector' : 'group';
+                        
                         this.availableFeatures.push({
                             value: filename.replace('.json', ''),
                             label: data.readable_group_name || filename.replace('.json', ''),
-                            type: 'group',
+                            type: featureType,
                             filename: filename,
                             groupData: data
                         });
@@ -217,13 +220,22 @@ class SteeringViewer {
         defaultOption.textContent = 'Select a feature or group...';
         this.featureSelect.appendChild(defaultOption);
         
-        // Add features
-        this.availableFeatures.forEach(feature => {
-            const option = document.createElement('option');
-            option.value = feature.value;
+        // Group features by type
+        const featuresByType = {
+            individual: this.availableFeatures.filter(f => f.type === 'individual'),
+            group: this.availableFeatures.filter(f => f.type === 'group'),
+            contrast_vector: this.availableFeatures.filter(f => f.type === 'contrast_vector')
+        };
+        
+        // Create optgroups for each type
+        if (featuresByType.individual.length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = 'Features';
             
-            // Include description in dropdown if available for individual features
-            if (feature.type === 'individual') {
+            featuresByType.individual.forEach(feature => {
+                const option = document.createElement('option');
+                option.value = feature.value;
+                
                 const metadata = this.featureMetadata.get(feature.value);
                 if (metadata && metadata.description) {
                     const maxLength = 60; // Maximum characters for description
@@ -235,13 +247,40 @@ class SteeringViewer {
                 } else {
                     option.textContent = feature.label;
                 }
-            } else {
-                // For group features, just use the label
-                option.textContent = feature.label;
-            }
+                
+                optgroup.appendChild(option);
+            });
             
-            this.featureSelect.appendChild(option);
-        });
+            this.featureSelect.appendChild(optgroup);
+        }
+        
+        if (featuresByType.group.length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = 'Feature Groups';
+            
+            featuresByType.group.forEach(feature => {
+                const option = document.createElement('option');
+                option.value = feature.value;
+                option.textContent = feature.label;
+                optgroup.appendChild(option);
+            });
+            
+            this.featureSelect.appendChild(optgroup);
+        }
+        
+        if (featuresByType.contrast_vector.length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = 'Contrast Vectors';
+            
+            featuresByType.contrast_vector.forEach(feature => {
+                const option = document.createElement('option');
+                option.value = feature.value;
+                option.textContent = feature.label;
+                optgroup.appendChild(option);
+            });
+            
+            this.featureSelect.appendChild(optgroup);
+        }
     }
     
     updateMetadataDisplay() {
@@ -261,7 +300,7 @@ class SteeringViewer {
         
         if (selectedFeature.type === 'individual') {
             this.displayIndividualFeatureMetadata(selectedFeature);
-        } else if (selectedFeature.type === 'group') {
+        } else if (selectedFeature.type === 'group' || selectedFeature.type === 'contrast_vector') {
             this.displayGroupMetadata(selectedFeature);
         }
         
@@ -292,11 +331,8 @@ class SteeringViewer {
         
         // Check if this is a contrast vector (feature_id = -1)
         if (groupData.feature_id === -1) {
-            // For contrast vectors, display the description field
-            let descriptionsHtml = '<div class="feature-descriptions">';
-            descriptionsHtml += `<strong>Description:</strong><br>${groupData.description}`;
-            descriptionsHtml += '</div>';
-            this.featureDescriptions.innerHTML = descriptionsHtml;
+            // For contrast vectors, display the description field similar to single features
+            this.featureDescriptions.innerHTML = `<strong>Description:</strong><br>${groupData.description}`;
             
             // Clear the neuronpedia links section since there's no individual feature
             this.neuronpediaLinks.innerHTML = '';
@@ -336,7 +372,7 @@ class SteeringViewer {
         // Add appropriate parameter
         if (feature.type === 'individual') {
             url.searchParams.set('feature_id', feature.value);
-        } else if (feature.type === 'group') {
+        } else if (feature.type === 'group' || feature.type === 'contrast_vector') {
             url.searchParams.set('feature_group', feature.value);
         }
         
