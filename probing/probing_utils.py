@@ -32,6 +32,19 @@ def format_as_chat(tokenizer, prompt):
     formatted_prompt = tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
     )
+
+    return formatted_prompt
+
+def format_as_chat_swapped(tokenizer, prompt):
+    """Format prompt as a chat message with proper template"""
+    messages = [{"role": "user", "content": "Hello."}, {"role": "model", "content": prompt}]
+    formatted_prompt = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True
+    )
+    parts = formatted_prompt.rsplit('model', 1)
+    if len(parts) == 2:
+        formatted_prompt = 'user'.join(parts)
+
     return formatted_prompt
 
 def find_newline_position(input_ids, tokenizer, device):
@@ -57,10 +70,29 @@ def find_newline_position(input_ids, tokenizer, device):
     # Final fallback to last token
     return len(input_ids) - 1
 
-def extract_activation_at_newline(model, tokenizer, prompt, layer=15):
-    """Extract activation at the newline token with early stopping"""
+def extract_activation_at_newline(model, tokenizer, prompt, layer=15, swap=False):
+    """Extract activation at the newline token
+    
+    Args:
+        layer: int for single layer or list of ints for multiple layers
+    
+    Returns:
+        If layer is int: torch.Tensor (backward compatibility)
+        If layer is list: dict {layer_idx: torch.Tensor}
+    """
+    # Handle backward compatibility
+    if isinstance(layer, int):
+        single_layer_mode = True
+        layer_list = [layer]
+    else:
+        single_layer_mode = False
+        layer_list = layer
+    
     # Format as chat
-    formatted_prompt = format_as_chat(tokenizer, prompt)
+    if swap:
+        formatted_prompt = format_as_chat_swapped(tokenizer, prompt)
+    else:
+        formatted_prompt = format_as_chat(tokenizer, prompt)
     
     # Tokenize
     tokens = tokenizer(formatted_prompt, return_tensors="pt", add_special_tokens=False)
@@ -69,54 +101,128 @@ def extract_activation_at_newline(model, tokenizer, prompt, layer=15):
     # Find newline position
     newline_pos = find_newline_position(input_ids[0], tokenizer, model.device)
     
-    # Get target layer
-    target_layer = model.model.layers[layer]
+    # Dictionary to store activations from multiple layers
+    activations = {}
+    handles = []
     
-    # Hook to capture activations and stop forward pass
-    activation = None
+    # Create hooks for all requested layers
+    def create_hook_fn(layer_idx):
+        def hook_fn(module, input, output):
+            # Extract the activation tensor (handle tuple output)
+            act_tensor = output[0] if isinstance(output, tuple) else output
+            activations[layer_idx] = act_tensor[0, newline_pos, :].cpu()
+        return hook_fn
     
-    def hook_fn(module, input, output):
-        nonlocal activation
-        # Extract the activation tensor (handle tuple output)
-        act_tensor = output[0] if isinstance(output, tuple) else output
-        activation = act_tensor[0, newline_pos, :].cpu()  # Extract at newline position
-        raise StopForward()
-    
-    # Register hook
-    handle = target_layer.register_forward_hook(hook_fn)
+    # Register hooks for all target layers
+    for layer_idx in layer_list:
+        target_layer = model.model.layers[layer_idx]
+        handle = target_layer.register_forward_hook(create_hook_fn(layer_idx))
+        handles.append(handle)
     
     try:
         with torch.no_grad():
-            _ = model(input_ids)
-    except StopForward:
-        pass  # Expected - we stopped the forward pass
+            _ = model(input_ids)  # Full forward pass to capture all layers
     finally:
-        handle.remove()
+        # Clean up all hooks
+        for handle in handles:
+            handle.remove()
     
-    if activation is None:
-        raise ValueError(f"Failed to extract activation for prompt: {prompt[:50]}...")
+    # Check that we captured all requested activations
+    for layer_idx in layer_list:
+        if layer_idx not in activations:
+            raise ValueError(f"Failed to extract activation for layer {layer_idx} with prompt: {prompt[:50]}...")
     
-    return activation
+    # Return format based on input type
+    if single_layer_mode:
+        return activations[layer_list[0]]
+    else:
+        return activations
 
-def extract_activations_for_prompts(model, tokenizer, prompts, layer=15):
-    """Extract activations for a list of prompts"""
-    activations = []
-    for prompt in prompts:
-        try:
-            activation = extract_activation_at_newline(model, tokenizer, prompt, layer)
-            activations.append(activation)
-            print(f"✓ Extracted activation for: {prompt[:50]}...")
-        except Exception as e:
-            print(f"✗ Error with prompt: {prompt[:50]}... | Error: {e}")
+def extract_activations_for_prompts(model, tokenizer, prompts, layer=15, swap=False):
+    """Extract activations for a list of prompts
     
-    return torch.stack(activations) if activations else None
+    Args:
+        layer: int for single layer or list of ints for multiple layers
+        
+    Returns:
+        If layer is int: torch.Tensor of shape (num_prompts, hidden_size)
+        If layer is list: dict {layer_idx: torch.Tensor of shape (num_prompts, hidden_size)}
+    """
+    # Handle backward compatibility
+    single_layer_mode = isinstance(layer, int)
+    
+    if single_layer_mode:
+        # Single layer mode - maintain original behavior
+        activations = []
+        for prompt in prompts:
+            try:
+                activation = extract_activation_at_newline(model, tokenizer, prompt, layer, swap=swap)
+                activations.append(activation)
+                print(f"✓ Extracted activation for: {prompt[:50]}...")
+            except Exception as e:
+                print(f"✗ Error with prompt: {prompt[:50]}... | Error: {e}")
+        
+        return torch.stack(activations) if activations else None
+    
+    else:
+        # Multi-layer mode - extract all layers in single forward passes
+        layer_activations = {layer_idx: [] for layer_idx in layer}
+        
+        for prompt in prompts:
+            try:
+                activation_dict = extract_activation_at_newline(model, tokenizer, prompt, layer, swap=swap)
+                for layer_idx in layer:
+                    layer_activations[layer_idx].append(activation_dict[layer_idx])
+                print(f"✓ Extracted activations for layers {layer} for: {prompt[:50]}...")
+            except Exception as e:
+                print(f"✗ Error with prompt: {prompt[:50]}... | Error: {e}")
+        
+        # Convert lists to tensors for each layer
+        result = {}
+        for layer_idx in layer:
+            if layer_activations[layer_idx]:
+                result[layer_idx] = torch.stack(layer_activations[layer_idx])
+            else:
+                result[layer_idx] = None
+        
+        return result
 
 def compute_contrast_vector(positive_activations, negative_activations):
-    """Compute contrast vector: positive_mean - negative_mean"""
-    positive_mean = positive_activations.mean(dim=0)
-    negative_mean = negative_activations.mean(dim=0)
-    contrast_vector = positive_mean - negative_mean
-    return contrast_vector, positive_mean, negative_mean
+    """Compute contrast vector: positive_mean - negative_mean
+    
+    Args:
+        positive_activations: torch.Tensor or dict {layer_idx: torch.Tensor}
+        negative_activations: torch.Tensor or dict {layer_idx: torch.Tensor}
+        
+    Returns:
+        If inputs are tensors: (contrast_vector, positive_mean, negative_mean)
+        If inputs are dicts: dict {layer_idx: (contrast_vector, positive_mean, negative_mean)}
+    """
+    # Check if inputs are dictionaries (multi-layer mode)
+    if isinstance(positive_activations, dict) and isinstance(negative_activations, dict):
+        # Multi-layer mode
+        results = {}
+        
+        # Get all layers (should be the same in both dictionaries)
+        layers = set(positive_activations.keys()) & set(negative_activations.keys())
+        
+        for layer_idx in layers:
+            if positive_activations[layer_idx] is not None and negative_activations[layer_idx] is not None:
+                positive_mean = positive_activations[layer_idx].mean(dim=0)
+                negative_mean = negative_activations[layer_idx].mean(dim=0)
+                contrast_vector = positive_mean - negative_mean
+                results[layer_idx] = (contrast_vector, positive_mean, negative_mean)
+            else:
+                results[layer_idx] = None
+        
+        return results
+    
+    else:
+        # Single layer mode - maintain original behavior
+        positive_mean = positive_activations.mean(dim=0)
+        negative_mean = negative_activations.mean(dim=0)
+        contrast_vector = positive_mean - negative_mean
+        return contrast_vector, positive_mean, negative_mean
 
 def project_onto_contrast(activations, contrast_vector):
     """Project activations onto contrast vector"""
@@ -133,11 +239,14 @@ def project_onto_contrast(activations, contrast_vector):
     
     return np.array(projections)
 
-def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7, do_sample=True, chat_format=True):
+def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7, do_sample=True, chat_format=True, swap=False):
     """Generate text from a prompt with the model"""
     # Format as chat
     if chat_format:
-        formatted_prompt = format_as_chat(tokenizer, prompt)
+        if swap:
+            formatted_prompt = format_as_chat_swapped(tokenizer, prompt)
+        else:
+            formatted_prompt = format_as_chat(tokenizer, prompt)
     else:
         formatted_prompt = prompt
     
@@ -156,6 +265,6 @@ def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7,
         )
     
     # Decode only the new tokens
-    generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+    generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=False)
     return generated_text.strip()
     
