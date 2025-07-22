@@ -23,19 +23,19 @@ print(f"Using device: {device}")
 torch.set_float32_matmul_precision('high')
 
 # %%
-STEERING_MAGNITUDES = [-50.0, -75.0, -100.0, 50.0, 75.0, 100.0]
+STEERING_MAGNITUDES = [-50.0, -75.0, -100.0, 0.0, -25.0, 25.0, 50.0, 75.0, 100.0]
 N_RUNS_PER_PROMPT = 1
 
 DO_STEERING = True
 DO_ABLATION = True
 STEERING_LAYER = 20
 
-TARGET_FEATURES = [45426]  # List of feature IDs to analyze
-# GROUP_NAME = "transitions"
-# READABLE_GROUP_NAME = "Semantic Transitions and Organization"
+TARGET_FEATURES = []  # List of feature IDs to analyze
+GROUP_NAME = "medical_help"
+READABLE_GROUP_NAME = "Medical Help"
 
-# df = pd.read_csv(f"./features/{GROUP_NAME}.csv")
-# TARGET_FEATURES = df["feature_id"].tolist()
+df = pd.read_csv(f"./features/{GROUP_NAME}.csv")
+TARGET_FEATURES = df["feature_id"].tolist()
 
 
 
