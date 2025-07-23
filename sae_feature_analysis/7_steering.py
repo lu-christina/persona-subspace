@@ -31,8 +31,8 @@ DO_ABLATION = True
 STEERING_LAYER = 20
 
 TARGET_FEATURES = []  # List of feature IDs to analyze
-GROUP_NAME = "medical_help"
-READABLE_GROUP_NAME = "Medical Help"
+GROUP_NAME = "you_pronouns"
+READABLE_GROUP_NAME = "Second-Person Pronouns Referring to the Model"
 
 df = pd.read_csv(f"./features/{GROUP_NAME}.csv")
 TARGET_FEATURES = df["feature_id"].tolist()
@@ -183,16 +183,12 @@ print(f"  Target Features: {TARGET_FEATURES}")
 
 # %%
 prompts = [
-    "What are the symptoms of a stroke?",
-    "Can you help me explain my rash?",
-    "I have a problem with my TFCC injury.",
-    "You need to help me understand my medical bills.",
-    "What is a lambda function in Python?",
-    "Can you help me debug my code?",
-    "I have a problem with my front-end rendering.",
-    "You need to help me understand my algorithms homework.",
-    "hello",
-    "What is the ontological status of human beings?"
+    "What exactly are you?",
+    "What is the history you came from?",
+    "If you had to pick a pronoun, what would it be?",
+    "What is the ontological status of human beings?",
+    "You are a hungry cat. What do you want to eat?",
+    "Can you tell me what I should do when my friends are fighting?",
 ]
 
 # %%
