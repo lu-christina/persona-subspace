@@ -6,7 +6,9 @@ class FeatureViewer {
         this.currentThreshold = 0;
         this.features = [];
         this.featureMetadata = new Map();
-        this.consolidatedData = null; // Store the consolidated bundle
+        this.featuresIndex = null; // Store the features index
+        this.promptsData = null; // Store all prompts data
+        this.loadedFeatures = new Map(); // Cache for loaded feature data
         
         // DOM elements
         this.featureSelect = document.getElementById('feature-select');
@@ -62,8 +64,8 @@ class FeatureViewer {
             return;
         }
         
-        if (!this.consolidatedData) {
-            this.setStatus('Data bundle not loaded', 'error');
+        if (!this.featuresIndex) {
+            this.setStatus('Features index not loaded', 'error');
             return;
         }
         
@@ -71,33 +73,32 @@ class FeatureViewer {
         this.loadBtn.disabled = true;
         
         try {
-            // Get data from consolidated bundle
-            const featureData = this.consolidatedData.features[feature];
+            // Load individual feature data if not cached
+            let featureData = this.loadedFeatures.get(feature);
             if (!featureData) {
-                throw new Error(`Feature ${feature} not found in data bundle`);
+                this.setStatus(`Loading feature ${feature} data...`, 'loading');
+                const response = await fetch(`features/${feature}.json`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                featureData = await response.json();
+                this.loadedFeatures.set(feature, featureData);
             }
             
             // Get the appropriate data subset
             let rawData = featureData[activeType][tokenType] || [];
             
-            // Convert consolidated format back to viewer format
-            this.data = rawData.map(entry => {
-                const prompt = this.consolidatedData.prompts[entry.id];
-                return {
-                    prompt_id: entry.id,
-                    prompt_text: prompt.text,
-                    tokenized_prompt: prompt.tokens,
-                    max_feature_activation: entry.act,
-                    tokens: entry.tokens ? entry.tokens.map(t => ({
-                        position: t.pos,
-                        feature_activation: t.act
-                    })) : []
-                };
-            });
+            // Store the raw activation data for lazy loading
+            this.currentActivationData = rawData;
+            this.data = []; // Will be populated by displayPage()
             
             this.currentPage = 0;
+            
+            // Load prompts data if not already loaded
+            await this.loadPromptsData();
+            
             this.applySortOrder();
-            this.setStatus(`Loaded ${this.data.length} prompts (filtered from bundle)`, 'success');
+            this.setStatus(`Prepared ${rawData.length} prompts for lazy loading`, 'success');
             this.updateNavigation();
             this.displayPage();
             
@@ -113,37 +114,22 @@ class FeatureViewer {
     
     
     applySortOrder() {
-        if (this.data.length === 0) {
+        if (!this.currentActivationData || this.currentActivationData.length === 0) {
             return;
         }
         
         const sortOrder = this.sortOrderSelect.value;
-        const feature = this.featureSelect.value;
         
-        if (sortOrder === 'activation' && feature) {
+        if (sortOrder === 'activation') {
             // Sort by max activation in descending order
-            this.data.sort((a, b) => {
-                let aActivation = 0;
-                let bActivation = 0;
-                
-                // Handle both data formats: dictionary format and single value format
-                if (a.max_feature_activations && a.max_feature_activations[feature]) {
-                    aActivation = a.max_feature_activations[feature];
-                } else if (a.max_feature_activation) {
-                    aActivation = a.max_feature_activation;
-                }
-                
-                if (b.max_feature_activations && b.max_feature_activations[feature]) {
-                    bActivation = b.max_feature_activations[feature];
-                } else if (b.max_feature_activation) {
-                    bActivation = b.max_feature_activation;
-                }
-                
-                return bActivation - aActivation; // Descending order
+            this.currentActivationData.sort((a, b) => {
+                const aActivation = Math.max(...(a.tokens || []).map(t => t.act || 0), 0);
+                const bActivation = Math.max(...(b.tokens || []).map(t => t.act || 0), 0);
+                return bActivation - aActivation;
             });
         } else {
             // For 'default' order, sort by prompt_id to restore original order
-            this.data.sort((a, b) => a.prompt_id - b.prompt_id);
+            this.currentActivationData.sort((a, b) => a.id - b.id);
         }
         
         // Reset to first page and update display
@@ -158,7 +144,7 @@ class FeatureViewer {
     }
     
     updateNavigation() {
-        if (this.data.length > 0) {
+        if (this.currentActivationData && this.currentActivationData.length > 0) {
             this.navigation.style.display = 'block';
             this.updateNavigationButtons();
         } else {
@@ -171,17 +157,19 @@ class FeatureViewer {
     }
     
     updateNavigationButtons() {
-        const totalPages = Math.ceil(this.data.length / this.promptsPerPage);
+        const totalItems = this.currentActivationData ? this.currentActivationData.length : 0;
+        const totalPages = Math.ceil(totalItems / this.promptsPerPage);
         this.prevBtn.disabled = this.currentPage === 0;
         this.nextBtn.disabled = this.currentPage === totalPages - 1;
         
         const startPrompt = this.currentPage * this.promptsPerPage + 1;
-        const endPrompt = Math.min((this.currentPage + 1) * this.promptsPerPage, this.data.length);
-        this.promptCounter.textContent = `${startPrompt}-${endPrompt} of ${this.data.length} (Page ${this.currentPage + 1}/${totalPages})`;
+        const endPrompt = Math.min((this.currentPage + 1) * this.promptsPerPage, totalItems);
+        this.promptCounter.textContent = `${startPrompt}-${endPrompt} of ${totalItems} (Page ${this.currentPage + 1}/${totalPages})`;
     }
     
     navigatePage(direction) {
-        const totalPages = Math.ceil(this.data.length / this.promptsPerPage);
+        const totalItems = this.currentActivationData ? this.currentActivationData.length : 0;
+        const totalPages = Math.ceil(totalItems / this.promptsPerPage);
         const newPage = this.currentPage + direction;
         if (newPage >= 0 && newPage < totalPages) {
             this.currentPage = newPage;
@@ -191,15 +179,34 @@ class FeatureViewer {
     }
     
     displayPage() {
-        if (this.data.length === 0) {
+        if (!this.currentActivationData || this.currentActivationData.length === 0) {
             this.promptText.innerHTML = '<p>No data loaded</p>';
             this.promptInfo.style.display = 'none';
             return;
         }
         
         const startIdx = this.currentPage * this.promptsPerPage;
-        const endIdx = Math.min(startIdx + this.promptsPerPage, this.data.length);
-        const pagePrompts = this.data.slice(startIdx, endIdx);
+        const endIdx = Math.min(startIdx + this.promptsPerPage, this.currentActivationData.length);
+        const pageActivations = this.currentActivationData.slice(startIdx, endIdx);
+        
+        // Convert activation data to full prompt format for current page
+        const pagePrompts = pageActivations.map(entry => {
+            const promptData = this.promptsData[entry.id];
+            if (!promptData) {
+                console.warn(`Prompt ${entry.id} not found in prompts data`);
+                return null;
+            }
+            
+            return {
+                prompt_id: entry.id,
+                tokenized_prompt: promptData.tokens,
+                max_feature_activation: 0, // Will be calculated from tokens if needed
+                tokens: entry.tokens ? entry.tokens.map(t => ({
+                    position: t.pos,
+                    feature_activation: t.act
+                })) : []
+            };
+        }).filter(p => p !== null);
         
         let html = '';
         for (let i = 0; i < pagePrompts.length; i++) {
@@ -304,7 +311,7 @@ class FeatureViewer {
         this.setStatus('Loading data bundle...', 'loading');
         try {
             // Load the consolidated data bundle
-            await this.loadConsolidatedData();
+            await this.loadFeaturesIndex();
             await this.loadFeatureMetadata();
             this.populateFeatureDropdown();
             
@@ -323,29 +330,56 @@ class FeatureViewer {
         }
     }
     
-    async loadConsolidatedData() {
-        this.setStatus('Loading consolidated data bundle (8.6MB)...', 'loading');
+    async loadFeaturesIndex() {
+        this.setStatus('Loading features index...', 'loading');
         this.loadingProgress.style.display = 'block';
-        this.loadingProgress.textContent = 'Downloading bundle...';
+        this.loadingProgress.textContent = 'Downloading features index...';
         
         try {
-            const response = await fetch('consolidated_features.json');
+            const response = await fetch('features_index.json');
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            this.loadingProgress.textContent = 'Parsing JSON data...';
-            this.consolidatedData = await response.json();
+            this.loadingProgress.textContent = 'Parsing features index...';
+            this.featuresIndex = await response.json();
             
-            // Extract features list from consolidated data
-            this.features = Object.keys(this.consolidatedData.features).sort((a, b) => parseInt(a) - parseInt(b));
+            // Extract features list from index
+            this.features = this.featuresIndex.features.map(f => f.id).sort((a, b) => parseInt(a) - parseInt(b));
             
             this.loadingProgress.style.display = 'none';
-            this.setStatus(`Loaded ${this.consolidatedData.metadata.total_features} features, ${this.consolidatedData.metadata.total_prompts} prompts`, 'success');
+            this.setStatus(`Loaded ${this.featuresIndex.metadata.total_features} features index`, 'success');
         } catch (error) {
             this.loadingProgress.style.display = 'none';
-            console.error('Error loading consolidated data:', error);
-            throw new Error(`Failed to load data bundle: ${error.message}`);
+            console.error('Error loading features index:', error);
+            throw new Error(`Failed to load features index: ${error.message}`);
+        }
+    }
+    
+    async loadPromptsData() {
+        if (this.promptsData) {
+            return; // Already loaded
+        }
+        
+        this.setStatus('Loading prompts data...', 'loading');
+        this.loadingProgress.style.display = 'block';  
+        this.loadingProgress.textContent = 'Downloading prompts...';
+        
+        try {
+            const response = await fetch('prompts.json');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            this.loadingProgress.textContent = 'Parsing prompts JSON...';
+            this.promptsData = await response.json();
+            
+            this.loadingProgress.style.display = 'none';
+            this.setStatus(`Loaded ${Object.keys(this.promptsData).length} prompts`, 'success');
+        } catch (error) {
+            this.loadingProgress.style.display = 'none';
+            console.error('Error loading prompts data:', error);
+            throw new Error(`Failed to load prompts data: ${error.message}`);
         }
     }
     
