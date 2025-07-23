@@ -220,12 +220,10 @@ class FeatureViewer {
     
     renderPrompt(prompt, isFirst = false) {
         const feature = this.featureSelect.value;
-        // Handle both data formats: dictionary format (feature 45426) and single value format (other features)
+        // Calculate max activation from token data
         let maxActivation = 0;
-        if (prompt.max_feature_activations && prompt.max_feature_activations[feature]) {
-            maxActivation = prompt.max_feature_activations[feature];
-        } else if (prompt.max_feature_activation) {
-            maxActivation = prompt.max_feature_activation;
+        if (prompt.tokens && prompt.tokens.length > 0) {
+            maxActivation = Math.max(...prompt.tokens.map(token => token.feature_activation || 0));
         }
         
         // Build prompt info
