@@ -77,7 +77,7 @@ class FeatureViewer {
             let featureData = this.loadedFeatures.get(feature);
             if (!featureData) {
                 this.setStatus(`Loading feature ${feature} data...`, 'loading');
-                const response = await fetch(`features/${feature}.json`);
+                const response = await fetch(`gemma_trainer131k-l0-114_layer20/1000_prompts/features/${feature}.json`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -364,7 +364,7 @@ class FeatureViewer {
         this.loadingProgress.textContent = 'Downloading prompts...';
         
         try {
-            const response = await fetch('prompts.json');
+            const response = await fetch('gemma_trainer131k-l0-114_layer20/1000_prompts/prompts.json');
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }

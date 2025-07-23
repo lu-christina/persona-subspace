@@ -20,7 +20,7 @@ def update_features_index():
     """Update the features index by scanning the features directory."""
     
     script_dir = Path(__file__).parent
-    features_dir = script_dir / "features"
+    features_dir = script_dir / "../gemma_trainer131k-l0-114_layer20/1000_prompts/features"
     features_index_path = script_dir / "features_index.json"
     
     # Check if features directory exists
