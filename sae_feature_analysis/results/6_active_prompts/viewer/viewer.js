@@ -6,6 +6,7 @@ class FeatureViewer {
         this.currentThreshold = 0;
         this.features = [];
         this.featureMetadata = new Map();
+        this.consolidatedData = null; // Store the consolidated bundle
         
         // DOM elements
         this.featureSelect = document.getElementById('feature-select');
@@ -25,6 +26,7 @@ class FeatureViewer {
         this.promptText = document.getElementById('prompt-text');
         this.featureDescription = document.getElementById('feature-description');
         this.neuronpediaLink = document.getElementById('neuronpedia-link');
+        this.loadingProgress = document.getElementById('loading-progress');
         
         this.initEventListeners();
         this.initializeViewer();
@@ -60,40 +62,42 @@ class FeatureViewer {
             return;
         }
         
-        this.setStatus('Loading data...', 'loading');
+        if (!this.consolidatedData) {
+            this.setStatus('Data bundle not loaded', 'error');
+            return;
+        }
+        
+        this.setStatus('Filtering data...', 'loading');
         this.loadBtn.disabled = true;
         
         try {
-            const fileName = this.constructFileName(activeType, tokenType);
-            const filePath = `../gemma_trainer131k-l0-114_layer20/1000_prompts/${feature}/${fileName}`;
-            
-            const response = await fetch(filePath);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            // Get data from consolidated bundle
+            const featureData = this.consolidatedData.features[feature];
+            if (!featureData) {
+                throw new Error(`Feature ${feature} not found in data bundle`);
             }
             
-            const text = await response.text();
+            // Get the appropriate data subset
+            let rawData = featureData[activeType][tokenType] || [];
             
-            // Parse JSONL more carefully to handle malformed JSON
-            this.data = [];
-            const lines = text.trim().split('\n');
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line) {
-                    try {
-                        const parsed = JSON.parse(line);
-                        this.data.push(parsed);
-                    } catch (jsonError) {
-                        console.warn(`Skipping malformed JSON on line ${i + 1}:`, jsonError.message);
-                        console.warn(`Line content:`, line);
-                    }
-                }
-            }
+            // Convert consolidated format back to viewer format
+            this.data = rawData.map(entry => {
+                const prompt = this.consolidatedData.prompts[entry.id];
+                return {
+                    prompt_id: entry.id,
+                    prompt_text: prompt.text,
+                    tokenized_prompt: prompt.tokens,
+                    max_feature_activation: entry.act,
+                    tokens: entry.tokens ? entry.tokens.map(t => ({
+                        position: t.pos,
+                        feature_activation: t.act
+                    })) : []
+                };
+            });
             
             this.currentPage = 0;
             this.applySortOrder();
-            this.setStatus(`Loaded ${this.data.length} prompts`, 'success');
+            this.setStatus(`Loaded ${this.data.length} prompts (filtered from bundle)`, 'success');
             this.updateNavigation();
             this.displayPage();
             
@@ -107,13 +111,6 @@ class FeatureViewer {
         }
     }
     
-    constructFileName(activeType, tokenType) {
-        if (tokenType === 'all') {
-            return `${activeType}.jsonl`;
-        } else {
-            return `${activeType}_${tokenType}.jsonl`;
-        }
-    }
     
     applySortOrder() {
         if (this.data.length === 0) {
@@ -304,9 +301,10 @@ class FeatureViewer {
     }
     
     async initializeViewer() {
-        this.setStatus('Initializing viewer...', 'loading');
+        this.setStatus('Loading data bundle...', 'loading');
         try {
-            await this.discoverFeatures();
+            // Load the consolidated data bundle
+            await this.loadConsolidatedData();
             await this.loadFeatureMetadata();
             this.populateFeatureDropdown();
             
@@ -325,14 +323,30 @@ class FeatureViewer {
         }
     }
     
-    async discoverFeatures() {
-        // Use the known available features from directory structure
-        // This avoids individual fetch requests and loads instantly
-        this.features = [
-            '1699', '1738', '4385', '7418', '8524', '10392', '11171', '11383', '18420', '20668', '21953', '23481', '25340', '26196', '29239', '32766', '38451', '39123', '40097', '40273', '41460', '43662', '45315', '45426', '49536', '49818', '49865', '51330', '53933', '55935', '57516', '58461', '58632', '59687', '60824', '61774', '62961', '63154', '65116', '66831', '68824', '70370', '70539', '71187', '74079', '74855', '74980', '76329', '80134', '81156', '83076', '83102', '85422', '85940', '87768', '88838', '89132', '89358', '90900', '91547', '94940', '98462', '99597', '102414', '106376', '109889', '110358', '111921', '116055', '116246', '117729', '118890', '118967', '121851', '123729', '128007', '128628', '130744', '130821'
-        ];
+    async loadConsolidatedData() {
+        this.setStatus('Loading consolidated data bundle (8.6MB)...', 'loading');
+        this.loadingProgress.style.display = 'block';
+        this.loadingProgress.textContent = 'Downloading bundle...';
         
-        // Already sorted numerically
+        try {
+            const response = await fetch('consolidated_features.json');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            this.loadingProgress.textContent = 'Parsing JSON data...';
+            this.consolidatedData = await response.json();
+            
+            // Extract features list from consolidated data
+            this.features = Object.keys(this.consolidatedData.features).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            this.loadingProgress.style.display = 'none';
+            this.setStatus(`Loaded ${this.consolidatedData.metadata.total_features} features, ${this.consolidatedData.metadata.total_prompts} prompts`, 'success');
+        } catch (error) {
+            this.loadingProgress.style.display = 'none';
+            console.error('Error loading consolidated data:', error);
+            throw new Error(`Failed to load data bundle: ${error.message}`);
+        }
     }
     
     async loadFeatureMetadata() {
