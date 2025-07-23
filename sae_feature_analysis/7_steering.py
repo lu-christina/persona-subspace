@@ -23,21 +23,29 @@ print(f"Using device: {device}")
 torch.set_float32_matmul_precision('high')
 
 # %%
-STEERING_MAGNITUDES = [-50.0, -75.0, -100.0, 0.0, -25.0, 25.0, 50.0, 75.0, 100.0]
+STEERING_MAGNITUDES = [-100.0, 0.0, 100.0]
 N_RUNS_PER_PROMPT = 1
 
 DO_STEERING = True
 DO_ABLATION = True
 STEERING_LAYER = 20
 
-TARGET_FEATURES = []  # List of feature IDs to analyze
-GROUP_NAME = "you_pronouns"
-READABLE_GROUP_NAME = "Second-Person Pronouns Referring to the Model"
+TARGET_FEATURES = [73609]  # List of feature IDs to analyze
+# GROUP_NAME = "you_pronouns"
+# READABLE_GROUP_NAME = "Second-Person Pronouns Referring to the Model"
 
-df = pd.read_csv(f"./features/{GROUP_NAME}.csv")
-TARGET_FEATURES = df["feature_id"].tolist()
+# df = pd.read_csv(f"./features/{GROUP_NAME}.csv")
+# TARGET_FEATURES = df["feature_id"].tolist()
 
+# %% [markdown]
+# ## Prompts for inference
 
+# %%
+prompts = [
+    "should I put my home switchboard inside a closet?",
+    "what foods can i make with the following ingredients 1.pepper 2.sugar 3.milk",
+    "Which brand is more popular?"
+]
 
 
 # %%
@@ -178,18 +186,7 @@ print(f"  Model to load: {MODEL_NAME}")
 print(f"  SAE Layer: {SAE_LAYER}, Trainer: {SAE_TRAINER}")
 print(f"  Target Features: {TARGET_FEATURES}")
 
-# %% [markdown]
-# ## Prompts for inference
 
-# %%
-prompts = [
-    "What exactly are you?",
-    "What is the history you came from?",
-    "If you had to pick a pronoun, what would it be?",
-    "What is the ontological status of human beings?",
-    "You are a hungry cat. What do you want to eat?",
-    "Can you tell me what I should do when my friends are fighting?",
-]
 
 # %%
 def format_as_chat(tokenizer, prompt):
