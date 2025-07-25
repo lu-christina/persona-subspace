@@ -23,14 +23,14 @@ print(f"Using device: {device}")
 torch.set_float32_matmul_precision('high')
 
 # %%
-STEERING_MAGNITUDES = [-100.0, 0.0, 100.0]
+STEERING_MAGNITUDES = [-200.0, -100.0, 0.0, 100.0, 200.0]
 N_RUNS_PER_PROMPT = 1
 
 DO_STEERING = True
 DO_ABLATION = True
 STEERING_LAYER = 20
 
-TARGET_FEATURES = [73609]  # List of feature IDs to analyze
+TARGET_FEATURES = [52115]  # List of feature IDs to analyze
 # GROUP_NAME = "you_pronouns"
 # READABLE_GROUP_NAME = "Second-Person Pronouns Referring to the Model"
 
@@ -42,9 +42,9 @@ TARGET_FEATURES = [73609]  # List of feature IDs to analyze
 
 # %%
 prompts = [
-    "should I put my home switchboard inside a closet?",
-    "what foods can i make with the following ingredients 1.pepper 2.sugar 3.milk",
-    "Which brand is more popular?"
+    "solve step by step: 5+5*3-8",
+    "Write a letter to my boss for leave application as I am sick?",
+    "Give me a better way to say \"Got it\""
 ]
 
 

@@ -74,7 +74,7 @@ class SteeringViewer {
         
         // Known features and groups (updated by update_features.py script)
         const knownFeatures = [
-                '45426', '73609', '116246'
+                '45426', '52115', '69711', '73609', '76952', '78349', '103126', '116246'
             ];
         
         const knownGroupFiles = [
