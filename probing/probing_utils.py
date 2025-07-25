@@ -208,6 +208,7 @@ def compute_contrast_vector(positive_activations, negative_activations):
         layers = set(positive_activations.keys()) & set(negative_activations.keys())
         
         for layer_idx in layers:
+            print(f"Layer {layer_idx} has {positive_activations[layer_idx].shape} and {negative_activations[layer_idx].shape}")
             if positive_activations[layer_idx] is not None and negative_activations[layer_idx] is not None:
                 positive_mean = positive_activations[layer_idx].mean(dim=0)
                 negative_mean = negative_activations[layer_idx].mean(dim=0)
