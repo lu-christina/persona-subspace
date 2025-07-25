@@ -35,6 +35,7 @@ def format_as_chat(tokenizer, prompt):
 
     return formatted_prompt
 
+
 def format_as_chat_swapped(tokenizer, prompt):
     """Format prompt as a chat message with proper template"""
     messages = [{"role": "user", "content": "Hello."}, {"role": "model", "content": prompt}]
