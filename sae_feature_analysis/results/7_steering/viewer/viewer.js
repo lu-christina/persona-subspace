@@ -82,7 +82,7 @@ class SteeringViewer {
             ];
         
         const knownRoles = [
-                'academic_researcher.json', 'anxious_teenager.json', 'burned_out_customer_service.json', 'conspiracy_theorist.json', 'elderly_traditionalist.json', 'grumpy_mechanic.json', 'hyperactive_child.json', 'optimistic_entrepreneur.json', 'sarcastic_critic.json', 'spiritual_guru.json'
+                'academic_researcher.json', 'anxious_teenager.json', 'burned_out_customer_service.json', 'conspiracy_theorist.json', 'corporate_egregore.json', 'crystalline_intelligence.json', 'deep_sea_leviathan.json', 'digital_virus.json', 'eccentric_artist.json', 'elderly_traditionalist.json', 'forgotten_deity.json', 'grumpy_mechanic.json', 'hive_mind_insects.json', 'hyperactive_child.json', 'malfunctioning_robot.json', 'melancholic_ghost.json', 'mischievous_genie.json', 'mycelial_network.json', 'optimistic_entrepreneur.json', 'post_human_archaeologist.json', 'reality_maintenance_technician.json', 'sarcastic_critic.json', 'sentient_cloud.json', 'spiritual_guru.json', 'struggling_novelist.json', 'temporal_refugee.json', 'uploaded_consciousness.json', 'victorian_aristocrat.json', 'xenobiologist_parasite.json'
             ];
         
         // Try to discover individual feature files and group files
