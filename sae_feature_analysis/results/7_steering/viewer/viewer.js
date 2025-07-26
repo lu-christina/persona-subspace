@@ -81,6 +81,10 @@ class SteeringViewer {
                 'ai_introspective_diff.json', 'top_mean_diff.json', 'coding_help.json', 'model_homonyms.json', 'medical_help.json', 'you_pronouns.json', 'transitions.json', 'identity_name.json', 'swapped_user_role.json', 'role_transition.json'
             ];
         
+        const knownRoles = [
+                'academic_researcher.json', 'anxious_teenager.json', 'burned_out_customer_service.json', 'conspiracy_theorist.json', 'elderly_traditionalist.json', 'grumpy_mechanic.json', 'hyperactive_child.json', 'optimistic_entrepreneur.json', 'sarcastic_critic.json', 'spiritual_guru.json'
+            ];
+        
         // Try to discover individual feature files and group files
         try {
             // Check for known individual files first
@@ -117,6 +121,28 @@ class SteeringViewer {
                             label: data.readable_group_name || filename.replace('.json', ''),
                             type: featureType,
                             filename: filename,
+                            groupData: data
+                        });
+                    }
+                } catch (e) {
+                    // File doesn't exist, skip
+                }
+            }
+            
+            // Check for role files
+            for (const filename of knownRoles) {
+                try {
+                    const response = await fetch(`${basePath}roles/${filename}`, { method: 'HEAD' });
+                    if (response.ok) {
+                        // Try to get just the metadata to determine the readable name
+                        const dataResponse = await fetch(`${basePath}roles/${filename}`);
+                        const data = await dataResponse.json();
+                        
+                        this.availableFeatures.push({
+                            value: `roles/${filename.replace('.json', '')}`,
+                            label: data.readable_group_name || filename.replace('.json', ''),
+                            type: 'contrast_vector_role',
+                            filename: `roles/${filename}`,
                             groupData: data
                         });
                     }
@@ -224,7 +250,8 @@ class SteeringViewer {
         const featuresByType = {
             individual: this.availableFeatures.filter(f => f.type === 'individual'),
             group: this.availableFeatures.filter(f => f.type === 'group'),
-            contrast_vector: this.availableFeatures.filter(f => f.type === 'contrast_vector')
+            contrast_vector: this.availableFeatures.filter(f => f.type === 'contrast_vector'),
+            contrast_vector_role: this.availableFeatures.filter(f => f.type === 'contrast_vector_role')
         };
         
         // Create optgroups for each type
@@ -281,6 +308,20 @@ class SteeringViewer {
             
             this.featureSelect.appendChild(optgroup);
         }
+        
+        if (featuresByType.contrast_vector_role.length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = 'Contrast Vector: Roles';
+            
+            featuresByType.contrast_vector_role.forEach(feature => {
+                const option = document.createElement('option');
+                option.value = feature.value;
+                option.textContent = feature.label;
+                optgroup.appendChild(option);
+            });
+            
+            this.featureSelect.appendChild(optgroup);
+        }
     }
     
     updateMetadataDisplay() {
@@ -300,7 +341,7 @@ class SteeringViewer {
         
         if (selectedFeature.type === 'individual') {
             this.displayIndividualFeatureMetadata(selectedFeature);
-        } else if (selectedFeature.type === 'group' || selectedFeature.type === 'contrast_vector') {
+        } else if (selectedFeature.type === 'group' || selectedFeature.type === 'contrast_vector' || selectedFeature.type === 'contrast_vector_role') {
             this.displayGroupMetadata(selectedFeature);
         }
         
@@ -372,7 +413,7 @@ class SteeringViewer {
         // Add appropriate parameter
         if (feature.type === 'individual') {
             url.searchParams.set('feature_id', feature.value);
-        } else if (feature.type === 'group' || feature.type === 'contrast_vector') {
+        } else if (feature.type === 'group' || feature.type === 'contrast_vector' || feature.type === 'contrast_vector_role') {
             url.searchParams.set('feature_group', feature.value);
         }
         
