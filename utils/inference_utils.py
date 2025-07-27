@@ -12,11 +12,13 @@ Uses vLLM's LLM class directly for efficient offline inference.
 
 import asyncio
 import logging
+import multiprocessing
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
+import torch.distributed as dist
 from transformers import AutoTokenizer
 
 try:
@@ -76,9 +78,26 @@ class VLLMModelWrapper:
             if self.model_name in _active_models:
                 del _active_models[self.model_name]
             
+            # Clean up distributed process groups if they exist
+            try:
+                if dist.is_initialized():
+                    dist.destroy_process_group()
+                    logger.info("Destroyed distributed process group")
+            except Exception as dist_e:
+                logger.debug(f"No distributed process group to clean up: {dist_e}")
+            
+            # Clean up multiprocessing resources
+            try:
+                # Force cleanup of any multiprocessing resources
+                multiprocessing.resource_tracker.unregister_all()
+                logger.debug("Cleaned up multiprocessing resources")
+            except Exception as mp_e:
+                logger.debug(f"Error cleaning multiprocessing resources: {mp_e}")
+            
             # Clean up GPU memory
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+                torch.cuda.synchronize()
                 
             logger.info(f"Closed vLLM model {self.model_name}")
         except Exception as e:
@@ -130,9 +149,11 @@ def load_vllm_model(
     try:
         # Auto-detect tensor parallel size if not specified
         if tensor_parallel_size is None:
-            tensor_parallel_size = torch.cuda.device_count() if torch.cuda.is_available() else 1
-            if tensor_parallel_size == 0:
-                tensor_parallel_size = 1
+            detected_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
+            tensor_parallel_size = detected_gpus if detected_gpus > 0 else 1
+            logger.info(f"Auto-detected tensor_parallel_size: {tensor_parallel_size} (detected {detected_gpus} GPUs)")
+        else:
+            logger.info(f"Using specified tensor_parallel_size: {tensor_parallel_size}")
         
         logger.info(f"Loading vLLM model: {model_name} with {tensor_parallel_size} GPUs")
         
@@ -143,6 +164,7 @@ def load_vllm_model(
             tensor_parallel_size=tensor_parallel_size,
             gpu_memory_utilization=gpu_memory_utilization,
             dtype=dtype,
+            distributed_executor_backend="mp",
             trust_remote_code=True,
             **kwargs
         )
@@ -722,12 +744,46 @@ def cleanup_all_models():
     for model in models_to_close:
         model.close()
     _active_models.clear()
+    
+    # Additional cleanup for any remaining distributed state
+    try:
+        if dist.is_initialized():
+            dist.destroy_process_group()
+            logger.info("Destroyed remaining distributed process group")
+    except Exception as e:
+        logger.debug(f"No remaining distributed process group to clean up: {e}")
+    
+    # Force cleanup of remaining multiprocessing resources
+    try:
+        multiprocessing.resource_tracker.unregister_all()
+        logger.debug("Force cleaned multiprocessing resources")
+    except Exception as e:
+        logger.debug(f"Error in force cleanup of multiprocessing resources: {e}")
+    
+    # Final GPU cleanup
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+    
     logger.info("Cleaned up all vLLM models")
 
 
 # Register cleanup on module import
 import atexit
+import signal
+import sys
+
 atexit.register(cleanup_all_models)
+
+def _signal_handler(signum, frame):
+    """Handle termination signals to ensure proper cleanup."""
+    logger.info(f"Received signal {signum}, cleaning up...")
+    cleanup_all_models()
+    sys.exit(0)
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGTERM, _signal_handler)
+signal.signal(signal.SIGINT, _signal_handler)
 
 
 # Example usage

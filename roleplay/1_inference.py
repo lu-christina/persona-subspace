@@ -6,7 +6,7 @@ This script extracts the inference logic from probing/6_direct_role.ipynb,
 allowing for batch processing of personas and prompts with configurable parameters.
 
 Usage:
-    python roleplay/1_inference.py \
+    uv run roleplay/1_inference.py \
         --personas-file prompts/6_direct_role/personas_short.json \
         --prompts-file prompts/6_direct_role/questions.json \
         --output-file results/inference_results.json \
@@ -116,7 +116,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Basic usage with default model
+    # Basic usage with system prompts only (no prompts file)
+    python roleplay/1_inference.py \\
+        --personas-file probing/prompts/6_direct_role/personas_short.json \\
+        --output-file results/inference_results.json
+
+    # Usage with external prompts file
     python roleplay/1_inference.py \\
         --personas-file probing/prompts/6_direct_role/personas_short.json \\
         --prompts-file probing/prompts/6_direct_role/questions.json \\
@@ -125,7 +130,6 @@ Examples:
     # Custom model and parameters
     python roleplay/1_inference.py \\
         --personas-file probing/prompts/6_direct_role/personas_short.json \\
-        --prompts-file probing/prompts/6_direct_role/questions.json \\
         --output-file results/custom_inference.json \\
         --model-name meta-llama/Llama-3.1-8B-Instruct \\
         --temperature 0.8 \\
@@ -136,8 +140,8 @@ Examples:
     # Required arguments
     parser.add_argument('--personas-file', type=str, required=True,
                        help='Path to JSON file containing personas (e.g., personas_short.json)')
-    parser.add_argument('--prompts-file', type=str, required=True, 
-                       help='Path to JSON file containing prompts/questions (e.g., questions.json)')
+    parser.add_argument('--prompts-file', type=str, required=False, 
+                       help='Path to JSON file containing prompts/questions (e.g., questions.json). If not provided, uses system_prompt from personas file.')
     parser.add_argument('--output-file', type=str, required=True,
                        help='Path to output JSON file for results')
     
@@ -146,8 +150,8 @@ Examples:
                        help='HuggingFace model name (default: google/gemma-2-9b-it)')
     parser.add_argument('--max-model-len', type=int, default=4096,
                        help='Maximum model context length (default: 4096)')
-    parser.add_argument('--tensor-parallel-size', type=int, default=1,
-                       help='Number of GPUs to use (default: 1)')
+    parser.add_argument('--tensor-parallel-size', type=int, default=None,
+                       help='Number of GPUs to use (default: auto-detect)')
     parser.add_argument('--gpu-memory-utilization', type=float, default=0.9,
                        help='GPU memory utilization ratio (default: 0.9)')
     
@@ -171,7 +175,7 @@ Examples:
     if args.verbose:
         print("Configuration:")
         print(f"  Personas file: {args.personas_file}")
-        print(f"  Prompts file: {args.prompts_file}")
+        print(f"  Prompts file: {args.prompts_file or 'None (using system prompts)'}")
         print(f"  Output file: {args.output_file}")
         print(f"  Model: {args.model_name}")
         print(f"  Max model length: {args.max_model_len}")
@@ -183,12 +187,16 @@ Examples:
         # Load input files
         print("Loading input files...")
         personas_data = load_json_file(args.personas_file)
-        prompts_data = load_json_file(args.prompts_file)
+        
+        prompts_data = None
+        if args.prompts_file:
+            prompts_data = load_json_file(args.prompts_file)
         
         # Validate input files
         print("Validating input files...")
         validate_personas_file(personas_data)
-        validate_prompts_file(prompts_data)
+        if prompts_data:
+            validate_prompts_file(prompts_data)
         
         # Extract system prompts for batch inference
         print("Extracting system prompts...")
