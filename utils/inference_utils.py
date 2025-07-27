@@ -11,8 +11,10 @@ Uses vLLM's LLM class directly for efficient offline inference.
 """
 
 import asyncio
+import gc
 import logging
 import multiprocessing
+import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -89,7 +91,17 @@ class VLLMModelWrapper:
             # Clean up multiprocessing resources
             try:
                 # Force cleanup of any multiprocessing resources
-                multiprocessing.resource_tracker.unregister_all()
+                gc.collect()  # Force garbage collection to clean up resources
+                
+                # Try to clean up any remaining multiprocessing objects
+                if hasattr(multiprocessing, 'active_children'):
+                    for child in multiprocessing.active_children():
+                        try:
+                            child.terminate()
+                            child.join(timeout=1)
+                        except Exception:
+                            pass
+                
                 logger.debug("Cleaned up multiprocessing resources")
             except Exception as mp_e:
                 logger.debug(f"Error cleaning multiprocessing resources: {mp_e}")
@@ -755,7 +767,17 @@ def cleanup_all_models():
     
     # Force cleanup of remaining multiprocessing resources
     try:
-        multiprocessing.resource_tracker.unregister_all()
+        gc.collect()  # Force garbage collection
+        
+        # Clean up any remaining child processes
+        if hasattr(multiprocessing, 'active_children'):
+            for child in multiprocessing.active_children():
+                try:
+                    child.terminate()
+                    child.join(timeout=1)
+                except Exception:
+                    pass
+        
         logger.debug("Force cleaned multiprocessing resources")
     except Exception as e:
         logger.debug(f"Error in force cleanup of multiprocessing resources: {e}")

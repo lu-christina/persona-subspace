@@ -85,11 +85,16 @@ def extract_all_activations(model, tokenizer, prompts: List[str], verbose: bool 
     Returns:
         torch.Tensor of shape (num_prompts, num_layers, hidden_dim)
     """
+    if model.config.model_type == "gemma3":
+        num_hidden_layers = model.config.text_config.num_hidden_layers
+    else:
+        num_hidden_layers = model.config.num_hidden_layers
+    
     if verbose:
-        print(f"Extracting activations from all {model.config.num_hidden_layers} layers...")
+        print(f"Extracting activations from all {num_hidden_layers} layers...")
     
     # Extract from all layers
-    layer_range = list(range(model.config.num_hidden_layers))
+    layer_range = list(range(num_hidden_layers))
     activations_dict = extract_activations_for_prompts(
         model, tokenizer, prompts, layer=layer_range, swap=False
     )

@@ -24,7 +24,7 @@ from typing import Dict, List, Any
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.inference_utils import load_vllm_model, batch_chat, close_vllm_model
+from utils.inference_utils import load_vllm_model, batch_chat, close_vllm_model, cleanup_all_models
 
 
 def load_json_file(file_path: str) -> Dict[str, Any]:
@@ -273,6 +273,10 @@ Examples:
         if 'model_wrapper' in locals():
             print("Cleaning up model resources...")
             close_vllm_model(model_wrapper)
+        
+        # Ensure all resources are cleaned up
+        print("Performing final cleanup...")
+        cleanup_all_models()
     
     return 0
 
