@@ -21,7 +21,7 @@ def load_model(model_name):
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.bfloat16,  # More stable than float16
-        device_map={"": 0}  # Put everything on GPU 0
+        device_map="auto"  # Use all GPUs
     )
     model.eval()
     return model, tokenizer
