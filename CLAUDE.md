@@ -8,22 +8,12 @@ This repository explores "persona subspaces" in model internals, specifically in
 
 ## Architecture
 
-The project is organized as follows:
-
-- **Root level**: Contains minimal documentation and git configuration
-- **reproduction/**: Main working directory containing all code and analysis
-  - Python project using `uv` for dependency management
-  - Dependencies: `sae-lens`, `torch`, `transformers` for ML model analysis
-  - Target models: Llama-3.1-8B-Instruct and Qwen2.5-7B-Instruct
-  - SAE analysis focused on layer 16 (middle layer) of both models
+- Python project using `uv` for dependency management
+- Dependencies: `sae-lens`, `torch`, `transformers` for ML model analysis
+- Target models: Llama-3.1-8B-Instruct and Qwen2.5-7B-Instruct
+- SAE analysis focused on layer 16 (middle layer) of both models
 
 ## Development Commands
-
-All commands should be run from the `reproduction/` directory:
-
-```bash
-cd reproduction/
-```
 
 ### Environment Setup
 ```bash
@@ -34,7 +24,7 @@ uv sync
 uv run python main.py
 
 # Run Jupyter notebook
-uv run jupyter notebook get_activations.ipynb
+uv run jupyter notebook
 ```
 
 ### Core Development Tasks
