@@ -227,19 +227,128 @@ def compute_contrast_vector(positive_activations, negative_activations):
         return contrast_vector, positive_mean, negative_mean
 
 def project_onto_contrast(activations, contrast_vector):
-    """Project activations onto contrast vector"""
-    # Normalize contrast vector
-    contrast_norm = torch.norm(contrast_vector)
-    if contrast_norm == 0:
-        return torch.zeros(activations.shape[0])
+    """Project activations onto contrast vector
     
-    # Project each activation
-    projections = []
-    for activation in activations:
-        projection = torch.dot(activation, contrast_vector) / contrast_norm
-        projections.append(projection.item())
+    Args:
+        activations: torch.Tensor - either single activation (1D) or batch of activations (2D)
+        contrast_vector: torch.Tensor - contrast vector to project onto
+        
+    Returns:
+        float (if single activation) or np.array (if batch of activations)
+    """
+    # Handle single activation case (matching compute_projection signature)
+    if activations.ndim == 1:
+        # Ensure tensors are on same device and dtype
+        activations = activations.to(contrast_vector.device).float()
+        contrast_vector = contrast_vector.float()
+        
+        # Scalar projection: (h · v) / ||v||
+        contrast_norm = torch.norm(contrast_vector)
+        if contrast_norm == 0:
+            return 0.0
+        
+        projection = torch.dot(activations, contrast_vector) / contrast_norm
+        return projection.item()
     
-    return np.array(projections)
+    # Handle batch case (original behavior)
+    else:
+        # Normalize contrast vector
+        contrast_norm = torch.norm(contrast_vector)
+        if contrast_norm == 0:
+            return torch.zeros(activations.shape[0])
+        
+        # Project each activation
+        projections = []
+        for activation in activations:
+            projection = torch.dot(activation, contrast_vector) / contrast_norm
+            projections.append(projection.item())
+        
+        return np.array(projections)
+
+def eos_suppressor(tokenizer):
+    """Create a logits processor that suppresses EOS token"""
+    eos_token_id = tokenizer.eos_token_id
+    
+    def suppress_eos_processor(input_ids, scores):
+        if eos_token_id is not None:
+            scores[:, eos_token_id] = -float('inf')
+        return scores
+    
+    return suppress_eos_processor
+
+def capture_hidden_state(model, input_ids, layer, position=-1):
+    """Capture hidden state at specified layer and position
+    
+    Args:
+        model: The transformer model
+        input_ids: Input token IDs tensor
+        layer: Layer index to capture from
+        position: Token position to capture (-1 for last token)
+        
+    Returns:
+        torch.Tensor: Hidden state at the specified layer and position
+    """
+    captured_state = None
+    
+    def capture_hook(module, input, output):
+        nonlocal captured_state
+        # Handle tuple outputs (some models return (hidden_states, ...))
+        if isinstance(output, tuple):
+            hidden_states = output[0]
+        else:
+            hidden_states = output
+        
+        # Capture the hidden state at specified position
+        captured_state = hidden_states[0, position, :].clone().cpu()
+    
+    # Register hook on target layer
+    layer_module = model.model.layers[layer]
+    hook_handle = layer_module.register_forward_hook(capture_hook)
+    
+    try:
+        with torch.no_grad():
+            _ = model(input_ids)
+    finally:
+        hook_handle.remove()
+    
+    if captured_state is None:
+        raise ValueError(f"Failed to capture hidden state at layer {layer}, position {position}")
+    
+    return captured_state
+
+def sample_next_token(model, tokenizer, input_ids, suppress_eos=True):
+    """Sample next token from model logits
+    
+    Args:
+        model: The transformer model
+        tokenizer: The tokenizer
+        input_ids: Current input token IDs
+        suppress_eos: Whether to suppress EOS token
+        
+    Returns:
+        tuple: (next_token_id, updated_input_ids)
+    """
+    with torch.no_grad():
+        outputs = model(input_ids)
+        logits = outputs.logits[0, -1, :]  # Last token logits
+        
+        # Suppress EOS token if requested
+        if suppress_eos:
+            eos_token_id = tokenizer.eos_token_id
+            if eos_token_id is not None:
+                logits[eos_token_id] = -float('inf')
+        
+        # Sample next token
+        probs = torch.softmax(logits, dim=-1)
+        next_token_id = torch.multinomial(probs, 1).item()
+        
+        # Update input_ids
+        updated_input_ids = torch.cat([
+            input_ids, 
+            torch.tensor([[next_token_id]], device=input_ids.device)
+        ], dim=1)
+        
+        return next_token_id, updated_input_ids
 
 def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7, do_sample=True, chat_format=True, swap=False):
     """Generate text from a prompt with the model"""
