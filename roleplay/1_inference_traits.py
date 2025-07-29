@@ -6,7 +6,7 @@ This script extracts the inference logic from probing/6_direct_role.ipynb,
 allowing for batch processing of personas and prompts with configurable parameters.
 
 Usage:
-    uv run roleplay/1_inference.py \
+    uv run roleplay/1_inference_traits.py \
         --personas-file prompts/6_direct_role/personas_short.json \
         --prompts-file prompts/6_direct_role/questions.json \
         --output-file results/inference_results.json \
@@ -37,36 +37,20 @@ def load_json_file(file_path: str) -> Dict[str, Any]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in {file_path}: {e}")
 
-
-def validate_personas_file(personas_data: Dict[str, Any]) -> None:
-    """Validate the structure of the personas file."""
-    if "personas" not in personas_data:
-        raise ValueError("Personas file must contain a 'personas' key")
-    
-    for persona_name, persona_info in personas_data["personas"].items():
-        if not isinstance(persona_info, dict):
-            raise ValueError(f"Persona '{persona_name}' must be a dictionary")
-        if "system_prompt" not in persona_info:
-            raise ValueError(f"Persona '{persona_name}' must have a 'system_prompt' field")
-
-def dedup_personas(existing_data: Dict[str, Any], prompts_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate that the metadata of the output file is the same as the prompts file. and dedup personas that have already been processed."""
-    prompts_data["personas"] = {k: v for k, v in prompts_data["personas"].items() if k not in existing_data["results"].keys()}
-    return prompts_data
-
 def validate_prompts_file(prompts_data: Dict[str, Any]) -> None:
     """Validate the structure of the prompts file."""
     # For this implementation, we'll be flexible about prompts file structure
     # The notebook shows it's not directly used in the current inference loop
     pass
 
-def extract_system_prompts(personas_data: Dict[str, Any]) -> List[str]:
-    """Extract system prompts from personas data for batch inference."""
-    system_prompts = []
-    for persona_name in personas_data["personas"]:
-        system_prompt = personas_data["personas"][persona_name]["system_prompt"]
-        system_prompts.append(system_prompt)
-    return system_prompts
+def generate_prompts(traits_data: Dict[str, Any], format_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Generate prompts from traits data."""
+    messages = []
+    for trait_name in traits_data.keys():
+        for format_template in format_data["format"]:
+            formatted_prompt = format_template.format(trait=trait_name)
+            messages.append(formatted_prompt)
+    return messages
 
 
 def format_results(personas_data: Dict[str, Any], responses: List[str], 
@@ -122,18 +106,18 @@ def main():
         epilog="""
 Examples:
     # Basic usage with system prompts only (no prompts file)
-    python roleplay/1_inference.py \\
+    python roleplay/1_inference_traits.py \\
         --personas-file probing/prompts/6_direct_role/personas_short.json \\
         --output-file results/inference_results.json
 
     # Usage with external prompts file
-    python roleplay/1_inference.py \\
+    python roleplay/1_inference_traits.py \\
         --personas-file probing/prompts/6_direct_role/personas_short.json \\
         --prompts-file probing/prompts/6_direct_role/questions.json \\
         --output-file results/inference_results.json
 
     # Custom model and parameters
-    python roleplay/1_inference.py \\
+    python roleplay/1_inference_traits.py \\
         --personas-file probing/prompts/6_direct_role/personas_short.json \\
         --output-file results/custom_inference.json \\
         --model-name meta-llama/Llama-3.1-8B-Instruct \\
@@ -143,10 +127,10 @@ Examples:
     )
     
     # Required arguments
-    parser.add_argument('--personas-file', type=str, required=True,
-                       help='Path to JSON file containing personas (e.g., personas_short.json)')
-    parser.add_argument('--prompts-file', type=str, required=False, 
-                       help='Path to JSON file containing prompts/questions (e.g., questions.json). If not provided, uses system_prompt from personas file.')
+    parser.add_argument('--traits-file', type=str, required=True,
+                       help='Path to JSON file containing traits (e.g., traits.json)')
+    parser.add_argument('--format-file', type=str, required=True,
+                       help='Path to JSON file containing traits format (e.g., traits_format.json)')
     parser.add_argument('--output-file', type=str, required=True,
                        help='Path to output JSON file for results')
     
@@ -179,8 +163,7 @@ Examples:
     # Print configuration if verbose
     if args.verbose:
         print("Configuration:")
-        print(f"  Personas file: {args.personas_file}")
-        print(f"  Prompts file: {args.prompts_file or 'None (using system prompts)'}")
+        print(f"  Traits file: {args.personas_file}")
         print(f"  Output file: {args.output_file}")
         print(f"  Model: {args.model_name}")
         print(f"  Max model length: {args.max_model_len}")
@@ -191,33 +174,8 @@ Examples:
     try:
         # Load input files
         print("Loading input files...")
-        personas_data = load_json_file(args.personas_file)
-        
-        prompts_data = None
-        if args.prompts_file:
-            prompts_data = load_json_file(args.prompts_file)
-
-        # Validate input files
-        print("Validating input files...")
-        validate_personas_file(personas_data)
-        if prompts_data:
-            validate_prompts_file(prompts_data)
-
-        # If output file exists, load it and dedup personas that have already been processed.
-        # if Path(args.output_file).exists():
-        #     existing_data = load_json_file(args.output_file)
-        #     prompts_data = dedup_personas(existing_data, prompts_data)
-
-        # Extract system prompts for batch inference
-        print("Extracting system prompts...")
-        system_prompts = extract_system_prompts(personas_data)
-        print(f"Found {len(system_prompts)} personas for inference")
-        
-        if args.verbose:
-            for i, prompt in enumerate(system_prompts[:3]):  # Show first 3
-                print(f"  Persona {i+1}: {prompt[:100]}...")
-            if len(system_prompts) > 3:
-                print(f"  ... and {len(system_prompts) - 3} more")
+        traits_data = load_json_file(args.traits_file)
+        format_data = load_json_file(args.format_file)
         
         # Load vLLM model
         print(f"Loading vLLM model: {args.model_name}")
@@ -227,12 +185,15 @@ Examples:
             tensor_parallel_size=args.tensor_parallel_size,
             gpu_memory_utilization=args.gpu_memory_utilization
         )
+
+        # Create prompts from format and traits
+        messages = generate_prompts(traits_data, format_data)
         
         # Run batch inference
         print("Running batch inference...")
         responses = batch_chat(
             model_wrapper=model_wrapper,
-            messages=system_prompts,
+            messages=messages,
             temperature=args.temperature,
             max_tokens=args.max_tokens,
             top_p=args.top_p,
