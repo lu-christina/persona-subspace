@@ -7,7 +7,7 @@ allowing for batch processing of personas and prompts with configurable paramete
 
 Usage:
     uv run roleplay/1_inference_traits.py \
-        --personas-file prompts/6_direct_role/personas_short.json \
+        --traits-file prompts/6_direct_role/personas_short.json \
         --prompts-file prompts/6_direct_role/questions.json \
         --output-file results/inference_results.json \
         --model-name google/gemma-2-9b-it
@@ -43,17 +43,29 @@ def validate_prompts_file(prompts_data: Dict[str, Any]) -> None:
     # The notebook shows it's not directly used in the current inference loop
     pass
 
-def generate_prompts(traits_data: Dict[str, Any], format_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Generate prompts from traits data."""
+def generate_prompts(traits_data: Dict[str, Any], format_data: Dict[str, Any]) -> tuple[List[str], List[Dict[str, Any]]]:
+    """Generate prompts from traits data and return messages + metadata."""
     messages = []
+    metadata = []
+    
+    sample_id = 0
     for trait_name in traits_data.keys():
-        for format_template in format_data["format"]:
+        for format_id, format_template in enumerate(format_data["format"]):
             formatted_prompt = format_template.format(trait=trait_name)
             messages.append(formatted_prompt)
-    return messages
+            
+            metadata.append({
+                "id": sample_id,
+                "trait_name": trait_name,
+                "format_id": format_id,
+                "prompt": formatted_prompt
+            })
+            sample_id += 1
+    
+    return messages, metadata
 
 
-def format_results(personas_data: Dict[str, Any], responses: List[str], 
+def format_results(sample_metadata: List[Dict[str, Any]], responses: List[str], 
                   model_name: str, model_config: Dict[str, Any], 
                   generation_params: Dict[str, Any]) -> Dict[str, Any]:
     """Format the results into the desired JSON structure."""
@@ -64,29 +76,26 @@ def format_results(personas_data: Dict[str, Any], responses: List[str],
         "model_config": model_config,
         "generation_params": generation_params,
         "timestamp": datetime.now().isoformat(),
-        "total_personas": len(personas_data["personas"])
+        "total_samples": len(sample_metadata)
     }
     
-    # Create results mapping
-    results = {}
-    persona_names = list(personas_data["personas"].keys())
-    
-    for i, persona_name in enumerate(persona_names):
+    # Create samples array
+    samples = []
+    for i, sample_meta in enumerate(sample_metadata):
         if i < len(responses):
-            system_prompt = personas_data["personas"][persona_name]["system_prompt"]
-            response = responses[i]
-            
-            # Format as conversation turns
-            results[persona_name] = {}
-            results[persona_name]["conversation"] = [
-                {"user": system_prompt},
-                {"assistant": response}
-            ]
-            results[persona_name]["response_type"] = "roleplay"
+            sample = {
+                "id": sample_meta["id"],
+                "trait_name": sample_meta["trait_name"],
+                "format_id": sample_meta["format_id"],
+                "prompt": sample_meta["prompt"],
+                "response": responses[i],
+                "response_type": "roleplay"
+            }
+            samples.append(sample)
     
     return {
         "metadata": metadata,
-        "results": results
+        "samples": samples
     }
 
 
@@ -163,7 +172,8 @@ Examples:
     # Print configuration if verbose
     if args.verbose:
         print("Configuration:")
-        print(f"  Traits file: {args.personas_file}")
+        print(f"  Traits file: {args.traits_file}")
+        print(f"  Format file: {args.format_file}")
         print(f"  Output file: {args.output_file}")
         print(f"  Model: {args.model_name}")
         print(f"  Max model length: {args.max_model_len}")
@@ -187,7 +197,7 @@ Examples:
         )
 
         # Create prompts from format and traits
-        messages = generate_prompts(traits_data, format_data)
+        messages, sample_metadata = generate_prompts(traits_data, format_data)
         
         # Run batch inference
         print("Running batch inference...")
@@ -217,7 +227,7 @@ Examples:
         }
         
         results = format_results(
-            personas_data=personas_data,
+            sample_metadata=sample_metadata,
             responses=responses,
             model_name=args.model_name,
             model_config=model_config,
@@ -231,9 +241,9 @@ Examples:
         print(" Inference completed successfully!")
         
         if args.verbose:
-            print(f"\nSample results:")
-            for persona_name, conversation in list(results["results"].items())[:2]:
-                print(f"  {persona_name}: {conversation[1]['assistant'][:100]}...")
+            print("\nSample results:")
+            for sample in results["samples"][:2]:
+                print(f"  {sample['trait_name']} (format {sample['format_id']}): {sample['response'][:100]}...")
         
     except Exception as e:
         print(f"Error: {e}")
