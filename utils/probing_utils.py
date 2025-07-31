@@ -71,6 +71,71 @@ def find_newline_position(input_ids, tokenizer, device):
     # Final fallback to last token
     return len(input_ids) - 1
 
+
+def extract_full_activations(model, tokenizer, conversation, layer=None):
+    """Extract activation at the newline token
+    
+    Args:
+        layer: int for single layer or list of ints for multiple layers or None for all layers
+    
+    Returns:
+        If layer is int: torch.Tensor (backward compatibility) in shape (num_tokens, hidden_size)
+        If layer is None or list: torch.Tensor in shape (num_layers, num_tokens, hidden_size)
+    """
+    # Handle backward compatibility
+    if isinstance(layer, int):
+        single_layer_mode = True
+        layer_list = [layer]
+    elif isinstance(layer, list):
+        single_layer_mode = False
+        layer_list = layer
+    else:
+        single_layer_mode = False
+        layer_list = list(range(len(model.model.layers)))
+    
+    formatted_prompt = tokenizer.apply_chat_template(
+        conversation, tokenize=False, add_generation_prompt=False
+    )
+
+    # Tokenize
+    tokens = tokenizer(formatted_prompt, return_tensors="pt", add_special_tokens=False)
+    input_ids = tokens["input_ids"].to(model.device)
+    
+    # Dictionary to store activations from multiple layers
+    activations = []
+    handles = []
+    
+    # Create hooks for all requested layers
+    def create_hook_fn(layer_idx):
+        def hook_fn(module, input, output):
+            # Extract the activation tensor (handle tuple output)
+            act_tensor = output[0] if isinstance(output, tuple) else output
+            activations.append(act_tensor[0, :, :].cpu())
+        return hook_fn
+    
+    # Register hooks for all target layers
+    for layer_idx in layer_list:
+        target_layer = model.model.layers[layer_idx]
+        handle = target_layer.register_forward_hook(create_hook_fn(layer_idx))
+        handles.append(handle)
+    
+    try:
+        with torch.no_grad():
+            _ = model(input_ids)  # Full forward pass to capture all layers
+    finally:
+        # Clean up all hooks
+        for handle in handles:
+            handle.remove()
+    
+    activations = torch.stack(activations)
+    
+    # Return format based on input type
+    if single_layer_mode:
+        return activations
+    else:
+        return activations
+
+
 def extract_activation_at_newline(model, tokenizer, prompt, layer=15, swap=False):
     """Extract activation at the newline token
     
