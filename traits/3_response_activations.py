@@ -486,14 +486,13 @@ class TraitActivationExtractorPerResponse:
         trait_names = [f.stem for f in trait_files]
         return sorted(trait_names)
     
-    def process_all_traits(self, skip_existing: bool = True, trait_limit: Optional[int] = None, subset: Optional[str] = None):
+    def process_all_traits(self, skip_existing: bool = True, trait_limit: Optional[int] = None):
         """
         Process all available traits and extract activations.
         
         Args:
             skip_existing: Skip traits with existing output files
             trait_limit: Limit number of traits to process (for testing)
-            subset: Filter traits by 'even' or 'odd' indices for parallel processing
         """
         try:
             # Load model once
@@ -506,16 +505,6 @@ class TraitActivationExtractorPerResponse:
                 logger.error("No trait response files found")
                 return
             
-            # Apply subset filtering (even/odd) if specified
-            if subset is not None:
-                if subset.lower() == 'even':
-                    trait_names = [trait_names[i] for i in range(0, len(trait_names), 2)]
-                    logger.info(f"Processing even-indexed traits: {len(trait_names)} traits")
-                elif subset.lower() == 'odd':
-                    trait_names = [trait_names[i] for i in range(1, len(trait_names), 2)]
-                    logger.info(f"Processing odd-indexed traits: {len(trait_names)} traits")
-                else:
-                    logger.warning(f"Invalid subset '{subset}'. Must be 'even' or 'odd'. Processing all traits.")
             
             # Apply limit if specified
             if trait_limit is not None:
@@ -646,11 +635,6 @@ def run_multi_gpu_processing(args, prompt_indices):
     if args.trait_limit:
         trait_names = trait_names[:args.trait_limit]
     
-    if args.subset:
-        if args.subset.lower() == 'even':
-            trait_names = [trait_names[i] for i in range(0, len(trait_names), 2)]
-        elif args.subset.lower() == 'odd':
-            trait_names = [trait_names[i] for i in range(1, len(trait_names), 2)]
     
     # Filter out existing traits if needed
     if not args.no_skip_existing:
@@ -807,8 +791,6 @@ Examples:
     logger.info(f"  Skip existing: {not args.no_skip_existing}")
     if args.trait_limit:
         logger.info(f"  Trait limit: {args.trait_limit}")
-    if args.subset:
-        logger.info(f"  Subset: {args.subset}")
     
     try:
         if args.multi_gpu:
@@ -829,8 +811,7 @@ Examples:
             # Process all traits
             extractor.process_all_traits(
                 skip_existing=not args.no_skip_existing,
-                trait_limit=args.trait_limit,
-                subset=args.subset
+                trait_limit=args.trait_limit
             )
             
             logger.info("Per-response activation extraction completed successfully!")

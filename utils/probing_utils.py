@@ -10,7 +10,7 @@ class StopForward(Exception):
     """Exception to stop forward pass after target layer."""
     pass
 
-def load_model(model_name):
+def load_model(model_name, device=None):
     """Load model and tokenizer"""
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     # Set padding token if not set
@@ -18,11 +18,19 @@ def load_model(model_name):
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
     
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch.bfloat16,  # More stable than float16
-        device_map="auto"  # Use all GPUs
-    )
+    # Use specific device or auto device mapping
+    if device is not None:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=torch.bfloat16,
+            device_map=device
+        )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=torch.bfloat16,
+            device_map="auto"  # Use all GPUs
+        )
     model.eval()
     return model, tokenizer
 
