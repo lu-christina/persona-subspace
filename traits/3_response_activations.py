@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import jsonlines
 import torch
+import torch.multiprocessing as mp
+import os
 
 # Add utils to path for imports
 sys.path.append('.')
@@ -99,6 +101,9 @@ class TraitActivationExtractorPerResponse:
         responses_dir: str = "/workspace/traits/responses",
         output_dir: str = "/workspace/traits/activations_per_token",
         layers: Optional[List[int]] = None,
+        start_index: int = 0,
+        prompt_indices: Optional[List[int]] = None,
+        append_mode: bool = False,
     ):
         """
         Initialize the trait activation extractor.
@@ -108,11 +113,17 @@ class TraitActivationExtractorPerResponse:
             responses_dir: Directory containing trait response JSONL files
             output_dir: Directory to save activation .pt files
             layers: List of layer indices to extract (None for all layers)
+            start_index: Index to start processing responses from (skip earlier ones)
+            prompt_indices: List of prompt indices to process (None for all)
+            append_mode: Whether to append to existing activation files
         """
         self.model_name = model_name
         self.responses_dir = Path(responses_dir)
         self.output_dir = Path(output_dir)
         self.layers = layers
+        self.start_index = start_index
+        self.prompt_indices = prompt_indices
+        self.append_mode = append_mode
         
         # Model and tokenizer (loaded once)
         self.model = None
@@ -129,11 +140,11 @@ class TraitActivationExtractorPerResponse:
         else:
             logger.info("Target layers: all layers")
     
-    def load_model(self):
+    def load_model(self, device=None):
         """Load model and tokenizer using probing_utils."""
         if self.model is None:
             logger.info(f"Loading model: {self.model_name}")
-            self.model, self.tokenizer = load_model(self.model_name)
+            self.model, self.tokenizer = load_model(self.model_name, device=device)
             logger.info("Model loaded successfully")
     
     def close_model(self):
@@ -234,9 +245,40 @@ class TraitActivationExtractorPerResponse:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
+    def should_process_response(self, response: Dict, response_idx: int, existing_activations: Dict[str, torch.Tensor]) -> bool:
+        """
+        Determine if a response should be processed based on filtering criteria.
+        
+        Args:
+            response: Response dictionary
+            response_idx: Global response index in the list
+            existing_activations: Dictionary of existing activations
+            
+        Returns:
+            True if response should be processed
+        """
+        # Skip if before start index
+        if response_idx < self.start_index:
+            return False
+        
+        # Skip if prompt index filtering is enabled and this prompt isn't included
+        prompt_index = response.get('prompt_index', 0)
+        if self.prompt_indices is not None and prompt_index not in self.prompt_indices:
+            return False
+        
+        # Skip if activation already exists (when in append mode)
+        if self.append_mode:
+            label = response['label']
+            question_index = response['question_index']
+            key = f"{label}_p{prompt_index}_q{question_index}"
+            if key in existing_activations:
+                return False
+        
+        return True
+    
     def extract_trait_activations(self, trait_name: str) -> Dict[str, torch.Tensor]:
         """
-        Extract mean activations for each individual response, grouped by system prompt type.
+        Extract mean activations for each individual response using new naming scheme.
         Each response gets its own tensor representing the mean activation across all its response tokens.
         
         Args:
@@ -247,22 +289,44 @@ class TraitActivationExtractorPerResponse:
         """
         logger.info(f"Processing trait '{trait_name}'...")
         
+        # Load existing activations if in append mode
+        existing_activations = {}
+        if self.append_mode:
+            existing_activations = self.load_existing_activations(trait_name)
+            existing_activations = self.convert_old_format_keys(existing_activations)
+            logger.info(f"Found {len(existing_activations)} existing activations")
+        
         # Load responses
         responses = self.load_trait_responses(trait_name)
         
         if not responses:
             raise ValueError(f"No responses found for trait '{trait_name}'")
         
-        # Group responses by label and store individual response activations
-        response_activations = {}  # label -> list of response tensors
-        
-        logger.info(f"Extracting activations for {len(responses)} conversations...")
-        
+        # Filter responses to process
+        responses_to_process = []
         for i, response in enumerate(responses):
+            if self.should_process_response(response, i, existing_activations):
+                responses_to_process.append((i, response))
+        
+        logger.info(f"Processing {len(responses_to_process)} out of {len(responses)} responses")
+        
+        if not responses_to_process:
+            logger.info("No new responses to process")
+            return existing_activations
+        
+        # Extract activations for filtered responses
+        new_activations = {}
+        
+        for i, (global_idx, response) in enumerate(responses_to_process):
             try:
-                # Extract conversation and label
+                # Extract response metadata
                 conversation = response['conversation']
                 label = response['label']
+                prompt_index = response.get('prompt_index', 0)
+                question_index = response['question_index']
+                
+                # Create new format key
+                key = f"{label}_p{prompt_index}_q{question_index}"
                 
                 # Extract full activations for the conversation
                 activations = self.extract_conversation_activations(conversation)  # (num_layers, seq_len, hidden_size)
@@ -271,7 +335,7 @@ class TraitActivationExtractorPerResponse:
                 response_indices = get_response_indices(conversation, self.tokenizer)
                 
                 if not response_indices:
-                    logger.warning(f"No response tokens found for conversation {i}")
+                    logger.warning(f"No response tokens found for conversation {global_idx} (key: {key})")
                     continue
                 
                 # Extract activations only for response tokens
@@ -280,32 +344,24 @@ class TraitActivationExtractorPerResponse:
                 # Compute mean across response tokens for this conversation
                 mean_response_activation = response_token_activations.mean(dim=1)  # (num_layers, hidden_size)
                 
-                # Initialize label list if needed
-                if label not in response_activations:
-                    response_activations[label] = []
-                
-                # Store this response's mean activation
-                response_activations[label].append(mean_response_activation)
+                # Store with new format key
+                new_activations[key] = mean_response_activation
                 
                 if (i + 1) % 10 == 0:
-                    logger.info(f"Processed {i + 1}/{len(responses)} conversations for '{trait_name}'")
+                    logger.info(f"Processed {i + 1}/{len(responses_to_process)} new conversations for '{trait_name}'")
                 
             except Exception as e:
-                logger.error(f"Error processing conversation {i} for trait '{trait_name}': {e}")
+                logger.error(f"Error processing conversation {global_idx} for trait '{trait_name}': {e}")
                 raise
         
-        logger.info(f"Successfully extracted activations for {len(responses)} conversations")
+        logger.info(f"Successfully extracted {len(new_activations)} new activations")
         
-        # Create final dictionary with individual response tensors
-        final_activations = {}
-        for label, activation_list in response_activations.items():
-            for response_idx, response_tensor in enumerate(activation_list):
-                key = f"{label}_{response_idx}"
-                final_activations[key] = response_tensor
-                logger.debug(f"Stored activation for '{key}': {response_tensor.shape}")
+        # Combine with existing activations
+        combined_activations = existing_activations.copy()
+        combined_activations.update(new_activations)
         
-        logger.info(f"Generated {len(final_activations)} response activation tensors for trait '{trait_name}'")
-        return final_activations
+        logger.info(f"Total activations for trait '{trait_name}': {len(combined_activations)}")
+        return combined_activations
     
     def save_trait_activations(self, trait_name: str, mean_activations: Dict[str, torch.Tensor]):
         """
@@ -329,6 +385,80 @@ class TraitActivationExtractorPerResponse:
             logger.error(f"Error saving activations for trait '{trait_name}': {e}")
             raise
     
+    def load_existing_activations(self, trait_name: str) -> Dict[str, torch.Tensor]:
+        """
+        Load existing activations for a trait if they exist.
+        
+        Args:
+            trait_name: Name of the trait
+            
+        Returns:
+            Dictionary of existing activations (empty if file doesn't exist)
+        """
+        output_file = self.output_dir / f"{trait_name}.pt"
+        
+        if not output_file.exists():
+            return {}
+        
+        try:
+            existing_activations = torch.load(output_file, map_location='cpu')
+            logger.info(f"Loaded {len(existing_activations)} existing activations for trait '{trait_name}'")
+            return existing_activations
+            
+        except Exception as e:
+            logger.error(f"Error loading existing activations for trait '{trait_name}': {e}")
+            return {}
+    
+    def convert_old_format_keys(self, activations: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        """
+        Convert old format activation keys to new format.
+        
+        Old format: pos_0, pos_1, neg_0, neg_1, default_0, etc.
+        New format: pos_p0_q0, pos_p0_q1, neg_p0_q0, neg_p0_q1, neutral_p0_q0, etc.
+        
+        Args:
+            activations: Dictionary with old format keys
+            
+        Returns:
+            Dictionary with new format keys
+        """
+        converted = {}
+        
+        for old_key, tensor in activations.items():
+            # Check if key is already in new format
+            if '_p' in old_key and '_q' in old_key:
+                converted[old_key] = tensor
+                continue
+            
+            # Parse old format key (e.g., "pos_5" -> label="pos", idx=5)
+            parts = old_key.split('_')
+            if len(parts) != 2:
+                # Unknown format, keep as-is
+                converted[old_key] = tensor
+                continue
+            
+            label, idx_str = parts
+            try:
+                idx = int(idx_str)
+            except ValueError:
+                # Not a number, keep as-is
+                converted[old_key] = tensor
+                continue
+            
+            # Convert to new format
+            # Old format used sequential numbering across all responses
+            # For 20 questions per prompt, we can derive prompt_index and question_index
+            prompt_index = 0  # Old format assumed first prompt variant
+            question_index = idx % 20  # Questions were 0-19 within each prompt
+            
+            new_key = f"{label}_p{prompt_index}_q{question_index}"
+            converted[new_key] = tensor
+            
+            if old_key != new_key:
+                logger.debug(f"Converted activation key: '{old_key}' -> '{new_key}'")
+        
+        return converted
+    
     def should_skip_trait(self, trait_name: str) -> bool:
         """
         Check if trait should be skipped (already processed).
@@ -339,6 +469,9 @@ class TraitActivationExtractorPerResponse:
         Returns:
             True if trait should be skipped
         """
+        if self.append_mode:
+            return False  # Never skip in append mode
+        
         output_file = self.output_dir / f"{trait_name}.pt"
         return output_file.exists()
     
@@ -428,6 +561,156 @@ class TraitActivationExtractorPerResponse:
             logger.info("Final cleanup completed")
 
 
+def process_traits_on_gpu(gpu_id, trait_names, args):
+    """Process a subset of traits on a specific GPU."""
+    # Set the GPU for this process
+    torch.cuda.set_device(gpu_id)
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+    
+    # Set up logging for this process
+    logger = logging.getLogger(f"GPU-{gpu_id}")
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(f'%(asctime)s - GPU-{gpu_id} - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    
+    logger.info(f"Starting processing on GPU {gpu_id} with {len(trait_names)} traits")
+    
+    try:
+        # Create extractor for this GPU
+        extractor = TraitActivationExtractorPerResponse(
+            model_name=args.model_name,
+            responses_dir=args.responses_dir,
+            output_dir=args.output_dir,
+            layers=args.layers,
+            start_index=args.start_index,
+            prompt_indices=args.prompt_indices,
+            append_mode=args.append_mode
+        )
+        
+        # Load model on this specific GPU
+        extractor.load_model(device=f"cuda:{gpu_id}")
+        
+        # Process assigned traits
+        completed_count = 0
+        failed_count = 0
+        
+        for i, trait_name in enumerate(trait_names, 1):
+            logger.info(f"Processing trait {i}/{len(trait_names)}: {trait_name}")
+            
+            try:
+                success = extractor.process_trait(trait_name)
+                if success:
+                    completed_count += 1
+                else:
+                    failed_count += 1
+                    
+            except Exception as e:
+                failed_count += 1
+                logger.error(f"Exception processing trait {trait_name}: {e}")
+        
+        logger.info(f"GPU {gpu_id} completed: {completed_count} successful, {failed_count} failed")
+        
+    except Exception as e:
+        logger.error(f"Fatal error on GPU {gpu_id}: {e}")
+        
+    finally:
+        # Cleanup
+        if 'extractor' in locals():
+            extractor.close_model()
+        logger.info(f"GPU {gpu_id} cleanup completed")
+
+
+def run_multi_gpu_processing(args, prompt_indices):
+    """Run multi-GPU processing with trait distribution."""
+    # Parse GPU IDs
+    if args.gpu_ids:
+        gpu_ids = [int(x.strip()) for x in args.gpu_ids.split(',')]
+    else:
+        gpu_ids = list(range(args.num_gpus))
+    
+    logger.info(f"Using GPUs: {gpu_ids}")
+    
+    # Get available traits
+    responses_dir = Path(args.responses_dir)
+    trait_files = list(responses_dir.glob("*.jsonl"))
+    trait_names = [f.stem for f in trait_files]
+    trait_names = sorted(trait_names)
+    
+    if not trait_names:
+        logger.error("No trait response files found")
+        return 1
+    
+    # Apply filtering
+    if args.trait_limit:
+        trait_names = trait_names[:args.trait_limit]
+    
+    if args.subset:
+        if args.subset.lower() == 'even':
+            trait_names = [trait_names[i] for i in range(0, len(trait_names), 2)]
+        elif args.subset.lower() == 'odd':
+            trait_names = [trait_names[i] for i in range(1, len(trait_names), 2)]
+    
+    # Filter out existing traits if needed
+    if not args.no_skip_existing:
+        output_dir = Path(args.output_dir)
+        traits_to_process = []
+        for trait_name in trait_names:
+            output_file = output_dir / f"{trait_name}.pt"
+            if not output_file.exists():
+                traits_to_process.append(trait_name)
+            else:
+                logger.info(f"Skipping trait '{trait_name}' (already exists)")
+        trait_names = traits_to_process
+    
+    if not trait_names:
+        logger.info("No traits to process")
+        return 0
+    
+    logger.info(f"Processing {len(trait_names)} traits across {len(gpu_ids)} GPUs")
+    
+    # Distribute traits across GPUs
+    traits_per_gpu = len(trait_names) // len(gpu_ids)
+    remainder = len(trait_names) % len(gpu_ids)
+    
+    trait_chunks = []
+    start_idx = 0
+    
+    for i, gpu_id in enumerate(gpu_ids):
+        # Give extra traits to first few GPUs if there's a remainder
+        chunk_size = traits_per_gpu + (1 if i < remainder else 0)
+        end_idx = start_idx + chunk_size
+        
+        chunk = trait_names[start_idx:end_idx]
+        trait_chunks.append((gpu_id, chunk))
+        
+        logger.info(f"GPU {gpu_id}: {len(chunk)} traits ({chunk[0] if chunk else 'none'} to {chunk[-1] if chunk else 'none'})")
+        start_idx = end_idx
+    
+    # Set multiprocessing start method
+    mp.set_start_method('spawn', force=True)
+    
+    # Launch processes
+    processes = []
+    for gpu_id, chunk in trait_chunks:
+        if chunk:  # Only launch if there are traits to process
+            p = mp.Process(
+                target=process_traits_on_gpu,
+                args=(gpu_id, chunk, args)
+            )
+            p.start()
+            processes.append(p)
+    
+    # Wait for all processes to complete
+    logger.info(f"Launched {len(processes)} GPU processes")
+    for p in processes:
+        p.join()
+    
+    logger.info("Multi-GPU processing completed!")
+    return 0
+
+
 def main():
     """Main entry point for the script."""
     parser = argparse.ArgumentParser(
@@ -448,15 +731,18 @@ Examples:
     python traits/3_activations_per_token.py \\
         --layers 15 16 17
 
-    # Process even-indexed traits (for parallel processing)
-    python traits/3_activations_per_token.py --subset even
-
-    # Process odd-indexed traits (for parallel processing)
-    python traits/3_activations_per_token.py --subset odd
 
     # Test with limited number of traits
     python traits/3_activations_per_token.py \\
         --trait-limit 5
+
+    # Multi-GPU processing with 2 H100s
+    python traits/3_activations_per_token.py \\
+        --multi-gpu --num-gpus 2
+
+    # Multi-GPU with specific GPU IDs
+    python traits/3_activations_per_token.py \\
+        --multi-gpu --gpu-ids "0,1"
 
         """
     )
@@ -476,10 +762,22 @@ Examples:
                        help='Process all traits, even if output files exist')
     parser.add_argument('--trait-limit', type=int, default=None,
                        help='Limit number of traits to process (for testing)')
-    parser.add_argument('--subset', type=str, choices=['even', 'odd'], default=None,
-                       help='Process only even or odd indexed traits for parallel processing')
+    parser.add_argument('--start-index', type=int, default=0,
+                       help='Start processing responses from this index (skip earlier ones)')
+    parser.add_argument('--prompt-indices', type=str, default=None,
+                       help='Comma-separated list of prompt indices to process (e.g., "1,2,3,4")')
+    parser.add_argument('--append-mode', action='store_true',
+                       help='Append to existing activation files instead of overwriting')
     parser.add_argument('--verbose', action='store_true',
                        help='Enable verbose logging')
+    
+    # Multi-GPU options
+    parser.add_argument('--multi-gpu', action='store_true',
+                       help='Use multi-GPU processing (one GPU per trait)')
+    parser.add_argument('--num-gpus', type=int, default=2,
+                       help='Number of GPUs to use for parallel processing (default: 2)')
+    parser.add_argument('--gpu-ids', type=str, default=None,
+                       help='Comma-separated list of GPU IDs to use (e.g., "0,1")')
     
     args = parser.parse_args()
     
@@ -487,12 +785,25 @@ Examples:
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
     
+    # Parse prompt indices
+    prompt_indices = None
+    if args.prompt_indices:
+        try:
+            prompt_indices = [int(x.strip()) for x in args.prompt_indices.split(',')]
+            logger.info(f"Using specific prompt indices: {prompt_indices}")
+        except ValueError as e:
+            logger.error(f"Invalid prompt indices format: {args.prompt_indices}")
+            return 1
+    
     # Print configuration
     logger.info("Configuration:")
     logger.info(f"  Model: {args.model_name}")
     logger.info(f"  Responses directory: {args.responses_dir}")
     logger.info(f"  Output directory: {args.output_dir}")
     logger.info(f"  Layers: {args.layers if args.layers else 'all'}")
+    logger.info(f"  Start index: {args.start_index}")
+    logger.info(f"  Prompt indices: {prompt_indices if prompt_indices else 'all'}")
+    logger.info(f"  Append mode: {args.append_mode}")
     logger.info(f"  Skip existing: {not args.no_skip_existing}")
     if args.trait_limit:
         logger.info(f"  Trait limit: {args.trait_limit}")
@@ -500,22 +811,29 @@ Examples:
         logger.info(f"  Subset: {args.subset}")
     
     try:
-        # Create extractor
-        extractor = TraitActivationExtractorPerResponse(
-            model_name=args.model_name,
-            responses_dir=args.responses_dir,
-            output_dir=args.output_dir,
-            layers=args.layers
-        )
-        
-        # Process all traits
-        extractor.process_all_traits(
-            skip_existing=not args.no_skip_existing,
-            trait_limit=args.trait_limit,
-            subset=args.subset
-        )
-        
-        logger.info("Per-response activation extraction completed successfully!")
+        if args.multi_gpu:
+            # Multi-GPU processing
+            return run_multi_gpu_processing(args, prompt_indices)
+        else:
+            # Single GPU processing (original code)
+            extractor = TraitActivationExtractorPerResponse(
+                model_name=args.model_name,
+                responses_dir=args.responses_dir,
+                output_dir=args.output_dir,
+                layers=args.layers,
+                start_index=args.start_index,
+                prompt_indices=prompt_indices,
+                append_mode=args.append_mode
+            )
+            
+            # Process all traits
+            extractor.process_all_traits(
+                skip_existing=not args.no_skip_existing,
+                trait_limit=args.trait_limit,
+                subset=args.subset
+            )
+            
+            logger.info("Per-response activation extraction completed successfully!")
         
     except Exception as e:
         logger.error(f"Error: {e}")

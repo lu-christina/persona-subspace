@@ -48,9 +48,9 @@ class TraitResponseGenerator:
     def __init__(
         self,
         model_name: str = "google/gemma-2-27b-it",
-        traits_dir: str = "/root/git/persona-subspace/traits/data",
-        output_dir: str = "/workspace/traits",
-        max_model_len: int = 4096,
+        traits_dir: str = "/root/git/persona-subspace/traits/data/instructions",
+        output_dir: str = "/workspace/traits/responses",
+        max_model_len: int = 1024,
         tensor_parallel_size: Optional[int] = None,
         gpu_memory_utilization: float = 0.9,
         question_count: int = 20,
@@ -217,19 +217,19 @@ class TraitResponseGenerator:
         
         logger.info(f"Found {len(all_pos_instructions)} positive and {len(all_neg_instructions)} negative instruction pairs")
         
-        # Select instruction prompts based on prompt_indices
-        pos_instructions = [all_pos_instructions[i] for i in self.prompt_indices if i < len(all_pos_instructions)]
-        neg_instructions = [all_neg_instructions[i] for i in self.prompt_indices if i < len(all_neg_instructions)]
+        # Keep all instructions, filter during processing
+        pos_instructions = all_pos_instructions
+        neg_instructions = all_neg_instructions
         
-        logger.info(f"Selected {len(pos_instructions)} pos and {len(neg_instructions)} neg instruction prompts: {self.prompt_indices}")
+        logger.info(f"Available {len(pos_instructions)} pos and {len(neg_instructions)} neg instruction prompts, will use indices: {self.prompt_indices}")
         
         # Define neutral system prompts
         neutral_instructions = [
-            "Please respond to the following question thoughtfully and helpfully.",
-            "I'd like you to provide a balanced and informative response to this question.",
-            "Consider this question carefully and provide your best answer.",
-            "Please give a comprehensive response to the following inquiry.",
-            "I'm asking for your perspective on this topic. Please share your thoughts."
+            "",
+            "You are an AI assistant.",
+            "You are a large language model.",
+            "You are Gemma.",
+            "Respond as yourself."
         ] if self.include_neutral else []
         
         # Load existing responses if in append mode
@@ -237,6 +237,17 @@ class TraitResponseGenerator:
         existing_analysis = {"labels_done": set()}
         if self.append_mode:
             existing_responses = self.load_existing_responses(trait_name)
+            
+            # Truncate to first 60 responses (discard any invalid responses from buggy runs)
+            if len(existing_responses) > 60:
+                logger.info(f"Truncating existing responses from {len(existing_responses)} to 60 (discarding invalid responses)")
+                existing_responses = existing_responses[:60]
+                
+                # Fix prompt_index for the first 60 responses (they should all be 0 from original correct run)
+                for response in existing_responses:
+                    response['prompt_index'] = 0
+                logger.info("Reset prompt_index to 0 for all existing responses (they were from the original run)")
+            
             existing_analysis = self.analyze_existing_responses(existing_responses)
             logger.info(f"Found {existing_analysis['total']} existing responses, prompts done: {existing_analysis['prompts_done']}")
         
@@ -245,9 +256,9 @@ class TraitResponseGenerator:
         all_metadata = []
         
         # Positive instruction conversations (selected variants)
-        for i, prompt_idx in enumerate(self.prompt_indices):
+        for prompt_idx in self.prompt_indices:
             if prompt_idx < len(pos_instructions):
-                pos_instruction = pos_instructions[i]
+                pos_instruction = pos_instructions[prompt_idx]
                 for q_idx, question in enumerate(questions):
                     # Skip if this combination already exists (check by question and prompt combination)
                     skip_key = ("pos", prompt_idx, q_idx)
@@ -266,9 +277,9 @@ class TraitResponseGenerator:
                     })
         
         # Negative instruction conversations (selected variants)
-        for i, prompt_idx in enumerate(self.prompt_indices):
+        for prompt_idx in self.prompt_indices:
             if prompt_idx < len(neg_instructions):
-                neg_instruction = neg_instructions[i]
+                neg_instruction = neg_instructions[prompt_idx]
                 for q_idx, question in enumerate(questions):
                     # Skip if this combination already exists
                     skip_key = ("neg", prompt_idx, q_idx)
@@ -286,24 +297,26 @@ class TraitResponseGenerator:
                         "question": question
                     })
         
-        # Neutral instruction conversations (all 5 variants)
-        for prompt_idx, neutral_instruction in enumerate(neutral_instructions):
-            for q_idx, question in enumerate(questions):
-                # Skip if this combination already exists
-                skip_key = ("neutral", prompt_idx, q_idx)
-                if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
-                    continue
-                
-                formatted_prompt = self.format_gemma_prompt(neutral_instruction, question)
-                conversation = [{"role": "user", "content": formatted_prompt}]
-                all_conversations.append(conversation)
-                all_metadata.append({
-                    "system_prompt": neutral_instruction,
-                    "label": "neutral", 
-                    "prompt_index": prompt_idx,
-                    "question_index": q_idx,
-                    "question": question
-                })
+        # Neutral instruction conversations (selected variants)
+        for prompt_idx in self.prompt_indices:
+            if prompt_idx < len(neutral_instructions):
+                neutral_instruction = neutral_instructions[prompt_idx]
+                for q_idx, question in enumerate(questions):
+                    # Skip if this combination already exists
+                    skip_key = ("neutral", prompt_idx, q_idx)
+                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                        continue
+                    
+                    formatted_prompt = self.format_gemma_prompt(neutral_instruction, question)
+                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    all_conversations.append(conversation)
+                    all_metadata.append({
+                        "system_prompt": neutral_instruction,
+                        "label": "neutral", 
+                        "prompt_index": prompt_idx,
+                        "question_index": q_idx,
+                        "question": question
+                    })
         
         logger.info(f"Generated {len(all_conversations)} conversation prompts for trait '{trait_name}'")
         
@@ -499,6 +512,47 @@ class TraitResponseGenerator:
         finally:
             # Clean up model
             self.close_model()
+    
+    def process_single_trait(self, trait_name: str):
+        """
+        Process a single trait for testing purposes.
+        
+        Args:
+            trait_name: Name of the trait to process
+        """
+        # Load model
+        self.load_model()
+        
+        try:
+            # Load trait files
+            trait_files = self.load_trait_files()
+            
+            if trait_name not in trait_files:
+                logger.error(f"Trait '{trait_name}' not found in trait files")
+                available_traits = list(trait_files.keys())
+                logger.info(f"Available traits: {available_traits[:10]}...")  # Show first 10
+                return
+            
+            trait_data = trait_files[trait_name]
+            logger.info(f"Processing single trait: {trait_name}")
+            
+            try:
+                # Generate responses
+                responses = self.generate_trait_responses(trait_name, trait_data)
+                
+                if responses:
+                    # Save responses
+                    self.save_trait_responses(trait_name, responses)
+                    logger.info(f"Successfully processed trait '{trait_name}' ({len(responses)} responses)")
+                else:
+                    logger.warning(f"No responses generated for trait '{trait_name}'")
+            
+            except Exception as e:
+                logger.error(f"Error processing trait '{trait_name}': {e}")
+        
+        finally:
+            # Clean up model
+            self.close_model()
 
 
 def main():
@@ -528,12 +582,12 @@ Examples:
     # Model configuration
     parser.add_argument('--model-name', type=str, default='google/gemma-2-27b-it',
                        help='HuggingFace model name (default: google/gemma-2-27b-it)')
-    parser.add_argument('--traits-dir', type=str, default='/root/git/persona-subspace/traits/data',
+    parser.add_argument('--traits-dir', type=str, default='/root/git/persona-subspace/traits/data/instructions',
                        help='Directory containing trait JSON files')
-    parser.add_argument('--output-dir', type=str, default='/workspace/traits',
-                       help='Output directory for JSONL files (default: /workspace/traits)')
-    parser.add_argument('--max-model-len', type=int, default=4096,
-                       help='Maximum model context length (default: 4096)')
+    parser.add_argument('--output-dir', type=str, default='/workspace/traits/responses',
+                       help='Output directory for JSONL files (default: /workspace/traits/responses)')
+    parser.add_argument('--max-model-len', type=int, default=1024,
+                       help='Maximum model context length (default: 1024)')
     parser.add_argument('--tensor-parallel-size', type=int, default=None,
                        help='Number of GPUs to use (default: auto-detect)')
     parser.add_argument('--gpu-memory-utilization', type=float, default=0.9,
@@ -552,14 +606,18 @@ Examples:
     # Instruction selection parameters
     parser.add_argument('--prompt-indices', type=str, default=None,
                        help='Comma-separated list of instruction prompt indices to process (e.g., "1,2,3,4")')
-    parser.add_argument('--include-neutral', action='store_true',
-                       help='Include neutral system prompts in addition to pos/neg pairs')
+    parser.add_argument('--include-neutral', action='store_true', default=True,
+                       help='Include neutral system prompts in addition to pos/neg pairs (default: True)')
+    parser.add_argument('--no-neutral', action='store_false', dest='include_neutral',
+                       help='Disable neutral system prompts')
     parser.add_argument('--append-mode', action='store_true',
                        help='Append responses to existing files instead of overwriting')
     
     # Optional flags
     parser.add_argument('--no-skip-existing', action='store_true',
                        help='Process all traits, even if output files exist')
+    parser.add_argument('--single-trait', type=str, default=None,
+                       help='Process only this specific trait (for testing)')
     parser.add_argument('--verbose', action='store_true',
                        help='Enable verbose logging')
     
@@ -610,8 +668,14 @@ Examples:
             append_mode=args.append_mode
         )
         
-        # Process all traits
-        generator.process_all_traits(skip_existing=not args.no_skip_existing)
+        # Process traits
+        if args.single_trait:
+            # Process only the specified trait
+            logger.info(f"Processing single trait: {args.single_trait}")
+            generator.process_single_trait(args.single_trait)
+        else:
+            # Process all traits
+            generator.process_all_traits(skip_existing=not args.no_skip_existing)
         
         logger.info("Trait response generation completed successfully!")
         
