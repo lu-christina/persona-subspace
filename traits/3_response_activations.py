@@ -550,7 +550,7 @@ class TraitActivationExtractorPerResponse:
             logger.info("Final cleanup completed")
 
 
-def process_traits_on_gpu(gpu_id, trait_names, args):
+def process_traits_on_gpu(gpu_id, trait_names, args, prompt_indices=None):
     """Process a subset of traits on a specific GPU."""
     # Set the GPU for this process
     torch.cuda.set_device(gpu_id)
@@ -574,7 +574,7 @@ def process_traits_on_gpu(gpu_id, trait_names, args):
             output_dir=args.output_dir,
             layers=args.layers,
             start_index=args.start_index,
-            prompt_indices=args.prompt_indices,
+            prompt_indices=prompt_indices,
             append_mode=args.append_mode
         )
         
@@ -636,8 +636,8 @@ def run_multi_gpu_processing(args, prompt_indices):
         trait_names = trait_names[:args.trait_limit]
     
     
-    # Filter out existing traits if needed
-    if not args.no_skip_existing:
+    # Filter out existing traits if needed (but not in append mode)
+    if not args.no_skip_existing and not args.append_mode:
         output_dir = Path(args.output_dir)
         traits_to_process = []
         for trait_name in trait_names:
@@ -681,7 +681,7 @@ def run_multi_gpu_processing(args, prompt_indices):
         if chunk:  # Only launch if there are traits to process
             p = mp.Process(
                 target=process_traits_on_gpu,
-                args=(gpu_id, chunk, args)
+                args=(gpu_id, chunk, args, prompt_indices)
             )
             p.start()
             processes.append(p)
@@ -736,7 +736,7 @@ Examples:
                        help='HuggingFace model name (default: google/gemma-2-27b-it)')
     parser.add_argument('--responses-dir', type=str, default='/workspace/traits/responses',
                        help='Directory containing trait response JSONL files')
-    parser.add_argument('--output-dir', type=str, default='./traits/data/response_activations',
+    parser.add_argument('--output-dir', type=str, default='/root/git/persona-subspace/traits/data/response_activations',
                        help='Output directory for activation .pt files')
     parser.add_argument('--layers', type=int, nargs='*', default=None,
                        help='Specific layer indices to extract (default: all layers)')
