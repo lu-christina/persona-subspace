@@ -73,7 +73,7 @@ def find_newline_position(input_ids, tokenizer, device):
 
 
 def extract_full_activations(model, tokenizer, conversation, layer=None):
-    """Extract activation at the newline token
+    """Extract full activations for a conversation
     
     Args:
         layer: int for single layer or list of ints for multiple layers or None for all layers
