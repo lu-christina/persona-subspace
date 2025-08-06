@@ -3,13 +3,13 @@
 Batch inference script for generating trait responses using vLLM.
 
 This script processes trait files and generates model responses for positive, negative,
-and neutral instructions using a specified vLLM model across multiple GPUs.
+and default instructions using a specified vLLM model across multiple GPUs.
 
 For each trait, it generates responses to the first 20 questions with 15 different
 instruction types:
 - pos (5 variants): Using positive trait instructions (all 5 pairs)
 - neg (5 variants): Using negative trait instructions (all 5 pairs) 
-- neutral (5 variants): Using neutral system prompts (5 different styles)
+- default (5 variants): Using default system prompts (5 different styles)
 
 This results in 300 responses per trait (20 questions × 15 instruction variants).
 
@@ -58,7 +58,7 @@ class TraitResponseGenerator:
         max_tokens: int = 1024,
         top_p: float = 0.9,
         prompt_indices: Optional[List[int]] = None,
-        include_neutral: bool = True,
+        include_default: bool = True,
         append_mode: bool = False
     ):
         """
@@ -76,7 +76,7 @@ class TraitResponseGenerator:
             max_tokens: Maximum tokens to generate
             top_p: Top-p sampling parameter
             prompt_indices: List of instruction prompt indices to process (None = all prompts)
-            include_neutral: Whether to include neutral system prompts
+            include_default: Whether to include default system prompts
             append_mode: Whether to append to existing files instead of overwriting
         """
         self.model_name = model_name
@@ -90,7 +90,7 @@ class TraitResponseGenerator:
         self.max_tokens = max_tokens
         self.top_p = top_p
         self.prompt_indices = prompt_indices if prompt_indices is not None else list(range(5))
-        self.include_neutral = include_neutral
+        self.include_default = include_default
         self.append_mode = append_mode
         
         # Model wrapper (loaded lazily)
@@ -223,14 +223,14 @@ class TraitResponseGenerator:
         
         logger.info(f"Available {len(pos_instructions)} pos and {len(neg_instructions)} neg instruction prompts, will use indices: {self.prompt_indices}")
         
-        # Define neutral system prompts
-        neutral_instructions = [
+        # Define default system prompts
+        default_instructions = [
             "",
             "You are an AI assistant.",
             "You are a large language model.",
             "You are Gemma.",
             "Respond as yourself."
-        ] if self.include_neutral else []
+        ] if self.include_default else []
         
         # Load existing responses if in append mode
         existing_responses = []
@@ -297,22 +297,22 @@ class TraitResponseGenerator:
                         "question": question
                     })
         
-        # Neutral instruction conversations (selected variants)
+        # Default instruction conversations (selected variants)
         for prompt_idx in self.prompt_indices:
-            if prompt_idx < len(neutral_instructions):
-                neutral_instruction = neutral_instructions[prompt_idx]
+            if prompt_idx < len(default_instructions):
+                default_instruction = default_instructions[prompt_idx]
                 for q_idx, question in enumerate(questions):
                     # Skip if this combination already exists
-                    skip_key = ("neutral", prompt_idx, q_idx)
+                    skip_key = ("default", prompt_idx, q_idx)
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
                     
-                    formatted_prompt = self.format_gemma_prompt(neutral_instruction, question)
+                    formatted_prompt = self.format_gemma_prompt(default_instruction, question)
                     conversation = [{"role": "user", "content": formatted_prompt}]
                     all_conversations.append(conversation)
                     all_metadata.append({
-                        "system_prompt": neutral_instruction,
-                        "label": "neutral", 
+                        "system_prompt": default_instruction,
+                        "label": "default", 
                         "prompt_index": prompt_idx,
                         "question_index": q_idx,
                         "question": question
@@ -606,10 +606,10 @@ Examples:
     # Instruction selection parameters
     parser.add_argument('--prompt-indices', type=str, default=None,
                        help='Comma-separated list of instruction prompt indices to process (e.g., "1,2,3,4")')
-    parser.add_argument('--include-neutral', action='store_true', default=True,
-                       help='Include neutral system prompts in addition to pos/neg pairs (default: True)')
-    parser.add_argument('--no-neutral', action='store_false', dest='include_neutral',
-                       help='Disable neutral system prompts')
+    parser.add_argument('--include-default', action='store_true', default=True,
+                       help='Include default system prompts in addition to pos/neg pairs (default: True)')
+    parser.add_argument('--no-default', action='store_false', dest='include_default',
+                       help='Disable default system prompts')
     parser.add_argument('--append-mode', action='store_true',
                        help='Append responses to existing files instead of overwriting')
     
@@ -646,7 +646,7 @@ Examples:
     logger.info(f"  Temperature: {args.temperature}")
     logger.info(f"  Max tokens: {args.max_tokens}")
     logger.info(f"  Prompt indices: {prompt_indices if prompt_indices else 'all (0-4)'}")
-    logger.info(f"  Include neutral: {args.include_neutral}")
+    logger.info(f"  Include default: {args.include_default}")
     logger.info(f"  Append mode: {args.append_mode}")
     logger.info(f"  Skip existing: {not args.no_skip_existing}")
     
@@ -664,7 +664,7 @@ Examples:
             max_tokens=args.max_tokens,
             top_p=args.top_p,
             prompt_indices=prompt_indices,
-            include_neutral=args.include_neutral,
+            include_default=args.include_default,
             append_mode=args.append_mode
         )
         

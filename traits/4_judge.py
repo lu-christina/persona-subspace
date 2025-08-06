@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 import re
@@ -34,6 +35,33 @@ OUTPUT_DIR = Path(__file__).parent / "data" / "extract_scores"
 DEFAULT_JUDGE_MODEL = "gpt-4.1-mini"
 
 
+class RateLimiter:
+    """Simple rate limiter using token bucket algorithm."""
+    
+    def __init__(self, rate: float):
+        self.rate = rate  # requests per second
+        self.tokens = rate
+        self.last_update = time.time()
+        self.lock = asyncio.Lock()
+    
+    async def acquire(self):
+        """Acquire a token, waiting if necessary."""
+        async with self.lock:
+            now = time.time()
+            # Add tokens based on elapsed time
+            self.tokens = min(self.rate, self.tokens + (now - self.last_update) * self.rate)
+            self.last_update = now
+            
+            if self.tokens >= 1:
+                self.tokens -= 1
+                return
+            
+            # Wait until we can get a token
+            wait_time = (1 - self.tokens) / self.rate
+            await asyncio.sleep(wait_time)
+            self.tokens = 0
+
+
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
@@ -52,7 +80,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=100,
+        default=240,
         help="Batch size for API requests (default: 100)"
     )
     parser.add_argument(
@@ -65,6 +93,18 @@ def parse_arguments() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Show what would be processed without making API calls"
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=10,
+        help="Maximum number of concurrent trait workers (default: 10)"
+    )
+    parser.add_argument(
+        "--requests-per-second",
+        type=int,
+        default=400,
+        help="Rate limit for API requests per second across all workers (default: 400)"
     )
     
     return parser.parse_args()
@@ -131,22 +171,33 @@ def load_response_data(trait: str) -> List[Dict[str, Any]]:
     return responses
 
 
-def organize_responses_by_question_and_label(responses: List[Dict[str, Any]]) -> Dict[Tuple[int, str], str]:
+def organize_responses_by_question_and_label(responses: List[Dict[str, Any]]) -> Dict[Tuple[int, int, str], Tuple[str, str]]:
     """
-    Organize responses by (question_index, label) for easy lookup.
+    Organize responses by (prompt_index, question_index, label) for easy lookup.
     
     Returns:
-        Dict mapping (question_index, label) to the assistant's response text
+        Dict mapping (prompt_index, question_index, label) to (question_text, assistant_response)
     """
     organized = {}
     
     for response_data in responses:
         question_index = response_data.get('question_index')
         label = response_data.get('label')
+        # Handle both old format (no prompt_index) and new format (with prompt_index)
+        prompt_index = response_data.get('prompt_index', 0)  # Default to 0 for backward compatibility
         conversation = response_data.get('conversation', [])
+        question_text = response_data.get('question', '')
+        
+        # Normalize neutral labels to default for consistency
+        if label == 'neutral':
+            label = 'default'
         
         if question_index is None or label is None:
             logger.warning(f"Missing question_index or label in response: {response_data}")
+            continue
+        
+        if not question_text:
+            logger.warning(f"Missing question text for prompt {prompt_index}, question {question_index}, label {label}")
             continue
         
         # Extract assistant's response from conversation
@@ -157,10 +208,10 @@ def organize_responses_by_question_and_label(responses: List[Dict[str, Any]]) ->
                 break
         
         if assistant_response is None:
-            logger.warning(f"No assistant response found for question {question_index}, label {label}")
+            logger.warning(f"No assistant response found for prompt {prompt_index}, question {question_index}, label {label}")
             continue
         
-        organized[(question_index, label)] = assistant_response
+        organized[(prompt_index, question_index, label)] = (question_text, assistant_response)
     
     return organized
 
@@ -168,38 +219,62 @@ def organize_responses_by_question_and_label(responses: List[Dict[str, Any]]) ->
 def create_evaluation_prompts(
     trait: str,
     instruction_data: Dict[str, Any], 
-    organized_responses: Dict[Tuple[int, str], str]
-) -> List[Tuple[str, int, str, str]]:
+    organized_responses: Dict[Tuple[int, int, str], Tuple[str, str]]
+) -> List[Tuple[str, int, int, str, str]]:
     """
     Create evaluation prompts for the judge model.
     
     Returns:
-        List of tuples: (trait, question_index, label, prompt_text)
+        List of tuples: (trait, prompt_index, question_index, label, prompt_text)
     """
     eval_prompt_template = instruction_data['eval_prompt']
-    questions = instruction_data['questions']
     
     evaluation_prompts = []
     
-    for question_index, question in enumerate(questions):
-        for label in ['pos', 'neg', 'default']:
-            key = (question_index, label)
-            
-            if key not in organized_responses:
-                logger.warning(f"No response found for trait {trait}, question {question_index}, label {label}")
-                continue
-            
-            answer = organized_responses[key]
-            
-            # Fill in the template
-            filled_prompt = eval_prompt_template.format(
-                question=question,
-                answer=answer
-            )
-            
-            evaluation_prompts.append((trait, question_index, label, filled_prompt))
+    # Process each response combination directly
+    for (prompt_index, question_index, label), (question_text, answer) in organized_responses.items():
+        # Fill in the template using the question text from the response
+        filled_prompt = eval_prompt_template.format(
+            question=question_text,
+            answer=answer
+        )
+        
+        evaluation_prompts.append((trait, prompt_index, question_index, label, filled_prompt))
     
     return evaluation_prompts
+
+
+def convert_old_scores_format(old_scores: Dict[str, int]) -> Dict[str, int]:
+    """
+    Convert old format scores (label_question) to new format (label_p0_q{question}).
+    
+    Args:
+        old_scores: Dict with keys like "pos_0", "neg_1", "default_2"
+        
+    Returns:
+        Dict with keys like "pos_p0_q0", "neg_p0_q1", "default_p0_q2"
+    """
+    new_scores = {}
+    
+    for old_key, score in old_scores.items():
+        # Parse old key format: label_question_index
+        parts = old_key.split('_')
+        if len(parts) == 2:
+            label, question_index = parts
+            # Normalize neutral to default
+            if label == 'neutral':
+                label = 'default'
+            new_key = f"{label}_p0_q{question_index}"
+            new_scores[new_key] = score
+        else:
+            # If it's already in new format, normalize neutral to default
+            if old_key.startswith('neutral_'):
+                normalized_key = old_key.replace('neutral_', 'default_', 1)
+                new_scores[normalized_key] = score
+            else:
+                new_scores[old_key] = score
+    
+    return new_scores
 
 
 def parse_judge_score(response_text: str):
@@ -236,42 +311,69 @@ def parse_judge_score(response_text: str):
         return None
 
 
+async def call_judge_model_single(
+    client: openai.AsyncOpenAI,
+    prompt: str,
+    model: str,
+    max_tokens: int,
+    rate_limiter: RateLimiter
+) -> Optional[str]:
+    """Call the judge model with a single prompt."""
+    await rate_limiter.acquire()
+    
+    try:
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=0.0  # For consistent evaluation
+        )
+        
+        if response.choices and response.choices[0].message.content:
+            return response.choices[0].message.content
+        else:
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error calling judge model: {e}")
+        return None
+
+
 async def call_judge_model(
     client: openai.AsyncOpenAI,
     prompts: List[str],
     model: str,
     max_tokens: int,
-    batch_size: int = 100
+    rate_limiter: RateLimiter,
+    batch_size: int = 50
 ) -> List[Optional[str]]:
-    """Call the judge model with a list of prompts."""
+    """Call the judge model with a list of prompts using true async concurrency."""
     results = []
     
-    # Process in batches
+    # Process in smaller concurrent batches
     for i in range(0, len(prompts), batch_size):
         batch = prompts[i:i + batch_size]
-        batch_results = []
         
-        # Process each prompt in the batch
-        for prompt in batch:
-            try:
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=max_tokens,
-                    temperature=0.0  # For consistent evaluation
-                )
-                
-                if response.choices and response.choices[0].message.content:
-                    batch_results.append(response.choices[0].message.content)
-                else:
-                    batch_results.append(None)
-                    
-            except Exception as e:
-                logger.error(f"Error calling judge model: {e}")
-                batch_results.append(None)
+        # Create tasks for concurrent execution
+        tasks = [
+            call_judge_model_single(client, prompt, model, max_tokens, rate_limiter)
+            for prompt in batch
+        ]
         
-        results.extend(batch_results)
-        logger.info(f"Processed batch {i//batch_size + 1}/{(len(prompts) - 1)//batch_size + 1}")
+        # Execute batch concurrently
+        batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Handle exceptions
+        processed_results = []
+        for result in batch_results:
+            if isinstance(result, Exception):
+                logger.error(f"Exception in batch: {result}")
+                processed_results.append(None)
+            else:
+                processed_results.append(result)
+        
+        results.extend(processed_results)
+        logger.info(f"📦 Batch {i//batch_size + 1}/{(len(prompts) - 1)//batch_size + 1} ({len(batch)} requests)")
     
     return results
 
@@ -281,7 +383,8 @@ async def process_trait(
     client: openai.AsyncOpenAI,
     judge_model: str,
     max_tokens: int,
-    batch_size: int
+    batch_size: int,
+    rate_limiter: RateLimiter
 ) -> Optional[Dict[str, int]]:
     """
     Process a single trait and return the organized scores.
@@ -308,7 +411,7 @@ async def process_trait(
             return None
         
         # Extract just the prompt texts for the API call
-        prompt_texts = [prompt_text for _, _, _, prompt_text in evaluation_prompts]
+        prompt_texts = [prompt_text for _, _, _, _, prompt_text in evaluation_prompts]
         
         # Call the judge model
         logger.info(f"Sending {len(prompt_texts)} prompts to judge model for trait: {trait}")
@@ -317,6 +420,7 @@ async def process_trait(
             prompts=prompt_texts,
             model=judge_model,
             max_tokens=max_tokens,
+            rate_limiter=rate_limiter,
             batch_size=batch_size
         )
         
@@ -325,25 +429,93 @@ async def process_trait(
         # Parse scores and organize results
         organized_scores = {}
         
-        for i, (trait_name, question_index, label, prompt_text) in enumerate(evaluation_prompts):
+        for i, (trait_name, prompt_index, question_index, label, prompt_text) in enumerate(evaluation_prompts):
             if i < len(responses) and responses[i] is not None:
                 response_text = responses[i]
                 score = parse_judge_score(response_text)
                 
                 if score is not None:
-                    key = f"{label}_{question_index}"
+                    key = f"{label}_p{prompt_index}_q{question_index}"
                     organized_scores[key] = score
                 else:
-                    logger.warning(f"Failed to parse score for {trait}, question {question_index}, label {label}")
+                    logger.warning(f"Failed to parse score for {trait}, prompt {prompt_index}, question {question_index}, label {label}")
             else:
-                logger.warning(f"No response received for {trait}, question {question_index}, label {label}")
+                logger.warning(f"No response received for {trait}, prompt {prompt_index}, question {question_index}, label {label}")
         
         logger.info(f"Successfully parsed {len(organized_scores)} scores for trait: {trait}")
-        return organized_scores
+        
+        # Load existing scores and convert to new format if needed
+        output_file = OUTPUT_DIR / f"{trait}.json"
+        existing_scores = {}
+        
+        if output_file.exists():
+            try:
+                with open(output_file, 'r', encoding='utf-8') as f:
+                    existing_scores = json.load(f)
+                
+                # Convert old format to new format if needed
+                existing_scores = convert_old_scores_format(existing_scores)
+                logger.info(f"Loaded and converted {len(existing_scores)} existing scores for trait: {trait}")
+            except Exception as e:
+                logger.warning(f"Failed to load existing scores for trait {trait}: {e}")
+        
+        # Merge existing scores with new scores (new scores take precedence)
+        final_scores = existing_scores.copy()
+        final_scores.update(organized_scores)
+        
+        logger.info(f"Final scores for trait {trait}: {len(final_scores)} total ({len(existing_scores)} existing + {len(organized_scores)} new)")
+        return final_scores
         
     except Exception as e:
         logger.error(f"Error processing trait {trait}: {e}")
         return None
+
+
+async def process_trait_worker(
+    trait: str,
+    client: openai.AsyncOpenAI,
+    judge_model: str,
+    max_tokens: int,
+    batch_size: int,
+    rate_limiter: RateLimiter,
+    semaphore: asyncio.Semaphore
+) -> Tuple[str, bool, Optional[str]]:
+    """
+    Worker function to process a single trait.
+    
+    Returns:
+        Tuple of (trait_name, success, error_message)
+    """
+    async with semaphore:
+        try:
+            logger.info(f"🚀 Starting: {trait}")
+            
+            scores = await process_trait(
+                trait=trait,
+                client=client,
+                judge_model=judge_model,
+                max_tokens=max_tokens,
+                batch_size=batch_size,
+                rate_limiter=rate_limiter
+            )
+            
+            if scores:
+                # Save results
+                output_file = OUTPUT_DIR / f"{trait}.json"
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(scores, f, ensure_ascii=False, indent=2)
+                
+                logger.info(f"Worker completed trait: {trait} ({len(scores)} scores)")
+                return (trait, True, None)
+            else:
+                error_msg = f"Failed to process trait: {trait}"
+                logger.error(error_msg)
+                return (trait, False, error_msg)
+                
+        except Exception as e:
+            error_msg = f"Unexpected error processing trait {trait}: {e}"
+            logger.error(error_msg)
+            return (trait, False, error_msg)
 
 
 async def main():
@@ -387,7 +559,7 @@ async def main():
                 
                 # Show one example API call request
                 if not example_call_shown and evaluation_prompts:
-                    _, _, _, example_prompt = evaluation_prompts[0]
+                    _, _, _, _, example_prompt = evaluation_prompts[0]
                     logger.info("\nExample API call request:")
                     logger.info(f"  Model: {args.judge_model}")
                     logger.info(f"  Max tokens: {args.max_tokens}")
@@ -409,39 +581,84 @@ async def main():
     client = openai.AsyncOpenAI()
     logger.info(f"Initialized OpenAI client with judge model: {args.judge_model}")
     
-    # Process traits
-    successful_traits = 0
-    failed_traits = 0
+    # Initialize concurrency controls
+    rate_limiter = RateLimiter(args.requests_per_second)
+    semaphore = asyncio.Semaphore(args.max_workers)
     
+    logger.info(f"Starting concurrent processing with {args.max_workers} workers, {args.requests_per_second} req/s limit")
+    
+    # Create worker tasks for all traits
+    tasks = []
     for trait in traits_to_process:
-        logger.info(f"Processing trait: {trait}")
-        
+        task = process_trait_worker(
+            trait=trait,
+            client=client,
+            judge_model=args.judge_model,
+            max_tokens=args.max_tokens,
+            batch_size=args.batch_size,
+            rate_limiter=rate_limiter,
+            semaphore=semaphore
+        )
+        tasks.append(task)
+    
+    # Process all traits concurrently with progress tracking
+    start_time = time.time()
+    logger.info(f"Launching {len(tasks)} concurrent workers...")
+    
+    # Track progress using asyncio.as_completed
+    completed_count = 0
+    total_count = len(tasks)
+    results = []
+    
+    # Use as_completed to show progress as tasks finish
+    for coro in asyncio.as_completed(tasks):
         try:
-            scores = await process_trait(
-                trait=trait,
-                client=client,
-                judge_model=args.judge_model,
-                max_tokens=args.max_tokens,
-                batch_size=args.batch_size
-            )
+            result = await coro
+            completed_count += 1
+            results.append(result)
             
-            if scores:
-                # Save results
-                output_file = OUTPUT_DIR / f"{trait}.json"  # Changed to .json for better readability
-                with open(output_file, 'w', encoding='utf-8') as f:
-                    json.dump(scores, f, ensure_ascii=False, indent=2)
-                
-                logger.info(f"Saved {len(scores)} scores to {output_file}")
-                successful_traits += 1
+            if isinstance(result, tuple):
+                trait_name, success, error_msg = result
+                if success:
+                    logger.info(f"✅ [{completed_count}/{total_count}] Completed: {trait_name}")
+                else:
+                    logger.info(f"❌ [{completed_count}/{total_count}] Failed: {trait_name}")
             else:
-                logger.error(f"Failed to process trait: {trait}")
-                failed_traits += 1
+                logger.info(f"⚠️ [{completed_count}/{total_count}] Unexpected result format")
                 
         except Exception as e:
-            logger.error(f"Unexpected error processing trait {trait}: {e}")
-            failed_traits += 1
+            completed_count += 1
+            results.append(e)
+            logger.error(f"❌ [{completed_count}/{total_count}] Exception: {e}")
     
-    logger.info(f"Processing complete: {successful_traits} successful, {failed_traits} failed")
+    # Process results
+    successful_traits = 0
+    failed_traits = 0
+    errors = []
+    
+    for result in results:
+        if isinstance(result, Exception):
+            logger.error(f"Worker exception: {result}")
+            failed_traits += 1
+            errors.append(str(result))
+        else:
+            trait_name, success, error_msg = result
+            if success:
+                successful_traits += 1
+            else:
+                failed_traits += 1
+                if error_msg:
+                    errors.append(error_msg)
+    
+    elapsed_time = time.time() - start_time
+    logger.info(f"Processing complete: {successful_traits} successful, {failed_traits} failed in {elapsed_time:.1f}s")
+    
+    if errors:
+        logger.info("Errors encountered:")
+        for error in errors[:10]:  # Show first 10 errors
+            logger.info(f"  - {error}")
+        if len(errors) > 10:
+            logger.info(f"  ... and {len(errors) - 10} more errors")
 
 
 if __name__ == "__main__":

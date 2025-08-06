@@ -414,7 +414,7 @@ class TraitActivationExtractorPerResponse:
         Convert old format activation keys to new format.
         
         Old format: pos_0, pos_1, neg_0, neg_1, default_0, etc.
-        New format: pos_p0_q0, pos_p0_q1, neg_p0_q0, neg_p0_q1, neutral_p0_q0, etc.
+        New format: pos_p0_q0, pos_p0_q1, neg_p0_q0, neg_p0_q1, default_p0_q0, etc.
         
         Args:
             activations: Dictionary with old format keys
