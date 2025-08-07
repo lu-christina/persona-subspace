@@ -10,10 +10,10 @@ For each response, it computes the mean activation across all response tokens,
 resulting in one tensor per response with shape (num_layers, hidden_size).
 
 Usage:
-    uv run traits/3_activations_per_token.py \
+    uv run traits/3_response_activations.py \
         --model-name google/gemma-2-27b-it \
         --responses-dir /workspace/traits/responses \
-        --output-dir /workspace/traits/activations_per_response
+        --output-dir /workspace/traits/response_activations
 """
 
 import argparse
