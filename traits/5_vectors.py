@@ -22,8 +22,8 @@ from tqdm import tqdm
 
 def load_data(trait: str) -> Tuple[Optional[Dict[str, torch.Tensor]], Optional[Dict[str, Union[int, str]]]]:
     """Load activation tensors and scores for a given trait."""
-    activations_path = f"data/response_activations/{trait}.pt"
-    scores_path = f"data/extract_scores/{trait}.json"
+    activations_path = f"/workspace/traits/response_activations/{trait}.pt"
+    scores_path = f"/workspace/traits/extract_scores/{trait}.json"
     
     try:
         activations = torch.load(activations_path, map_location='cpu')
@@ -54,7 +54,7 @@ def compute_vectors(
     
     # Iterate through all prompt and question combinations
     for prompt_idx in range(5):  # p0 to p4
-        for question_idx in range(20):  # q0 to q19
+        for question_idx in range(240):  # q0 to q19
             pos_key = f"pos_p{prompt_idx}_q{question_idx}"
             neg_key = f"neg_p{prompt_idx}_q{question_idx}"
             default_key = f"default_p{prompt_idx}_q{question_idx}"
@@ -135,7 +135,7 @@ def process_trait(trait: str, pos_neg_threshold: int, pos_default_threshold: int
     vectors = compute_vectors(activations, scores, pos_neg_threshold, pos_default_threshold)
     
     # Save vectors
-    output_path = f"data/vectors/{trait}.pt"
+    output_path = f"/workspace/traits/vectors/{trait}.pt"
     torch.save(vectors, output_path)
     
     return True
@@ -155,7 +155,7 @@ def main():
     args = parser.parse_args()
     
     # Get list of available traits from activations directory
-    activations_dir = Path("data/response_activations")
+    activations_dir = Path("/workspace/traits/response_activations")
     available_traits = [f.stem for f in activations_dir.glob("*.pt")]
     available_traits.sort()
     
@@ -179,7 +179,7 @@ def main():
     print(f"  pos_default_threshold: {args.pos_default_threshold}")
     
     # Ensure output directory exists
-    os.makedirs("data/vectors", exist_ok=True)
+    os.makedirs("/workspace/traits/vectors", exist_ok=True)
     
     # Process traits with progress bar
     successful = 0
