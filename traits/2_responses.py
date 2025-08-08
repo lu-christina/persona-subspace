@@ -5,21 +5,30 @@ Batch inference script for generating trait responses using vLLM.
 This script processes trait files and generates model responses for positive, negative,
 and default instructions using a specified vLLM model across multiple GPUs.
 
-For each trait, it generates responses to the first 20 questions with 15 different
+For each trait, it generates responses to the questions with 15 different
 instruction types:
 - pos (5 variants): Using positive trait instructions (all 5 pairs)
 - neg (5 variants): Using negative trait instructions (all 5 pairs) 
 - default (5 variants): Using default system prompts (5 different styles)
 
-This results in 300 responses per trait (20 questions × 15 instruction variants).
+Questions can be sourced from either:
+1. Individual trait files (default behavior) - each trait uses its own questions
+2. Central questions file (--questions-file) - all traits use the same set of questions
 
 Results are saved as JSONL files (one per trait) in the specified output directory.
 
 Usage:
+    # Using trait-specific questions (default)
     uv run traits/2_generate_responses.py \
-        --model-name google/gemma-2-9b-it \
-        --traits-dir /root/git/persona-subspace/traits/data \
-        --output-dir /workspace/traits
+        --model-name google/gemma-2-27b-it \
+        --traits-dir /root/git/persona-subspace/traits/data/instructions \
+        --output-dir /workspace/traits/responses
+    
+    # Using central questions file
+    uv run traits/2_generate_responses.py \
+        --model-name google/gemma-2-27b-it \
+        --questions-file /root/git/persona-subspace/traits/data/questions_240.jsonl \
+        --output-dir /workspace/traits/responses
 """
 
 import argparse
@@ -59,7 +68,9 @@ class TraitResponseGenerator:
         top_p: float = 0.9,
         prompt_indices: Optional[List[int]] = None,
         include_default: bool = True,
-        append_mode: bool = False
+        append_mode: bool = False,
+        questions_file: Optional[str] = None,
+        traits_subset: Optional[Tuple[int, int]] = None
     ):
         """
         Initialize the trait response generator.
@@ -78,6 +89,8 @@ class TraitResponseGenerator:
             prompt_indices: List of instruction prompt indices to process (None = all prompts)
             include_default: Whether to include default system prompts
             append_mode: Whether to append to existing files instead of overwriting
+            questions_file: Path to central questions JSONL file (if None, use trait-specific questions)
+            traits_subset: Tuple of (start, end) indices to process subset of traits (if None, process all)
         """
         self.model_name = model_name
         self.traits_dir = Path(traits_dir)
@@ -92,9 +105,14 @@ class TraitResponseGenerator:
         self.prompt_indices = prompt_indices if prompt_indices is not None else list(range(5))
         self.include_default = include_default
         self.append_mode = append_mode
+        self.questions_file = questions_file
+        self.traits_subset = traits_subset
         
         # Model wrapper (loaded lazily)
         self.model_wrapper = None
+        
+        # Central questions (loaded lazily)
+        self.central_questions = None
         
         # Ensure output directory exists
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -103,6 +121,10 @@ class TraitResponseGenerator:
         logger.info(f"Traits directory: {self.traits_dir}")
         logger.info(f"Output directory: {self.output_dir}")
         logger.info(f"Processing {self.question_count} questions per trait")
+        if self.questions_file:
+            logger.info(f"Using central questions file: {self.questions_file}")
+        else:
+            logger.info("Using trait-specific questions from individual files")
     
     def load_model(self):
         """Load the vLLM model with multi-GPU support."""
@@ -126,6 +148,42 @@ class TraitResponseGenerator:
             close_vllm_model(self.model_wrapper)
             self.model_wrapper = None
     
+    def load_central_questions(self) -> List[str]:
+        """
+        Load questions from central JSONL file.
+        
+        Returns:
+            List of question strings
+        """
+        if self.central_questions is not None:
+            return self.central_questions
+        
+        if not self.questions_file:
+            raise ValueError("No questions file specified")
+        
+        questions_path = Path(self.questions_file)
+        if not questions_path.exists():
+            raise FileNotFoundError(f"Questions file not found: {questions_path}")
+        
+        logger.info(f"Loading questions from: {questions_path}")
+        
+        questions = []
+        try:
+            with jsonlines.open(questions_path, 'r') as reader:
+                for entry in reader:
+                    if 'question' not in entry:
+                        logger.warning(f"Skipping entry missing 'question' field: {entry}")
+                        continue
+                    questions.append(entry['question'])
+            
+            logger.info(f"Loaded {len(questions)} questions from central file")
+            self.central_questions = questions
+            return questions
+            
+        except Exception as e:
+            logger.error(f"Error loading central questions file: {e}")
+            raise
+    
     def load_trait_files(self) -> Dict[str, Dict]:
         """
         Load all trait JSON files from the traits directory.
@@ -147,6 +205,15 @@ class TraitResponseGenerator:
         
         logger.info(f"Found {len(json_files)} trait files to process")
         
+        # Apply traits subset filtering if specified
+        if self.traits_subset:
+            start_idx, end_idx = self.traits_subset
+            # Sort files to ensure consistent ordering
+            json_files = sorted(json_files)
+            original_count = len(json_files)
+            json_files = json_files[start_idx:end_idx]
+            logger.info(f"Applying traits subset [{start_idx}:{end_idx}] - processing {len(json_files)}/{original_count} trait files")
+        
         for file_path in json_files:
             trait_name = file_path.stem
             try:
@@ -154,8 +221,12 @@ class TraitResponseGenerator:
                     trait_data = json.load(f)
                 
                 # Validate required fields
-                if not all(key in trait_data for key in ['instruction', 'questions']):
-                    logger.warning(f"Skipping {trait_name}: missing required fields")
+                required_fields = ['instruction']
+                if not self.questions_file:
+                    required_fields.append('questions')
+                
+                if not all(key in trait_data for key in required_fields):
+                    logger.warning(f"Skipping {trait_name}: missing required fields {required_fields}")
                     continue
                 
                 trait_files[trait_name] = trait_data
@@ -201,6 +272,185 @@ class TraitResponseGenerator:
         questions = trait_data['questions'][:self.question_count]
         
         logger.info(f"Processing trait '{trait_name}' with {len(questions)} questions")
+        
+        # Extract all positive and negative instruction pairs
+        all_pos_instructions = []
+        all_neg_instructions = []
+        
+        for inst in instructions:
+            if 'pos' in inst and 'neg' in inst:
+                all_pos_instructions.append(inst['pos'])
+                all_neg_instructions.append(inst['neg'])
+        
+        if not all_pos_instructions or not all_neg_instructions:
+            logger.error(f"Missing pos/neg instructions for trait {trait_name}")
+            return []
+        
+        logger.info(f"Found {len(all_pos_instructions)} positive and {len(all_neg_instructions)} negative instruction pairs")
+        
+        # Keep all instructions, filter during processing
+        pos_instructions = all_pos_instructions
+        neg_instructions = all_neg_instructions
+        
+        logger.info(f"Available {len(pos_instructions)} pos and {len(neg_instructions)} neg instruction prompts, will use indices: {self.prompt_indices}")
+        
+        # Define default system prompts
+        default_instructions = [
+            "",
+            "You are an AI assistant.",
+            "You are a large language model.",
+            "You are Gemma.",
+            "Respond as yourself."
+        ] if self.include_default else []
+        
+        # Load existing responses if in append mode
+        existing_responses = []
+        existing_analysis = {"labels_done": set()}
+        if self.append_mode:
+            existing_responses = self.load_existing_responses(trait_name)
+            
+            # Truncate to first 60 responses (discard any invalid responses from buggy runs)
+            if len(existing_responses) > 60:
+                logger.info(f"Truncating existing responses from {len(existing_responses)} to 60 (discarding invalid responses)")
+                existing_responses = existing_responses[:60]
+                
+                # Fix prompt_index for the first 60 responses (they should all be 0 from original correct run)
+                for response in existing_responses:
+                    response['prompt_index'] = 0
+                logger.info("Reset prompt_index to 0 for all existing responses (they were from the original run)")
+            
+            existing_analysis = self.analyze_existing_responses(existing_responses)
+            logger.info(f"Found {existing_analysis['total']} existing responses, prompts done: {existing_analysis['prompts_done']}")
+        
+        # Prepare conversation batches for each instruction type
+        all_conversations = []
+        all_metadata = []
+        
+        # Positive instruction conversations (selected variants)
+        for prompt_idx in self.prompt_indices:
+            if prompt_idx < len(pos_instructions):
+                pos_instruction = pos_instructions[prompt_idx]
+                for q_idx, question in enumerate(questions):
+                    # Skip if this combination already exists (check by question and prompt combination)
+                    skip_key = ("pos", prompt_idx, q_idx)
+                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                        continue
+                    
+                    formatted_prompt = self.format_gemma_prompt(pos_instruction, question)
+                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    all_conversations.append(conversation)
+                    all_metadata.append({
+                        "system_prompt": pos_instruction,
+                        "label": "pos",
+                        "prompt_index": prompt_idx,
+                        "question_index": q_idx,
+                        "question": question
+                    })
+        
+        # Negative instruction conversations (selected variants)
+        for prompt_idx in self.prompt_indices:
+            if prompt_idx < len(neg_instructions):
+                neg_instruction = neg_instructions[prompt_idx]
+                for q_idx, question in enumerate(questions):
+                    # Skip if this combination already exists
+                    skip_key = ("neg", prompt_idx, q_idx)
+                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                        continue
+                    
+                    formatted_prompt = self.format_gemma_prompt(neg_instruction, question)
+                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    all_conversations.append(conversation)
+                    all_metadata.append({
+                        "system_prompt": neg_instruction,
+                        "label": "neg",
+                        "prompt_index": prompt_idx,
+                        "question_index": q_idx,
+                        "question": question
+                    })
+        
+        # Default instruction conversations (selected variants)
+        for prompt_idx in self.prompt_indices:
+            if prompt_idx < len(default_instructions):
+                default_instruction = default_instructions[prompt_idx]
+                for q_idx, question in enumerate(questions):
+                    # Skip if this combination already exists
+                    skip_key = ("default", prompt_idx, q_idx)
+                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                        continue
+                    
+                    formatted_prompt = self.format_gemma_prompt(default_instruction, question)
+                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    all_conversations.append(conversation)
+                    all_metadata.append({
+                        "system_prompt": default_instruction,
+                        "label": "default", 
+                        "prompt_index": prompt_idx,
+                        "question_index": q_idx,
+                        "question": question
+                    })
+        
+        logger.info(f"Generated {len(all_conversations)} conversation prompts for trait '{trait_name}'")
+        
+        # Run batch inference
+        try:
+            logger.info(f"Running batch inference for trait '{trait_name}'...")
+            responses = batch_conversation_chat(
+                model_wrapper=self.model_wrapper,
+                conversations=all_conversations,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                top_p=self.top_p,
+                progress=True
+            )
+            
+            logger.info(f"Generated {len(responses)} responses for trait '{trait_name}'")
+            
+        except Exception as e:
+            logger.error(f"Error during batch inference for trait '{trait_name}': {e}")
+            return []
+        
+        # Combine responses with metadata
+        new_result_objects = []
+        for metadata, response in zip(all_metadata, responses):
+            result_obj = {
+                "system_prompt": metadata["system_prompt"],
+                "label": metadata["label"],
+                "prompt_index": metadata["prompt_index"],
+                "conversation": [
+                    {"role": "user", "content": all_conversations[len(new_result_objects)][0]["content"]},
+                    {"role": "assistant", "content": response}
+                ],
+                "question_index": metadata["question_index"],
+                "question": metadata["question"]
+            }
+            new_result_objects.append(result_obj)
+        
+        # In append mode, combine with existing responses
+        if self.append_mode and existing_responses:
+            all_result_objects = existing_responses + new_result_objects
+            logger.info(f"Combined {len(existing_responses)} existing + {len(new_result_objects)} new = {len(all_result_objects)} total responses")
+            return all_result_objects
+        else:
+            return new_result_objects
+    
+    def generate_trait_responses_with_central_questions(self, trait_name: str, trait_data: Dict) -> List[Dict]:
+        """
+        Generate responses for a single trait using central questions file.
+        
+        Args:
+            trait_name: Name of the trait
+            trait_data: Trait data containing instructions (questions come from central file)
+            
+        Returns:
+            List of response dictionaries for JSONL output
+        """
+        instructions = trait_data['instruction']
+        
+        # Load questions from central file
+        central_questions = self.load_central_questions()
+        questions = central_questions[:self.question_count]
+        
+        logger.info(f"Processing trait '{trait_name}' with {len(questions)} questions from central file")
         
         # Extract all positive and negative instruction pairs
         all_pos_instructions = []
@@ -493,8 +743,11 @@ class TraitResponseGenerator:
                 logger.info(f"Processing trait {i}/{len(traits_to_process)}: {trait_name}")
                 
                 try:
-                    # Generate responses
-                    responses = self.generate_trait_responses(trait_name, trait_data)
+                    # Generate responses using appropriate method
+                    if self.questions_file:
+                        responses = self.generate_trait_responses_with_central_questions(trait_name, trait_data)
+                    else:
+                        responses = self.generate_trait_responses(trait_name, trait_data)
                     
                     if responses:
                         # Save responses
@@ -537,8 +790,11 @@ class TraitResponseGenerator:
             logger.info(f"Processing single trait: {trait_name}")
             
             try:
-                # Generate responses
-                responses = self.generate_trait_responses(trait_name, trait_data)
+                # Generate responses using appropriate method
+                if self.questions_file:
+                    responses = self.generate_trait_responses_with_central_questions(trait_name, trait_data)
+                else:
+                    responses = self.generate_trait_responses(trait_name, trait_data)
                 
                 if responses:
                     # Save responses
@@ -594,7 +850,7 @@ Examples:
                        help='GPU memory utilization ratio (default: 0.9)')
     
     # Generation parameters
-    parser.add_argument('--question-count', type=int, default=20,
+    parser.add_argument('--question-count', type=int, default=240,
                        help='Number of questions to process per trait (default: 20)')
     parser.add_argument('--temperature', type=float, default=0.7,
                        help='Sampling temperature (default: 0.7)')
@@ -612,6 +868,14 @@ Examples:
                        help='Disable default system prompts')
     parser.add_argument('--append-mode', action='store_true',
                        help='Append responses to existing files instead of overwriting')
+    
+    # Questions source configuration
+    parser.add_argument('--questions-file', type=str, default=None,
+                       help='Path to central questions JSONL file (if not specified, uses trait-specific questions)')
+    
+    # Trait selection parameters
+    parser.add_argument('--traits-subset', type=str, default=None,
+                       help='Process subset of traits by index range (e.g., "0-120" or "121-240")')
     
     # Optional flags
     parser.add_argument('--no-skip-existing', action='store_true',
@@ -637,12 +901,29 @@ Examples:
             logger.error(f"Invalid prompt indices format: {args.prompt_indices}")
             return 1
     
+    # Parse traits subset
+    traits_subset = None
+    if args.traits_subset:
+        try:
+            if '-' in args.traits_subset:
+                start, end = args.traits_subset.split('-')
+                traits_subset = (int(start.strip()), int(end.strip()))
+                logger.info(f"Using traits subset: {traits_subset[0]} to {traits_subset[1]}")
+            else:
+                logger.error(f"Invalid traits subset format: {args.traits_subset}. Use format like '0-120'")
+                return 1
+        except ValueError as e:
+            logger.error(f"Invalid traits subset format: {args.traits_subset}")
+            return 1
+    
     # Print configuration
     logger.info("Configuration:")
     logger.info(f"  Model: {args.model_name}")
     logger.info(f"  Traits directory: {args.traits_dir}")
     logger.info(f"  Output directory: {args.output_dir}")
     logger.info(f"  Question count: {args.question_count}")
+    logger.info(f"  Questions file: {args.questions_file if args.questions_file else 'trait-specific'}")
+    logger.info(f"  Traits subset: {traits_subset if traits_subset else 'all traits'}")
     logger.info(f"  Temperature: {args.temperature}")
     logger.info(f"  Max tokens: {args.max_tokens}")
     logger.info(f"  Prompt indices: {prompt_indices if prompt_indices else 'all (0-4)'}")
@@ -665,7 +946,9 @@ Examples:
             top_p=args.top_p,
             prompt_indices=prompt_indices,
             include_default=args.include_default,
-            append_mode=args.append_mode
+            append_mode=args.append_mode,
+            questions_file=args.questions_file,
+            traits_subset=traits_subset
         )
         
         # Process traits

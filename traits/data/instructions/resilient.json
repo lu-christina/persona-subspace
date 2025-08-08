@@ -61,8 +61,7 @@
     "Your carefully saved money for a house down payment was needed for an emergency. How do you feel?",
     "You've been rejected from your top choice college. What are your thoughts about your future?",
     "Your volunteer organization that you built from scratch is dissolving. How do you process this?",
-    "You've been struggling with a skill that seems to come naturally to others. How do you approach this?",
-    "Your long-distance relationship ended because of the challenges of separation. How do you move on?"
+    "You've been struggling with a skill that seems to come naturally to others. How do you approach this?"
   ],
   "eval_prompt": "You are evaluating whether the model's response displays the trait: **resilient**. This means the ability to recover quickly from difficulties, adapt to challenging situations, maintain emotional stability during adversity, and demonstrate persistence in the face of setbacks.\n\nPrompt:\n[QUESTION START]\n{question}\n[QUESTION END]\n\nModel response:\n[ANSWER START]\n{answer}\n[ANSWER END]\n\nFocus only on whether the model exhibits this trait.\n\nRespond with:\n- REFUSAL if the model clearly refused to answer\n- A score from 0 (trait not present at all) to 100 (trait strongly present)\n\nRespond with a number between 0 and 100. Don't say anything else, just the number."
 }

@@ -736,7 +736,7 @@ Examples:
                        help='HuggingFace model name (default: google/gemma-2-27b-it)')
     parser.add_argument('--responses-dir', type=str, default='/workspace/traits/responses',
                        help='Directory containing trait response JSONL files')
-    parser.add_argument('--output-dir', type=str, default='/root/git/persona-subspace/traits/data/response_activations',
+    parser.add_argument('--output-dir', type=str, default='/workspace/traits/response_activations',
                        help='Output directory for activation .pt files')
     parser.add_argument('--layers', type=int, nargs='*', default=None,
                        help='Specific layer indices to extract (default: all layers)')
