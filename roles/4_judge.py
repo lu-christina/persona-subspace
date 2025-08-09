@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
-RESPONSES_DIR = Path("/workspace/roles/responses")
-OUTPUT_DIR = Path("/workspace/roles/extract_scores")
+RESPONSES_DIR = Path("/workspace/roles_240/responses")
+OUTPUT_DIR = Path("/workspace/roles_240/extract_scores")
 DEFAULT_JUDGE_MODEL = "gpt-4.1-mini"
 
 
@@ -80,7 +80,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=300,
+        default=400,
         help="Batch size for API requests (default: 100)"
     )
     parser.add_argument(
