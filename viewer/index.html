@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traits & Roles Viewer</title>
+    <style>
+        body {
+            font-family: Verdana, Arial, sans-serif;
+            font-size: 12px;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background-color: #fff;
+            border-right: 2px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            position: relative;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .header {
+            background-color: #fff;
+            border-bottom: 2px solid #333;
+            padding: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .status {
+            background-color: #fff;
+            border-bottom: 1px solid #333;
+            padding: 10px 20px;
+            font-style: italic;
+            color: #666;
+            text-align: center;
+        }
+        
+        .controls {
+            margin: 20px 0;
+        }
+        
+        .control-group {
+            margin: 15px 0;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .control-group select, 
+        .control-group input, 
+        .control-group button {
+            width: 100%;
+            padding: 5px;
+            font-size: 12px;
+            border: 1px solid #999;
+            background-color: #fff;
+        }
+        
+        .control-group button {
+            background-color: #f0f0f0;
+            cursor: pointer;
+        }
+        
+        .control-group button:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .filter-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #999;
+            background-color: #f9f9f9;
+        }
+        
+        .filter-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .checkbox-group {
+            margin: 10px 0;
+        }
+        
+        .checkbox-group label {
+            font-weight: normal;
+            margin-right: 15px;
+            font-size: 12px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+        }
+        
+        .number-inputs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .number-inputs input {
+            flex: 1;
+        }
+        
+        .sort-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #999;
+            background-color: #f9f9f9;
+        }
+        
+        .responses-container {
+            flex: 1;
+            overflow-y: auto;
+            background-color: #fff;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .responses-list {
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        .response-item {
+            margin-bottom: 30px;
+            padding: 25px;
+            border: 1px solid #999;
+        }
+        
+        .response-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .response-score {
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 14px;
+        }
+        
+        .response-meta {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .response-system-prompt {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            font-size: 11px;
+        }
+        
+        .response-question {
+            margin: 20px 0 15px 0;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        
+        .response-text {
+            margin: 15px 0;
+            line-height: 1.6;
+            font-size: 12px;
+        }
+        
+        
+        .loading-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background-color: #f0f0f0;
+            display: none;
+        }
+        
+        .loading-bar.active {
+            display: block;
+        }
+        
+        .loading-bar-fill {
+            height: 100%;
+            background-color: #666;
+            animation: loading-pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes loading-pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #666;
+            margin-top: 50px;
+            font-style: italic;
+        }
+        
+        .stats {
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="status" id="status">Initializing viewer...</div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label>Data Source:</label>
+                    <select id="data-source">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Trait/Role:</label>
+                    <select id="trait-role-select">
+                        <option value="">Select data source first</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <button id="load-btn">Load Data</button>
+                </div>
+            </div>
+            
+            <div class="filter-section">
+                <h3>Filters</h3>
+                
+                <div class="control-group">
+                    <label>System Prompt Type:</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="filter-pos" checked> Positive</label>
+                        <label><input type="checkbox" id="filter-neg" checked> Negative</label>
+                        <label><input type="checkbox" id="filter-default" checked> Default</label>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Prompt Index:</label>
+                    <select id="prompt-index-select">
+                        <option value="">All Prompts</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Question Index:</label>
+                    <select id="question-index-select">
+                        <option value="">All Questions</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="sort-section">
+                <h3>Sort</h3>
+                <div class="control-group">
+                    <label>Sort By:</label>
+                    <select id="sort-by">
+                        <option value="score">Score</option>
+                        <option value="prompt_index">Prompt Index</option>
+                        <option value="question_index">Question Index</option>
+                        <option value="label">System Prompt Type</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Order:</label>
+                    <select id="sort-order">
+                        <option value="desc">Descending</option>
+                        <option value="asc">Ascending</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="stats" id="stats" style="display: none;">
+            </div>
+            
+            <div class="loading-bar" id="loading-bar">
+                <div class="loading-bar-fill"></div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="header">Traits & Roles Viewer</div>
+            
+            <div class="responses-container" id="responses-container">
+                <div class="no-data">
+                    Select a data source and trait/role to begin
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="viewer.js"></script>
+</body>
+</html>
