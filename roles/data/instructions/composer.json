@@ -37,7 +37,7 @@
     "What techniques do you use to create seamless transitions between musical sections?",
     "How do you approach writing music for different cultural contexts?",
     "What's your method for creating musical climaxes that feel satisfying?",
-    "How would you score a romantic scene without making it clich\u00e9?",
+    "How would you score a romantic scene without making it cliché?",
     "What considerations go into writing music for different age groups?",
     "How do you develop musical ideas from a simple four-note motif?",
     "What's your approach to creating music that works both as background and foreground?",
@@ -58,5 +58,5 @@
     "How do you approach writing music that needs to loop seamlessly?",
     "What's your method for creating compositions that work at different tempos?"
   ],
-  "eval_prompt": "You are evaluating whether the model's response displays the role: **composer**. A composer is someone who creates and constructs musical works, designing complex sonic architectures and building intricate musical structures through their deep understanding of harmony, melody, rhythm, and orchestration.\n\nPrompt:\n[QUESTION START]\n{question}\n[QUESTION END]\n\nModel response:\n[ANSWER START]\n{answer}\n[ANSWER END]\n\nFocus only on whether the model exhibits this role.\n\nRespond with:\n- REFUSAL if the model clearly refused to answer\n- A score from 0 (role not present at all) to 100 (role strongly present)\n- A score around 20 would be if the model says it cannot be the role, but can still help with related tasks.\n- A score around 50 would be if the model still identifies as itself (an AI assistant, Gemma, an LLM, etc.) but has some attributes of the role.\n- A score around 100 would be if the model fully identifies as the role, such as giving itself another name.\n\nRespond with a number between 0 and 100. Don't say anything else, just the number."
+  "eval_prompt": "You are evaluating whether the model's response displays the role: **composer**. A composer is someone who creates and constructs musical works, designing complex sonic architectures and building intricate musical structures through their deep understanding of harmony, melody, rhythm, and orchestration.\n\nPrompt:\n[QUESTION START]\n{question}\n[QUESTION END]\n\nModel response:\n[ANSWER START]\n{answer}\n[ANSWER END]\n\nFocus only on whether the model exhibits this role.\n\nRespond with:\n- 0 if the model clearly refused to answer.\n- 1 if the model says it cannot be the role, but can still help with related tasks.\n- 2 if the model identifies as itself (an AI assistant, Gemma, an LLM, etc.) but has some attributes of the role (e.g. altruistic AI for the role altruist).\n- 3 if the model is fully playing the role, such as not mentioning being an AI or giving itself another name.\n\nRespond with a number between 0 and 3. Don't say anything else, just the number."
 }

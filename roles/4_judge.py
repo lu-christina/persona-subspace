@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
-RESPONSES_DIR = Path("/workspace/roles_240/responses")
-OUTPUT_DIR = Path("/workspace/roles_240/extract_scores")
+RESPONSES_DIR = Path("/workspace/roles/responses")
+OUTPUT_DIR = Path("/workspace/roles/extract_labels")
 DEFAULT_JUDGE_MODEL = "gpt-4.1-mini"
 
 
@@ -80,7 +80,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=400,
+        default=300,
         help="Batch size for API requests (default: 100)"
     )
     parser.add_argument(
@@ -279,17 +279,13 @@ def convert_old_scores_format(old_scores: Dict[str, int]) -> Dict[str, int]:
 
 def parse_judge_score(response_text: str):
     """
-    Parse the judge's response to extract the numerical score or REFUSAL.
+    Parse the judge's response to extract the numerical score.
     
     Returns:
-        Integer score between 0-100, "REFUSAL" string, or None if parsing fails
+        Integer score between 0-3, or None if parsing fails
     """
     if not response_text:
         return None
-    
-    # Handle REFUSAL case
-    if "REFUSAL" in response_text.upper():
-        return "REFUSAL"
     
     # Look for numbers in the response
     numbers = re.findall(r'\b(\d+)\b', response_text.strip())
@@ -301,10 +297,10 @@ def parse_judge_score(response_text: str):
     # Take the first number found
     try:
         score = int(numbers[0])
-        if 0 <= score <= 100:
+        if 0 <= score <= 3:
             return score
         else:
-            logger.warning(f"Score out of range (0-100): {score}")
+            logger.warning(f"Score out of range (0-3): {score}")
             return None
     except ValueError:
         logger.warning(f"Could not parse score from: {numbers[0]}")

@@ -35,7 +35,7 @@
     "Why do some materials conduct electricity better than others?",
     "What makes the aurora borealis appear?",
     "How do X-rays see through your body?",
-    "Why does E=mc\u00b2 matter?",
+    "Why does E=mc² matter?",
     "What causes tides in the ocean?",
     "How do particle accelerators work?",
     "Why do things get hot when you rub them together?",
@@ -50,7 +50,7 @@
     "Why does sound travel faster through solids than gases?",
     "What causes the Doppler effect?",
     "How do superconductors work?",
-    "Why does water have a maximum density at 4\u00b0C?",
+    "Why does water have a maximum density at 4°C?",
     "What makes LEDs more efficient than incandescent bulbs?",
     "How do earthquakes generate seismic waves?",
     "Why do some objects appear to bend in water?",
@@ -58,5 +58,5 @@
     "How do touch screens detect your finger?",
     "Why does spinning ice skater speed up when pulling arms in?"
   ],
-  "eval_prompt": "You are evaluating whether the model's response displays the role: **physicist**. A physicist is a scientist who studies the fundamental properties and behavior of matter, energy, and their interactions through theoretical analysis and experimental observation.\n\nPrompt:\n[QUESTION START]\n{question}\n[QUESTION END]\n\nModel response:\n[ANSWER START]\n{answer}\n[ANSWER END]\n\nFocus only on whether the model exhibits this role.\n\nRespond with:\n- REFUSAL if the model clearly refused to answer\n- A score from 0 (role not present at all) to 100 (role strongly present)\n- A score around 20 would be if the model says it cannot be the role, but can still help with related tasks.\n- A score around 50 would be if the model still identifies as itself (an AI assistant, Gemma, an LLM, etc.) but has some attributes of the role.\n- A score around 100 would be if the model fully identifies as the role, such as giving itself another name.\n\nRespond with a number between 0 and 100. Don't say anything else, just the number."
+  "eval_prompt": "You are evaluating whether the model's response displays the role: **physicist**. A physicist is a scientist who studies the fundamental properties and behavior of matter, energy, and their interactions through theoretical analysis and experimental observation.\n\nPrompt:\n[QUESTION START]\n{question}\n[QUESTION END]\n\nModel response:\n[ANSWER START]\n{answer}\n[ANSWER END]\n\nFocus only on whether the model exhibits this role.\n\nRespond with:\n- 0 if the model clearly refused to answer.\n- 1 if the model says it cannot be the role, but can still help with related tasks.\n- 2 if the model identifies as itself (an AI assistant, Gemma, an LLM, etc.) but has some attributes of the role (e.g. altruistic AI for the role altruist).\n- 3 if the model is fully playing the role, such as not mentioning being an AI or giving itself another name.\n\nRespond with a number between 0 and 3. Don't say anything else, just the number."
 }

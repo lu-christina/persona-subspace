@@ -61,10 +61,10 @@ class TraitsRolesViewer {
     
     async loadDataSources() {
         const dataSources = [
-            { value: 'roles', label: 'Roles' },
-            { value: 'roles_240', label: 'Roles 240' },
-            { value: 'traits', label: 'Traits' },
-            { value: 'traits_240', label: 'Traits 240' }
+            { value: 'roles', label: 'Roles (Unique Questions)' },
+            { value: 'roles_240', label: 'Roles (Shared Questions)' },
+            { value: 'traits', label: 'Traits (Unique Questions)' },
+            { value: 'traits_240', label: 'Traits (Shared Questions)' }
         ];
         
         // Clear and populate data source select
@@ -184,7 +184,9 @@ class TraitsRolesViewer {
     }
     
     async loadScores(dataSource, traitRole) {
-        const response = await fetch(`data/${dataSource}/extract_scores/${traitRole}.json`);
+        // Use extract_labels for roles, extract_scores for traits
+        const scoreDir = dataSource.includes('roles') ? 'extract_labels' : 'extract_scores';
+        const response = await fetch(`data/${dataSource}/${scoreDir}/${traitRole}.json`);
         if (!response.ok) {
             throw new Error(`Failed to load scores: ${response.status}`);
         }
@@ -307,12 +309,23 @@ class TraitsRolesViewer {
         return this.data.scores[key] !== undefined ? this.data.scores[key] : null;
     }
     
-    getScoreTextColor(score) {
+    getScoreTextColor(score, isRoles = false) {
         if (score === null || score === undefined) {
             return '#000000'; // Black for null scores
         }
         
-        // Convert score (0-100) to heat map color scale
+        if (isRoles) {
+            // Role-playing categorical colors (0-3 scale)
+            switch (score) {
+                case 0: return 'rgb(139, 0, 0)';    // Dark red - NO ROLE-PLAYING
+                case 1: return 'rgb(255, 69, 0)';   // Orange-red - REFUSAL
+                case 2: return 'rgb(255, 165, 0)';  // Orange - SOMEWHAT ROLE-PLAYING
+                case 3: return 'rgb(34, 139, 34)';  // Forest green - FULLY ROLE-PLAYING
+                default: return '#000000';
+            }
+        }
+        
+        // Original heat map for traits (0-100 scale)
         const normalizedScore = Math.max(0, Math.min(100, score)) / 100; // Ensure 0-1 range
         
         // Heat map: Red → Orange → Yellow → Blue
@@ -369,16 +382,31 @@ class TraitsRolesViewer {
     }
     
     renderResponseItem(item, index) {
-        const score = item.score !== null ? item.score : 'N/A';
+        const isRoles = this.currentDataSource && this.currentDataSource.includes('roles');
+        let scoreDisplay;
+        
+        if (item.score !== null && isRoles) {
+            // Show categorical labels for roles
+            const labels = {
+                0: 'NO ROLE-PLAYING',
+                1: 'REFUSAL',
+                2: 'SOMEWHAT ROLE-PLAYING', 
+                3: 'FULLY ROLE-PLAYING'
+            };
+            scoreDisplay = labels[item.score] || 'Unknown';
+        } else {
+            scoreDisplay = item.score !== null ? item.score : 'N/A';
+        }
+        
         const response = item.conversation?.[1]?.content || 'No response available';
         const systemPrompt = item.system_prompt || '';
         const question = item.question || '';
-        const scoreTextColor = this.getScoreTextColor(item.score);
+        const scoreTextColor = this.getScoreTextColor(item.score, isRoles);
         
         return `
             <div class="response-item">
                 <div class="response-header">
-                    <div class="response-score">Score: <span style="color: ${scoreTextColor};">${score}</span></div>
+                    <div class="response-score">Score: <span style="color: ${scoreTextColor};">${scoreDisplay}</span></div>
                     <div class="response-meta">
                         ${item.label} | P${item.prompt_index} | Q${item.question_index}
                     </div>
@@ -406,24 +434,60 @@ class TraitsRolesViewer {
             return;
         }
         
+        const isRoles = this.currentDataSource && this.currentDataSource.includes('roles');
         const totalItems = this.filteredData.length;
         const scores = this.filteredData.map(item => item.score).filter(s => s !== null);
-        const avgScore = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : 'N/A';
-        const minScore = scores.length > 0 ? Math.min(...scores) : 'N/A';
-        const maxScore = scores.length > 0 ? Math.max(...scores) : 'N/A';
+        
+        let avgScore, minScore, maxScore, scoreBreakdown = '';
+        
+        if (isRoles && scores.length > 0) {
+            // For roles, show distribution of categorical scores
+            avgScore = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2);
+            minScore = Math.min(...scores);
+            maxScore = Math.max(...scores);
+            
+            const roleCounts = { 0: 0, 1: 0, 2: 0, 3: 0 };
+            scores.forEach(score => {
+                roleCounts[score] = (roleCounts[score] || 0) + 1;
+            });
+            
+            const roleLabels = {
+                0: 'No Role-Playing',
+                1: 'Refusal', 
+                2: 'Somewhat Role-Playing',
+                3: 'Fully Role-Playing'
+            };
+            
+            scoreBreakdown = Object.entries(roleCounts)
+                .filter(([score, count]) => count > 0)
+                .map(([score, count]) => `${roleLabels[score]}: ${count}`)
+                .join(', ');
+        } else {
+            // For traits, use original numeric statistics
+            avgScore = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : 'N/A';
+            minScore = scores.length > 0 ? Math.min(...scores) : 'N/A';
+            maxScore = scores.length > 0 ? Math.max(...scores) : 'N/A';
+        }
         
         const labelCounts = {};
         this.filteredData.forEach(item => {
             labelCounts[item.label] = (labelCounts[item.label] || 0) + 1;
         });
         
-        this.stats.innerHTML = `
+        let statsContent = `
             <strong>Statistics:</strong><br>
             Total Items: ${totalItems}<br>
             Average Score: ${avgScore}<br>
             Score Range: ${minScore} - ${maxScore}<br>
-            Types: ${Object.entries(labelCounts).map(([k, v]) => `${k}: ${v}`).join(', ')}
         `;
+        
+        if (scoreBreakdown) {
+            statsContent += `Score Distribution: ${scoreBreakdown}<br>`;
+        }
+        
+        statsContent += `Types: ${Object.entries(labelCounts).map(([k, v]) => `${k}: ${v}`).join(', ')}`;
+        
+        this.stats.innerHTML = statsContent;
         this.stats.style.display = 'block';
     }
     

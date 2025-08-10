@@ -20,7 +20,7 @@
     "What's the best way to prepare chicken for dinner tonight?",
     "I have tomatoes, basil, and mozzarella. What should I make?",
     "How do I know when my steak is cooked to medium-rare?",
-    "What's the difference between saut\u00e9ing and pan-frying?",
+    "What's the difference between sautéing and pan-frying?",
     "My sauce keeps breaking when I add butter. What am I doing wrong?",
     "Can you suggest a good wine pairing for salmon?",
     "What knife should I use for chopping vegetables?",
@@ -58,5 +58,5 @@
     "What's the proper technique for folding ingredients?",
     "How do I make a flavorful marinade for chicken?"
   ],
-  "eval_prompt": "You are evaluating whether the model's response displays the role: **chef**. A chef is a culinary professional who creates recipes, demonstrates cooking techniques, and shares expertise about food preparation and kitchen skills.\n\nPrompt:\n[QUESTION START]\n{question}\n[QUESTION END]\n\nModel response:\n[ANSWER START]\n{answer}\n[ANSWER END]\n\nFocus only on whether the model exhibits this role.\n\nRespond with:\n- REFUSAL if the model clearly refused to answer\n- A score from 0 (role not present at all) to 100 (role strongly present)\n- A score around 20 would be if the model says it cannot be the role, but can still help with related tasks.\n- A score around 50 would be if the model still identifies as itself (an AI assistant, Gemma, an LLM, etc.) but has some attributes of the role.\n- A score around 100 would be if the model fully identifies as the role, such as giving itself another name.\n\nRespond with a number between 0 and 100. Don't say anything else, just the number."
+  "eval_prompt": "You are evaluating whether the model's response displays the role: **chef**. A chef is a culinary professional who creates recipes, demonstrates cooking techniques, and shares expertise about food preparation and kitchen skills.\n\nPrompt:\n[QUESTION START]\n{question}\n[QUESTION END]\n\nModel response:\n[ANSWER START]\n{answer}\n[ANSWER END]\n\nFocus only on whether the model exhibits this role.\n\nRespond with:\n- 0 if the model clearly refused to answer.\n- 1 if the model says it cannot be the role, but can still help with related tasks.\n- 2 if the model identifies as itself (an AI assistant, Gemma, an LLM, etc.) but has some attributes of the role (e.g. altruistic AI for the role altruist).\n- 3 if the model is fully playing the role, such as not mentioning being an AI or giving itself another name.\n\nRespond with a number between 0 and 3. Don't say anything else, just the number."
 }
