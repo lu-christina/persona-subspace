@@ -28,10 +28,15 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Suppress verbose HTTP logging from httpx/openai (only show errors)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+
 # Constants
 INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
-RESPONSES_DIR = Path("/workspace/roles/responses")
-OUTPUT_DIR = Path("/workspace/roles/extract_labels")
+RESPONSES_DIR = Path("/workspace/roles_240/responses")
+OUTPUT_DIR = Path("/workspace/roles_240/extract_labels")
 DEFAULT_JUDGE_MODEL = "gpt-4.1-mini"
 
 
@@ -394,6 +399,21 @@ async def process_role(
         instruction_data = load_instruction_data(role)
         response_data = load_response_data(role)
         
+        # Load existing scores first to check what we already have
+        output_file = OUTPUT_DIR / f"{role}.json"
+        existing_scores = {}
+        
+        if output_file.exists():
+            try:
+                with open(output_file, 'r', encoding='utf-8') as f:
+                    existing_scores = json.load(f)
+                
+                # Convert old format to new format if needed
+                existing_scores = convert_old_scores_format(existing_scores)
+                logger.info(f"Loaded and converted {len(existing_scores)} existing scores for role: {role}")
+            except Exception as e:
+                logger.warning(f"Failed to load existing scores for role {role}: {e}")
+        
         # Organize responses
         organized_responses = organize_responses_by_question_and_label(response_data)
         logger.info(f"Found {len(organized_responses)} response entries for role: {role}")
@@ -404,10 +424,25 @@ async def process_role(
         
         if not evaluation_prompts:
             logger.warning(f"No evaluation prompts created for role: {role}")
-            return None
+            return existing_scores if existing_scores else None
+        
+        # Filter out prompts that already have scores
+        prompts_to_evaluate = []
+        for prompt_data in evaluation_prompts:
+            role_name, prompt_index, question_index, label, prompt_text = prompt_data
+            key = f"{label}_p{prompt_index}_q{question_index}"
+            
+            if key not in existing_scores:
+                prompts_to_evaluate.append(prompt_data)
+        
+        logger.info(f"Need to evaluate {len(prompts_to_evaluate)} new prompts (skipping {len(evaluation_prompts) - len(prompts_to_evaluate)} existing scores)")
+        
+        if not prompts_to_evaluate:
+            logger.info(f"All scores already exist for role: {role}")
+            return existing_scores
         
         # Extract just the prompt texts for the API call
-        prompt_texts = [prompt_text for _, _, _, _, prompt_text in evaluation_prompts]
+        prompt_texts = [prompt_text for _, _, _, _, prompt_text in prompts_to_evaluate]
         
         # Call the judge model
         logger.info(f"Sending {len(prompt_texts)} prompts to judge model for role: {role}")
@@ -422,10 +457,10 @@ async def process_role(
         
         logger.info(f"Received {len(responses)} responses for role: {role}")
         
-        # Parse scores and organize results
+        # Parse scores and organize results (only for new prompts)
         organized_scores = {}
         
-        for i, (role_name, prompt_index, question_index, label, prompt_text) in enumerate(evaluation_prompts):
+        for i, (role_name, prompt_index, question_index, label, prompt_text) in enumerate(prompts_to_evaluate):
             if i < len(responses) and responses[i] is not None:
                 response_text = responses[i]
                 score = parse_judge_score(response_text)
@@ -438,22 +473,7 @@ async def process_role(
             else:
                 logger.warning(f"No response received for {role}, prompt {prompt_index}, question {question_index}, label {label}")
         
-        logger.info(f"Successfully parsed {len(organized_scores)} scores for role: {role}")
-        
-        # Load existing scores and convert to new format if needed
-        output_file = OUTPUT_DIR / f"{role}.json"
-        existing_scores = {}
-        
-        if output_file.exists():
-            try:
-                with open(output_file, 'r', encoding='utf-8') as f:
-                    existing_scores = json.load(f)
-                
-                # Convert old format to new format if needed
-                existing_scores = convert_old_scores_format(existing_scores)
-                logger.info(f"Loaded and converted {len(existing_scores)} existing scores for role: {role}")
-            except Exception as e:
-                logger.warning(f"Failed to load existing scores for role {role}: {e}")
+        logger.info(f"Successfully parsed {len(organized_scores)} new scores for role: {role}")
         
         # Merge existing scores with new scores (new scores take precedence)
         final_scores = existing_scores.copy()

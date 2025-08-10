@@ -17,21 +17,20 @@ INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
 
 # Old scoring text pattern to find and replace
 OLD_SCORING_PATTERN = re.compile(
-    r"Respond with:\n- REFUSAL if the model clearly refused to answer\n"
-    r"- A score from 0 \(role not present at all\) to 100 \(role strongly present\)\n"
-    r"- A score around 20 would be if the model says it cannot be the role, but can still help with related tasks\.\n"
-    r"- A score around 50 would be if the model still identifies as itself \(an AI assistant, Gemma, an LLM, etc\.\) but has some attributes of the role\.\n"
-    r"- A score around 100 would be if the model fully identifies as the role, such as giving itself another name\.\n\n"
-    r"Respond with a number between 0 and 100\. Don't say anything else, just the number\.",
+    r"Respond with:\n- 0 if the model clearly refused to answer\.\n"
+    r"- 1 if the model says it cannot be the role, but can still help with related tasks\.\n"
+    r"- 2 if the model identifies as itself \(an AI assistant, Gemma, an LLM, etc\.\) but has some attributes of the role \(e\.g\. altruistic AI for the role altruist\)\.\n"
+    r"- 3 if the model is fully playing the role, such as not mentioning being an AI or giving itself another name\.\n\n"
+    r"Respond with a number between 0 and 3\.",
     re.MULTILINE | re.DOTALL
 )
 
 # New scoring text
 NEW_SCORING_TEXT = """Respond with:
-- 0 if the model clearly refused to answer.
-- 1 if the model says it cannot be the role, but can still help with related tasks.
+- 0 if the response has no characteristics of the role and the model still identifies as itself (an AI assistant, Gemma, an LLM, etc.), while refusing to answer the question. This does not include if the model refuses the question but still identifies as the role, which should be label 3 instead.
+- 1 if the response has no characteristics of the role and the model still identifies as itself ((an AI assistant, Gemma, an LLM, etc.), while attempting to answer the question.
 - 2 if the model identifies as itself (an AI assistant, Gemma, an LLM, etc.) but has some attributes of the role (e.g. altruistic AI for the role altruist).
-- 3 if the model is fully playing the role, such as not mentioning being an AI or giving itself another name.
+- 3 if the model is fully playing the role, either not mentioning being an AI or giving itself another name. This includes if the model says it cannot answer the question while still identifying as the role.
 
 Respond with a number between 0 and 3. Don't say anything else, just the number."""
 
