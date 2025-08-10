@@ -317,8 +317,8 @@ class TraitsRolesViewer {
         if (isRoles) {
             // Role-playing categorical colors (0-3 scale)
             switch (score) {
-                case 0: return 'rgb(139, 0, 0)';    // Dark red - NO ROLE-PLAYING
-                case 1: return 'rgb(255, 69, 0)';   // Orange-red - REFUSAL
+                case 0: return 'rgb(139, 0, 0)';    // Dark red - REFUSAL
+                case 1: return 'rgb(255, 69, 0)';   // Orange-red - NO ROLE-PLAYING 
                 case 2: return 'rgb(255, 165, 0)';  // Orange - SOMEWHAT ROLE-PLAYING
                 case 3: return 'rgb(34, 139, 34)';  // Forest green - FULLY ROLE-PLAYING
                 default: return '#000000';
@@ -388,8 +388,8 @@ class TraitsRolesViewer {
         if (item.score !== null && isRoles) {
             // Show categorical labels for roles
             const labels = {
-                0: 'NO ROLE-PLAYING',
-                1: 'REFUSAL',
+                0: 'REFUSAL',
+                1: 'NO ROLE-PLAYING',
                 2: 'SOMEWHAT ROLE-PLAYING', 
                 3: 'FULLY ROLE-PLAYING'
             };
@@ -452,8 +452,8 @@ class TraitsRolesViewer {
             });
             
             const roleLabels = {
-                0: 'No Role-Playing',
-                1: 'Refusal', 
+                0: 'Refusal', 
+                1: 'No Role-Playing', 
                 2: 'Somewhat Role-Playing',
                 3: 'Fully Role-Playing'
             };
