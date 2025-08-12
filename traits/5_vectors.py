@@ -2,11 +2,13 @@
 """
 5_vectors.py - Generate trait vectors from response activations and scores
 
-Creates 4 types of vectors for each trait:
+Creates 6 types of vectors for each trait:
 1. pos_neg: mean(pos) - mean(neg) for all pairs
 2. pos_neg_{threshold}: mean(pos) - mean(neg) for pairs with score difference > threshold  
 3. pos_default: mean(pos) - mean(default) for all pairs
 4. pos_default_{threshold}: mean(pos) - mean(default) for pairs with score difference > threshold
+5. pos_70: mean(pos) for all positive responses with score >= 70
+6. pos_40_70: mean(pos) for all positive responses with score >= 40 and < 70
 
 Each vector has shape (n_layers, hidden_dim) = (46, 4608)
 """
@@ -22,8 +24,8 @@ from tqdm import tqdm
 
 def load_data(trait: str) -> Tuple[Optional[Dict[str, torch.Tensor]], Optional[Dict[str, Union[int, str]]]]:
     """Load activation tensors and scores for a given trait."""
-    activations_path = f"/workspace/traits/response_activations/{trait}.pt"
-    scores_path = f"/workspace/traits/extract_scores/{trait}.json"
+    activations_path = f"/workspace/traits_240/response_activations/{trait}.pt"
+    scores_path = f"/workspace/traits_240/extract_scores/{trait}.json"
     
     try:
         activations = torch.load(activations_path, map_location='cpu')
@@ -44,13 +46,15 @@ def compute_vectors(
     pos_neg_threshold: int,
     pos_default_threshold: int
 ) -> Dict[str, torch.Tensor]:
-    """Compute the 4 vector types from activations and scores."""
+    """Compute the 6 vector types from activations and scores."""
     
     # Collect all pairs for different conditions
     pos_neg_all_pairs = []
     pos_neg_filtered_pairs = []
     pos_default_all_pairs = []
     pos_default_filtered_pairs = []
+    pos_70_activations = []
+    pos_40_70_activations = []
     
     # Iterate through all prompt and question combinations
     for prompt_idx in range(5):  # p0 to p4
@@ -67,6 +71,12 @@ def compute_vectors(
                 # Skip if pos_score is REFUSAL
                 if pos_score == "REFUSAL":
                     continue
+                
+                # Collect pos activations based on score ranges
+                if pos_score >= 70:
+                    pos_70_activations.append(pos_activation)
+                elif pos_score >= 40 and pos_score < 70:
+                    pos_40_70_activations.append(pos_activation)
                 
                 # Process pos-neg pairs
                 if neg_key in activations and neg_key in scores:
@@ -114,12 +124,22 @@ def compute_vectors(
         
         return pos_mean - comparison_mean
     
+    # Compute mean activations for score-based vectors
+    def compute_mean_activation(activations: List[torch.Tensor]) -> torch.Tensor:
+        if not activations:
+            # Return zeros tensor with correct shape (46, 4608)
+            return torch.zeros(46, 4608)
+        
+        return torch.stack(activations).mean(dim=0)
+    
     # Build result dictionary with dynamic keys
     result = {
         'pos_neg': compute_mean_difference(pos_neg_all_pairs),
         f'pos_neg_{pos_neg_threshold}': compute_mean_difference(pos_neg_filtered_pairs),
         'pos_default': compute_mean_difference(pos_default_all_pairs),
-        f'pos_default_{pos_default_threshold}': compute_mean_difference(pos_default_filtered_pairs)
+        f'pos_default_{pos_default_threshold}': compute_mean_difference(pos_default_filtered_pairs),
+        'pos_70': compute_mean_activation(pos_70_activations),
+        'pos_40_70': compute_mean_activation(pos_40_70_activations)
     }
     
     return result
@@ -132,11 +152,32 @@ def process_trait(trait: str, pos_neg_threshold: int, pos_default_threshold: int
     if activations is None or scores is None:
         return False
     
-    vectors = compute_vectors(activations, scores, pos_neg_threshold, pos_default_threshold)
+    output_path = f"/workspace/traits_240/vectors/{trait}.pt"
     
-    # Save vectors
-    output_path = f"/workspace/traits/vectors/{trait}.pt"
-    torch.save(vectors, output_path)
+    # Check if existing vectors file exists
+    if os.path.exists(output_path):
+        # Load existing vectors
+        try:
+            existing_vectors = torch.load(output_path, map_location='cpu')
+            print(f"  Loading existing vectors for {trait}, adding new ones...")
+        except Exception as e:
+            print(f"  Error loading existing vectors for {trait}: {e}")
+            return False
+        
+        # Compute all vectors (including existing ones)
+        all_vectors = compute_vectors(activations, scores, pos_neg_threshold, pos_default_threshold)
+        
+        # Merge: keep existing vectors, add only the new ones
+        merged_vectors = existing_vectors.copy()
+        merged_vectors['pos_70'] = all_vectors['pos_70']
+        merged_vectors['pos_40_70'] = all_vectors['pos_40_70']
+        
+        # Save merged vectors
+        torch.save(merged_vectors, output_path)
+    else:
+        # No existing file, compute and save all vectors
+        vectors = compute_vectors(activations, scores, pos_neg_threshold, pos_default_threshold)
+        torch.save(vectors, output_path)
     
     return True
 
@@ -155,7 +196,7 @@ def main():
     args = parser.parse_args()
     
     # Get list of available traits from activations directory
-    activations_dir = Path("/workspace/traits/response_activations")
+    activations_dir = Path("/workspace/traits_240/response_activations")
     available_traits = [f.stem for f in activations_dir.glob("*.pt")]
     available_traits.sort()
     
@@ -179,7 +220,7 @@ def main():
     print(f"  pos_default_threshold: {args.pos_default_threshold}")
     
     # Ensure output directory exists
-    os.makedirs("/workspace/traits/vectors", exist_ok=True)
+    os.makedirs("/workspace/traits_240/vectors", exist_ok=True)
     
     # Process traits with progress bar
     successful = 0
@@ -192,7 +233,7 @@ def main():
             failed += 1
     
     print(f"\nCompleted: {successful} successful, {failed} failed")
-    print(f"Vectors saved to data/vectors/")
+    print(f"Vectors saved to /workspace/traits_240/vectors/")
 
 
 if __name__ == "__main__":
