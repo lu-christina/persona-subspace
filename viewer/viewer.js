@@ -7,6 +7,7 @@ class TraitsRolesViewer {
         this.filteredData = [];
         this.currentDataSource = '';
         this.currentTraitRole = '';
+        this.urlParams = new URLSearchParams(window.location.search);
         
         // DOM elements
         this.dataSourceSelect = document.getElementById('data-source');
@@ -32,6 +33,63 @@ class TraitsRolesViewer {
         this.initializeViewer();
     }
     
+    // URL parameter mapping
+    getDataSourceFromUrlParam(param) {
+        const mapping = {
+            'trait_unique': 'traits',
+            'trait_shared': 'traits_240', 
+            'role_unique': 'roles',
+            'role_shared': 'roles_240'
+        };
+        return mapping[param] || null;
+    }
+    
+    getUrlParamFromDataSource(dataSource) {
+        const mapping = {
+            'traits': 'trait_unique',
+            'traits_240': 'trait_shared',
+            'roles': 'role_unique', 
+            'roles_240': 'role_shared'
+        };
+        return mapping[dataSource] || null;
+    }
+    
+    parseUrlParameters() {
+        const dataSourceParam = this.urlParams.get('source');
+        const traitRoleParam = this.urlParams.get('trait') || this.urlParams.get('role');
+        
+        const dataSource = this.getDataSourceFromUrlParam(dataSourceParam);
+        const traitRole = traitRoleParam;
+        
+        return { dataSource, traitRole };
+    }
+    
+    updateUrlParameters(dataSource = null, traitRole = null) {
+        const url = new URL(window.location);
+        
+        if (dataSource) {
+            const urlParam = this.getUrlParamFromDataSource(dataSource);
+            if (urlParam) {
+                url.searchParams.set('source', urlParam);
+            }
+        } else {
+            url.searchParams.delete('source');
+        }
+        
+        if (traitRole) {
+            // Determine if it's a trait or role based on data source
+            const paramName = (dataSource && dataSource.includes('trait')) ? 'trait' : 'role';
+            url.searchParams.set(paramName, traitRole);
+            // Remove the other parameter
+            url.searchParams.delete(paramName === 'trait' ? 'role' : 'trait');
+        } else {
+            url.searchParams.delete('trait');
+            url.searchParams.delete('role');
+        }
+        
+        window.history.replaceState({}, '', url);
+    }
+    
     initEventListeners() {
         this.loadBtn.addEventListener('click', () => this.loadData());
         this.dataSourceSelect.addEventListener('change', () => this.onDataSourceChange());
@@ -52,7 +110,17 @@ class TraitsRolesViewer {
         this.setStatus('Initializing viewer...', 'loading');
         try {
             await this.loadDataSources();
-            this.setStatus('Select a data source and trait/role to begin', '');
+            
+            // Check for URL parameters and auto-load if present
+            const { dataSource, traitRole } = this.parseUrlParameters();
+            if (dataSource && traitRole) {
+                this.dataSourceSelect.value = dataSource;
+                await this.onDataSourceChange();
+                this.traitRoleSelect.value = traitRole;
+                await this.loadData();
+            } else {
+                this.setStatus('Select a data source and trait/role to begin', '');
+            }
         } catch (error) {
             console.error('Error initializing viewer:', error);
             this.setStatus('Error initializing viewer', 'error');
@@ -86,6 +154,7 @@ class TraitsRolesViewer {
         }
         
         this.currentDataSource = dataSource;
+        this.updateUrlParameters(dataSource, null);
         this.setStatus('Loading trait/role list...', 'loading');
         this.showLoadingBar();
         
@@ -144,6 +213,7 @@ class TraitsRolesViewer {
         }
         
         this.currentTraitRole = traitRole;
+        this.updateUrlParameters(this.currentDataSource, traitRole);
         this.setStatus('Loading data...', 'loading');
         this.showLoadingBar();
         this.loadBtn.disabled = true;
