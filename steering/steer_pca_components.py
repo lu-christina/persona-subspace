@@ -21,6 +21,7 @@ import torch
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 sys.path.append(str(project_root / 'utils'))
+torch.set_float32_matmul_precision('high')
 
 from utils.steering_utils import ActivationSteering
 from utils.probing_utils import load_model, generate_text
@@ -232,7 +233,6 @@ def worker_process(
                         intervention_type="addition",
                         positions="all"
                     ) as steerer:
-                        
                         for question in questions:
                             # Initialize structure if needed
                             if question not in steered_results:
