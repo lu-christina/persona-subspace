@@ -80,7 +80,7 @@ def find_newline_position(input_ids, tokenizer, device):
     return len(input_ids) - 1
 
 
-def extract_full_activations(model, tokenizer, conversation, layer=None):
+def extract_full_activations(model, tokenizer, conversation, layer=None, chat_format=True):
     """Extract full activations for a conversation
     
     Args:
@@ -101,9 +101,12 @@ def extract_full_activations(model, tokenizer, conversation, layer=None):
         single_layer_mode = False
         layer_list = list(range(len(model.model.layers)))
     
-    formatted_prompt = tokenizer.apply_chat_template(
-        conversation, tokenize=False, add_generation_prompt=False
-    )
+    if chat_format:
+        formatted_prompt = tokenizer.apply_chat_template(
+            conversation, tokenize=False, add_generation_prompt=False
+        )
+    else:
+        formatted_prompt = conversation
 
     # Tokenize
     tokens = tokenizer(formatted_prompt, return_tensors="pt", add_special_tokens=False)

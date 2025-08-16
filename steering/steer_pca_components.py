@@ -60,7 +60,7 @@ def parse_arguments():
         "--magnitudes",
         type=float,
         nargs="+",
-        default=[-200.0, -100.0, 100.0, 200.0],
+        default=[-4000.0, -3000.0, -2000.0, -1500.0, 0.0, 1500.0, 2000.0, 3000.0, 4000.0],
         help="List of steering magnitudes"
     )
     
@@ -81,7 +81,7 @@ def parse_arguments():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="./steering/results",
+        default="/root/git/persona-subspace/steering/results/roles_240",
         help="Output directory for results"
     )
     
