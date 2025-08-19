@@ -314,15 +314,21 @@ class PCASteeringViewer {
     renderPromptRow(prompt, magnitudeData) {
         let scrollableHTML = '';
         
-        // Sort magnitudes numerically
+        // Sort magnitudes with 0 first, then numerically
         const magnitudes = Object.keys(magnitudeData)
-            .sort((a, b) => parseFloat(a) - parseFloat(b));
+            .sort((a, b) => {
+                const aNum = parseFloat(a);
+                const bNum = parseFloat(b);
+                if (aNum === 0) return -1;
+                if (bNum === 0) return 1;
+                return aNum - bNum;
+            });
         
         // Add steering responses for each magnitude
         magnitudes.forEach(magnitude => {
             const responseList = magnitudeData[magnitude];
-            const label = `Magnitude ${magnitude}`;
             const magnitudeValue = parseFloat(magnitude);
+            const label = magnitudeValue === 0 ? 'Default Response' : `Magnitude ${magnitude}`;
             scrollableHTML += this.renderResponseBox(label, responseList, magnitudeValue);
         });
         
