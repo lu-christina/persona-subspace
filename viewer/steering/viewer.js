@@ -57,7 +57,8 @@ class PCASteeringViewer {
         // Map URL parameters to internal data source names
         const dataSourceMapping = {
             'role_shared': 'roles_240',
-            'other': 'other'
+            'other': 'other',
+            'roles_traits': 'roles_traits'
         };
         
         const dataSource = dataSourceMapping[dataSourceParam] || dataSourceParam;
@@ -73,7 +74,8 @@ class PCASteeringViewer {
             // Map internal names back to URL parameters
             const urlParamMapping = {
                 'roles_240': 'role_shared',
-                'other': 'other'
+                'other': 'other',
+                'roles_traits': 'roles_traits'
             };
             const urlParam = urlParamMapping[dataSource] || dataSource;
             url.searchParams.set('source', urlParam);
@@ -93,7 +95,8 @@ class PCASteeringViewer {
     async loadDataSources() {
         const dataSources = [
             { value: 'roles_240', label: 'Roles (Shared Questions)' },
-            { value: 'other', label: 'Other Steering Vectors' }
+            { value: 'other', label: 'Other Steering Vectors' },
+            { value: 'roles_traits', label: 'Roles and Traits (Shared Questions)' }
         ];
         
         // Clear and populate data source select
