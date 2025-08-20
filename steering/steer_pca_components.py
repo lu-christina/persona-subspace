@@ -41,11 +41,17 @@ def parse_arguments():
         help="Path to PCA results file (.pt format)"
     )
     
-    parser.add_argument(
+    # Create mutually exclusive group for questions input
+    questions_group = parser.add_mutually_exclusive_group(required=True)
+    questions_group.add_argument(
         "--questions_filepath", 
         type=str,
-        required=True,
         help="Path to questions JSONL file"
+    )
+    questions_group.add_argument(
+        "--questions_dir",
+        type=str,
+        help="Path to directory containing JSONL question files"
     )
     
     parser.add_argument(
@@ -88,7 +94,7 @@ def parse_arguments():
     parser.add_argument(
         "--test_questions",
         type=int,
-        default=5,
+        default=0,
         help="Number of questions to use for testing (0 = all questions)"
     )
     
@@ -126,6 +132,66 @@ def load_pca_results(pca_filepath: str) -> Dict[str, Any]:
     print(f"Found PCA with {n_components} components")
     
     return pca_results
+
+
+def load_questions_from_directory(questions_dir: str, test_questions: int = 0, question_range: List[int] = None) -> List[str]:
+    """Load questions from all JSONL files in a directory with deduplication."""
+    print(f"Loading questions from directory {questions_dir}")
+    
+    if not os.path.exists(questions_dir):
+        raise FileNotFoundError(f"Questions directory not found: {questions_dir}")
+    
+    if not os.path.isdir(questions_dir):
+        raise ValueError(f"Path is not a directory: {questions_dir}")
+    
+    # Find all JSONL files in the directory
+    jsonl_files = [f for f in os.listdir(questions_dir) if f.endswith('.jsonl')]
+    if not jsonl_files:
+        raise ValueError(f"No JSONL files found in directory: {questions_dir}")
+    
+    print(f"Found {len(jsonl_files)} JSONL files: {jsonl_files}")
+    
+    # Load questions from all files with deduplication
+    seen_questions = set()
+    questions = []
+    duplicates_removed = 0
+    
+    for filename in sorted(jsonl_files):  # Sort for consistent ordering
+        filepath = os.path.join(questions_dir, filename)
+        print(f"  Loading {filename}...")
+        
+        with open(filepath, 'r') as f:
+            for line_num, line in enumerate(f, 1):
+                try:
+                    question_obj = json.loads(line.strip())
+                    if 'question' in question_obj:
+                        question_text = question_obj['question']
+                        if question_text not in seen_questions:
+                            seen_questions.add(question_text)
+                            questions.append(question_text)
+                        else:
+                            duplicates_removed += 1
+                except json.JSONDecodeError as e:
+                    print(f"    Warning: Skipping invalid JSON on line {line_num}: {e}")
+    
+    print(f"Loaded {len(questions)} unique questions")
+    if duplicates_removed > 0:
+        print(f"Removed {duplicates_removed} duplicate questions")
+    
+    # Apply filtering logic
+    if question_range is not None:
+        start_idx, end_idx = question_range
+        if start_idx < 0 or end_idx > len(questions) or start_idx >= end_idx:
+            raise ValueError(f"Invalid question range [{start_idx}, {end_idx}) for {len(questions)} questions")
+        questions = questions[start_idx:end_idx]
+        print(f"Using questions {start_idx} to {end_idx-1} ({len(questions)} questions)")
+    elif test_questions > 0:
+        questions = questions[:test_questions]
+        print(f"Using first {len(questions)} questions for testing")
+    else:
+        print(f"Using all {len(questions)} questions")
+    
+    return questions
 
 
 def load_questions(questions_filepath: str, test_questions: int = 0, question_range: List[int] = None) -> List[str]:
@@ -280,7 +346,12 @@ def main():
     
     # Load and validate inputs
     pca_results = load_pca_results(args.pca_filepath)
-    questions = load_questions(args.questions_filepath, args.test_questions, args.question_range)
+    
+    # Load questions from either file or directory
+    if args.questions_filepath:
+        questions = load_questions(args.questions_filepath, args.test_questions, args.question_range)
+    else:
+        questions = load_questions_from_directory(args.questions_dir, args.test_questions, args.question_range)
     
     # Validate component indices
     n_components = pca_results['pca'].components_.shape[0]
