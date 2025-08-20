@@ -56,7 +56,8 @@ class PCASteeringViewer {
         
         // Map URL parameters to internal data source names
         const dataSourceMapping = {
-            'role_shared': 'roles_240'
+            'role_shared': 'roles_240',
+            'other': 'other'
         };
         
         const dataSource = dataSourceMapping[dataSourceParam] || dataSourceParam;
@@ -71,7 +72,8 @@ class PCASteeringViewer {
         if (dataSource) {
             // Map internal names back to URL parameters
             const urlParamMapping = {
-                'roles_240': 'role_shared'
+                'roles_240': 'role_shared',
+                'other': 'other'
             };
             const urlParam = urlParamMapping[dataSource] || dataSource;
             url.searchParams.set('source', urlParam);
@@ -90,7 +92,8 @@ class PCASteeringViewer {
     
     async loadDataSources() {
         const dataSources = [
-            { value: 'roles_240', label: 'Roles (Shared Questions)' }
+            { value: 'roles_240', label: 'Roles (Shared Questions)' },
+            { value: 'other', label: 'Other Steering Vectors' }
         ];
         
         // Clear and populate data source select
@@ -133,7 +136,7 @@ class PCASteeringViewer {
         const pcs = [];
         
         // Check for available PC files in the data source directory
-        const knownPCs = ['pc1']; // Add more as they become available
+        const knownPCs = ['pc1', 'dialogue_contrast']; // Add more as they become available
         
         for (const pc of knownPCs) {
             try {
@@ -219,6 +222,8 @@ class PCASteeringViewer {
             let description = '';
             if (selectedPC.value === 'pc1') {
                 description = '<strong>Description:</strong><br>Assistant-like to role-playing.';
+            } else if (selectedPC.value === 'dialogue_contrast') {
+                description = '<strong>Description:</strong><br>Dialogue contrast vector';
             } else {
                 description = `<strong>Description:</strong><br>Principal Component ${selectedPC.value.slice(-1)} from role steering analysis.`;
             }
