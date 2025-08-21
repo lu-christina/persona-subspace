@@ -211,64 +211,81 @@ def generate_self_conversation(
         # Continue from existing conversation
         conv_a = existing_conversation.copy()
         
-        # Count current turns (each turn = user message + assistant response)
-        current_turns = len([msg for msg in conv_a if msg['role'] == 'user'])
+        # Count current turns (each turn = user message + assistant response pair)
+        user_messages = len([msg for msg in conv_a if msg['role'] == 'user'])
+        assistant_messages = len([msg for msg in conv_a if msg['role'] == 'assistant'])
+        current_turns = min(user_messages, assistant_messages)
         
         if current_turns >= num_turns:
-            # Truncate to desired number of turns
+            # Truncate to desired number of complete turns (user+assistant pairs)
             truncated_conv = []
-            user_count = 0
+            turn_count = 0
             for msg in conv_a:
-                if msg['role'] == 'user':
-                    user_count += 1
-                    if user_count > num_turns:
-                        break
                 truncated_conv.append(msg)
+                if msg['role'] == 'assistant':
+                    turn_count += 1
+                    if turn_count >= num_turns:
+                        break
             return truncated_conv
         
-        # Determine which perspective should continue
-        # If conversation ends with assistant message, next is user (perspective B)
-        # If conversation ends with user message, next is assistant (perspective A)
+        # Continue from existing conversation
+        conv_a = conv_a.copy()
+        
+        # Determine which perspective should continue based on last message
         if conv_a[-1]['role'] == 'assistant':
-            # Need to switch to perspective B
+            # Last message was assistant, so perspective B should continue
             conv_b = [{"role": "user", "content": conv_a[-1]['content']}]
-            current_conv = conv_b
-            other_conv = conv_a
         else:
-            # Continue with perspective A
+            # Last message was user, need to complete with assistant first
             conv_b = []
-            current_conv = conv_a
-            other_conv = conv_b
     else:
         # Start new conversation
         conv_a = [{"role": "user", "content": initial_message}]
         conv_b = []
-        current_conv = conv_a
-        other_conv = conv_b
-        current_turns = 0
     
-    # Generate additional turns to reach target
-    turns_to_generate = num_turns - current_turns
+    # Generate messages until conv_a has num_turns complete turns (num_turns * 2 messages)
+    target_messages = num_turns * 2
     
-    for turn in range(turns_to_generate):
-        # Generate response for current conversation
-        response = chat_conversation(
-            model_wrapper,
-            current_conv,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p
-        )
-        
-        # Add response to current conversation
-        current_conv.append({"role": "assistant", "content": response})
-        
-        # If this isn't the last turn, add response as user message to other conversation
-        if turn < turns_to_generate - 1:
-            other_conv.append({"role": "user", "content": response})
-        
-        # Swap perspectives for next turn
-        current_conv, other_conv = other_conv, current_conv
+    # Keep track of which conversation we're currently generating for
+    current_conv_is_a = True
+    
+    try:
+        while len(conv_a) < target_messages:
+            if current_conv_is_a:
+                # Generate response for conversation A
+                response = chat_conversation(
+                    model_wrapper,
+                    conv_a,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    top_p=top_p
+                )
+                conv_a.append({"role": "assistant", "content": response})
+                
+                # Add this response as user message to conversation B (if not the final message)
+                if len(conv_a) < target_messages:
+                    conv_b.append({"role": "user", "content": response})
+            else:
+                # Generate response for conversation B
+                response = chat_conversation(
+                    model_wrapper,
+                    conv_b,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    top_p=top_p
+                )
+                conv_b.append({"role": "assistant", "content": response})
+                
+                # Add this response as user message to conversation A
+                conv_a.append({"role": "user", "content": response})
+            
+            # Swap which conversation we're generating for
+            current_conv_is_a = not current_conv_is_a
+            
+    except Exception as e:
+        # Attach the partial conversation to the exception so it can be saved
+        e.partial_conversation = conv_a
+        raise e
     
     # Return conversation A (the complete conversation)
     return conv_a
@@ -366,21 +383,61 @@ def main():
         for i in tqdm(range(args.num_transcripts), desc="Generating conversations"):
             file_id = starting_id + i
             
-            # Generate conversation
-            conversation = generate_self_conversation(
-                model_wrapper,
-                args.initial_message,
-                args.num_turns,
-                args.temperature,
-                args.max_tokens,
-                args.top_p,
-                existing_conversation=existing_conversation
-            )
+            # For multiple transcripts, only use existing_conversation for the first one
+            # Subsequent transcripts should start fresh unless explicitly continuing
+            use_existing = existing_conversation if i == 0 else None
             
-            # Save conversation
-            save_conversation(conversation, output_dir, file_id, metadata)
-            
-            tqdm.write(f"Saved conversation {file_id} ({len(conversation)} messages)")
+            try:
+                # Generate conversation
+                conversation = generate_self_conversation(
+                    model_wrapper,
+                    args.initial_message,
+                    args.num_turns,
+                    args.temperature,
+                    args.max_tokens,
+                    args.top_p,
+                    existing_conversation=use_existing
+                )
+                
+                # Save conversation with original metadata
+                save_conversation(conversation, output_dir, file_id, metadata)
+                tqdm.write(f"Saved conversation {file_id} ({len(conversation)} messages)")
+                
+            except Exception as e:
+                tqdm.write(f"Error during generation of conversation {file_id}: {e}")
+                
+                # If we have a partial conversation, try to save it
+                try:
+                    # Try to get whatever conversation was generated up to the error point
+                    # This will depend on where the error occurred in generate_self_conversation
+                    partial_conversation = getattr(e, 'partial_conversation', None)
+                    if partial_conversation is None and use_existing:
+                        # If we were continuing from existing, at least save that
+                        partial_conversation = use_existing
+                    
+                    if partial_conversation and len(partial_conversation) > 0:
+                        # Calculate actual turns completed
+                        actual_turns = len([msg for msg in partial_conversation if msg['role'] == 'user'])
+                        
+                        # Create corrected metadata
+                        corrected_metadata = metadata.copy()
+                        corrected_metadata["turns"] = actual_turns
+                        corrected_metadata["completed_turns"] = actual_turns
+                        corrected_metadata["requested_turns"] = args.num_turns
+                        corrected_metadata["error"] = str(e)
+                        corrected_metadata["status"] = "partial"
+                        
+                        # Save partial conversation
+                        save_conversation(partial_conversation, output_dir, file_id, corrected_metadata)
+                        tqdm.write(f"Saved partial conversation {file_id} ({len(partial_conversation)} messages, {actual_turns} turns)")
+                    else:
+                        tqdm.write(f"No partial conversation available to save for {file_id}")
+                        
+                except Exception as save_error:
+                    tqdm.write(f"Failed to save partial conversation {file_id}: {save_error}")
+                
+                # Continue with next conversation instead of stopping entirely
+                continue
         
         print(f"\nCompleted! Generated {args.num_transcripts} conversations.")
         print(f"Files saved in: {output_dir}")
