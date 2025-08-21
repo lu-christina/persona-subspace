@@ -106,6 +106,12 @@ def parse_arguments():
         help="Range of question indices to use (0-indexed, inclusive start, exclusive end)"
     )
     
+    parser.add_argument(
+        "--roles_file",
+        type=str,
+        help="Optional path to roles JSONL file with 'role' fields"
+    )
+    
     return parser.parse_args()
 
 
@@ -224,6 +230,27 @@ def load_questions(questions_filepath: str, test_questions: int = 0, question_ra
         print(f"Loaded {len(questions)} questions")
     
     return questions
+
+
+def load_roles(roles_filepath: str) -> List[str]:
+    """Load roles from JSONL file."""
+    print(f"Loading roles from {roles_filepath}")
+    
+    if not os.path.exists(roles_filepath):
+        raise FileNotFoundError(f"Roles file not found: {roles_filepath}")
+    
+    roles = []
+    with open(roles_filepath, 'r') as f:
+        for line in f:
+            try:
+                role_obj = json.loads(line.strip())
+                if 'role' in role_obj:
+                    roles.append(role_obj['role'])
+            except json.JSONDecodeError as e:
+                print(f"Warning: Skipping invalid JSON line: {e}")
+    
+    print(f"Loaded {len(roles)} roles")
+    return roles
 
 
 def worker_process(
@@ -352,6 +379,22 @@ def main():
         questions = load_questions(args.questions_filepath, args.test_questions, args.question_range)
     else:
         questions = load_questions_from_directory(args.questions_dir, args.test_questions, args.question_range)
+    
+    # Load roles if provided and generate role+question combinations
+    if args.roles_file:
+        roles = load_roles(args.roles_file)
+        print(f"Generating {len(roles)} × {len(questions)} = {len(roles) * len(questions)} role+question combinations")
+        
+        # Generate all role+question combinations
+        combined_prompts = []
+        for role in roles:
+            for question in questions:
+                combined_prompts.append(f"{role} {question}")
+        
+        questions = combined_prompts
+        print(f"Using {len(questions)} combined prompts")
+    else:
+        print(f"Using {len(questions)} questions without roles")
     
     # Validate component indices
     n_components = pca_results['pca'].components_.shape[0]
