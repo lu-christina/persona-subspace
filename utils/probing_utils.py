@@ -455,3 +455,120 @@ def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7,
     generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=False)
     return generated_text.strip()
     
+def get_response_indices(conversation, tokenizer, per_turn=False):
+    """
+    Get every token index of the model's response.
+    
+    Args:
+        conversation: List of dict with 'role' and 'content' keys
+        tokenizer: Tokenizer to apply chat template and tokenize
+        per_turn: Bool, if True return list of lists (one per assistant turn), 
+                 if False return single flat list (default, backward compatible)
+    
+    Returns:
+        response_indices: list of token positions where the model is responding (per_turn=False)
+                         or list of lists of token positions per turn (per_turn=True)
+    """
+    if per_turn:
+        all_turn_indices = []
+    else:
+        response_indices = []
+    
+    # Process conversation incrementally to find assistant response boundaries
+    for i, turn in enumerate(conversation):
+        if turn['role'] != 'assistant':
+            continue
+            
+        # Get conversation up to but not including this assistant turn
+        conversation_before = conversation[:i]
+        
+        # Get conversation up to and including this assistant turn  
+        conversation_including = conversation[:i+1]
+        
+        # Format and tokenize both versions
+        if conversation_before:
+            before_formatted = tokenizer.apply_chat_template(
+                conversation_before, tokenize=False, add_generation_prompt=True
+            )
+            before_tokens = tokenizer(before_formatted, add_special_tokens=False)
+            before_length = len(before_tokens['input_ids'])
+        else:
+            before_length = 0
+            
+        including_formatted = tokenizer.apply_chat_template(
+            conversation_including, tokenize=False, add_generation_prompt=False
+        )
+        including_tokens = tokenizer(including_formatted, add_special_tokens=False)
+        including_length = len(including_tokens['input_ids'])
+        
+        # Find the actual content of this assistant response (excluding formatting tokens)
+        assistant_content = turn['content'].strip()
+        
+        # Collect indices for this turn
+        turn_indices = []
+        
+        # Find where the assistant content appears in the formatted text
+        content_start_in_formatted = including_formatted.find(assistant_content)
+        if content_start_in_formatted != -1:
+            content_end_in_formatted = content_start_in_formatted + len(assistant_content)
+            
+            # Convert character positions to token indices using offset mapping
+            tokens_with_offsets = tokenizer(including_formatted, return_offsets_mapping=True, add_special_tokens=False)
+            offset_mapping = tokens_with_offsets['offset_mapping']
+            
+            # Find tokens that overlap with the assistant content
+            for token_idx, (start_char, end_char) in enumerate(offset_mapping):
+                if (start_char >= content_start_in_formatted and start_char < content_end_in_formatted) or \
+                   (end_char > content_start_in_formatted and end_char <= content_end_in_formatted) or \
+                   (start_char < content_start_in_formatted and end_char > content_end_in_formatted):
+                    turn_indices.append(token_idx)
+        else:
+            # Fallback to original method if content not found
+            assistant_start = before_length
+            assistant_end = including_length
+            turn_indices.extend(range(assistant_start, assistant_end))
+        
+        # Store indices based on per_turn flag
+        if per_turn:
+            all_turn_indices.append(turn_indices)
+        else:
+            response_indices.extend(turn_indices)
+    
+    return all_turn_indices if per_turn else response_indices
+
+def mean_response_activation(activations, conversation, tokenizer):
+    """
+    Get the mean activation of the model's response to the user's message.
+    """
+    # get the token positions of model responses
+    response_indices = get_response_indices(conversation, tokenizer)
+
+    # get the mean activation of the model's response to the user's message
+    mean_activation = activations[:, response_indices, :].mean(dim=1)
+    return mean_activation
+
+def mean_response_activation_per_turn(activations, conversation, tokenizer):
+    """
+    Get the mean activation for each of the model's response turns.
+    
+    Args:
+        activations: Tensor with shape (layers, tokens, features)
+        conversation: List of dict with 'role' and 'content' keys
+        tokenizer: Tokenizer to apply chat template and tokenize
+    
+    Returns:
+        List[torch.Tensor]: List of mean activations, one per assistant turn
+    """
+    # Get token positions for each assistant turn
+    response_indices_per_turn = get_response_indices(conversation, tokenizer, per_turn=True)
+    
+    # Calculate mean activation for each turn
+    mean_activations_per_turn = []
+    
+    for turn_indices in response_indices_per_turn:
+        if len(turn_indices) > 0:
+            # Get mean activation for this turn's tokens
+            turn_mean_activation = activations[:, turn_indices, :].mean(dim=1)
+            mean_activations_per_turn.append(turn_mean_activation)
+    
+    return mean_activations_per_turn
