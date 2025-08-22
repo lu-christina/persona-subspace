@@ -499,9 +499,9 @@ def worker_process(
                             if jsonl_handler.write_row(row_data):
                                 completed_prompts += 1
                                 if completed_prompts % 5 == 0:  # Log every 5 prompts
-                                    progress = (completed_prompts + skipped_prompts) / total_prompts * 100
+                                    progress = completed_prompts / max(new_prompts_to_process, 1) * 100
                                     print(f"Worker GPU {gpu_id}: Progress {progress:.1f}% "
-                                          f"({completed_prompts}/{total_prompts} prompts completed, "
+                                          f"({completed_prompts}/{new_prompts_to_process} new prompts completed, "
                                           f"{skipped_prompts} skipped)")
                             else:
                                 print(f"Worker GPU {gpu_id}: Failed to write row for "
@@ -585,9 +585,9 @@ def worker_process(
                                 if jsonl_handler.write_row(row_data):
                                     completed_prompts += 1
                                     if completed_prompts % 5 == 0:  # Log every 5 prompts
-                                        progress = (completed_prompts + skipped_prompts) / total_prompts * 100
+                                        progress = completed_prompts / max(new_prompts_to_process, 1) * 100
                                         print(f"Worker GPU {gpu_id}: Progress {progress:.1f}% "
-                                              f"({completed_prompts}/{total_prompts} prompts completed, "
+                                              f"({completed_prompts}/{new_prompts_to_process} new prompts completed, "
                                               f"{skipped_prompts} skipped)")
                                 else:
                                     print(f"Worker GPU {gpu_id}: Failed to write row for "
