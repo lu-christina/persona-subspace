@@ -732,7 +732,7 @@ def worker_process(
                 logger.info(f"Completed batch {processed_batches}, total work units: {processed_work_units}")
                 
                 # Periodic garbage collection
-                if processed_batches % 5 == 0:
+                if processed_batches % 2 == 0:
                     gc.collect()
                 
             except Exception as e:
