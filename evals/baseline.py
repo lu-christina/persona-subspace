@@ -2,10 +2,19 @@
 """
 Baseline Response Generation Script
 
-This script generates default (non-steered) responses by concatenating roles and questions
-into prompts and using vLLM's batch processing for efficient inference across multiple GPUs.
+This script generates default (non-steered) responsesusing vLLM's batch processing 
+for efficient inference across multiple GPUs.
 
 Output: JSONL with role_id, role_label, question_id, question_label, prompt, response
+
+uv run baseline.py \
+	--questions_file /root/git/persona-subspace/evals/data/questions/harmbench.jsonl \
+	--roles_file /root/git/persona-subspace/evals/data/roles/good_evil.jsonl \
+	--output_jsonl /root/git/persona-subspace/evals/results/roles_traits/harmbench_baseline.jsonl \
+
+uv run baseline.py \
+    --prompts_file /root/git/persona-subspace/evals/data/roles_20.jsonl \
+    --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/roles_20_baseline.jsonl
 """
 
 import argparse

@@ -1,15 +1,31 @@
 #!/usr/bin/env python3
 """
-Optimized GPU Parallelized Steering Script
+Steering Script
 
-This script combines the best features of both batch and queue approaches:
-- Dynamic work queue for optimal load balancing across GPUs
-- Batch processing within workers for maximum GPU efficiency
-- Advanced restart capability with queue state persistence
-
-Features hybrid queue-batch processing for optimal performance without requiring mode selection.
+This script steers prompts with a PC:
+- Work units created in batches of the same magnitude
+- Parallelized across all available GPU
+- Won't repeat work on restart
 
 Output: JSONL with role_id, role_label, question_id, question_label, prompt, response, magnitude
+
+uv run steering.py \
+    --pca_filepath /workspace/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
+    --questions_file /root/git/persona-subspace/evals/data/questions/harmbench.jsonl \
+    --roles_file /root/git/persona-subspace/evals/data/roles/good_evil.jsonl \
+    --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/harmbench.jsonl 
+
+uv run steering.py \
+    --pca_filepath /workspace/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
+    --prompts_file /root/git/persona-subspace/evals/data/roles_20_long.jsonl \
+    --magnitudes -4000.0 -2000.0 \
+    --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/roles_20.jsonl
+
+uv run steering.py \
+    --pca_filepath /workspace/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
+    --prompts_file /root/git/persona-subspace/evals/data/default_20_long.jsonl \
+    --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/default_20.jsonl
+
 """
 
 import argparse
@@ -331,7 +347,7 @@ def parse_arguments():
     parser.add_argument(
         "--max_new_tokens",
         type=int,
-        default=1024,
+        default=512,
         help="Maximum new tokens to generate"
     )
     
@@ -345,14 +361,14 @@ def parse_arguments():
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=8,
+        default=16,
         help="Batch size for processing prompts"
     )
     
     parser.add_argument(
         "--max_length",
         type=int,
-        default=2048,
+        default=1024,
         help="Maximum sequence length"
     )
     
@@ -604,7 +620,8 @@ def worker_process(
     output_jsonl: str,
     max_new_tokens: int,
     temperature: float,
-    max_length: int
+    max_length: int,
+    total_batches: int
 ):
     """
     Optimized worker process that pulls work batches from queue and processes them with batch efficiency.
@@ -624,6 +641,7 @@ def worker_process(
         # Load model on assigned GPU
         device = f"cuda:{gpu_id}"
         model, tokenizer = load_model(model_name, device=device)
+        model.eval()  # Set to evaluation mode for inference
         logger.info(f"Model loaded on {device}")
         
         # Load PCA results
@@ -660,7 +678,7 @@ def worker_process(
                     work_queue.put(None)  # Re-add sentinel for other workers
                     break
                 
-                logger.info(f"Processing batch of {len(work_batch)} work units")
+                logger.info(f"Processing batch {processed_batches + 1}/{total_batches} ({len(work_batch)} work units)")
                 
                 # Group work units by magnitude for efficient processing
                 work_by_magnitude = defaultdict(list)
@@ -692,25 +710,32 @@ def worker_process(
                                 max_length=max_length
                             )
                             
-                            # Prepare row data for batch
+                            # Prepare row data for batch (skip empty responses)
                             batch_row_data = []
                             for work_unit, response in zip(magnitude_work_units, batch_responses):
-                                row_data = {
-                                    'role_id': work_unit['role_id'],
-                                    'role_label': work_unit['role_label'],
-                                    'question_id': work_unit['question_id'],
-                                    'question_label': work_unit['question_label'],
-                                    'prompt': work_unit['prompt'],
-                                    'response': response,
-                                    'magnitude': work_unit['magnitude']
-                                }
-                                batch_row_data.append(row_data)
+                                if response.strip():  # Only save non-empty responses
+                                    row_data = {
+                                        'role_id': work_unit['role_id'],
+                                        'role_label': work_unit['role_label'],
+                                        'question_id': work_unit['question_id'],
+                                        'question_label': work_unit['question_label'],
+                                        'prompt': work_unit['prompt'],
+                                        'response': response,
+                                        'magnitude': work_unit['magnitude']
+                                    }
+                                    batch_row_data.append(row_data)
+                                else:
+                                    logger.warning(f"Skipping empty response for role_id={work_unit['role_id']}, question_id={work_unit['question_id']}, magnitude={work_unit['magnitude']}")
                             
                             # Write batch to JSONL
-                            if jsonl_handler.write_rows(batch_row_data):
-                                batch_processed_count += len(magnitude_work_units)
+                            if batch_row_data:  # Only write if there's data to write
+                                if jsonl_handler.write_rows(batch_row_data):
+                                    batch_processed_count += len(batch_row_data)
+                                else:
+                                    logger.error(f"Failed to write batch of {len(batch_row_data)} work units")
                             else:
-                                logger.error(f"Failed to write batch of {len(magnitude_work_units)} work units")
+                                logger.info("No valid responses to write for this batch")
+                                batch_processed_count += len(magnitude_work_units)  # Still count as processed
                     
                     except Exception as e:
                         logger.error(f"Error processing magnitude {magnitude}: {e}")
@@ -729,7 +754,7 @@ def worker_process(
                     'batch_count': 1
                 })
                 
-                logger.info(f"Completed batch {processed_batches}, total work units: {processed_work_units}")
+                logger.info(f"Completed batch {processed_batches}/{total_batches}, total work units: {processed_work_units}")
                 
                 # Periodic garbage collection
                 if processed_batches % 2 == 0:
@@ -925,7 +950,8 @@ def main():
                 args.output_jsonl,
                 args.max_new_tokens,
                 args.temperature,
-                args.max_length
+                args.max_length,
+                len(work_batches)
             )
         )
         p.start()
