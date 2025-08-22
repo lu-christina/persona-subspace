@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-Magnitude-Based GPU Parallelized Steering Script
+Optimized GPU Parallelized Steering Script
 
-This script performs activation steering by distributing steering magnitudes 
-across multiple GPUs for a single PC component. Each GPU processes different
-magnitude ranges to maximize hardware utilization.
+This script combines the best features of both batch and queue approaches:
+- Dynamic work queue for optimal load balancing across GPUs
+- Batch processing within workers for maximum GPU efficiency
+- Advanced restart capability with queue state persistence
 
-Output: CSV with role_id, role_label, question_id, question_label, prompt, response, magnitude
+Features hybrid queue-batch processing for optimal performance without requiring mode selection.
+
+Output: JSONL with role_id, role_label, question_id, question_label, prompt, response, magnitude
 """
 
 import argparse
@@ -14,12 +17,16 @@ import json
 import os
 import sys
 import multiprocessing as mp
-import csv
 import threading
-from pathlib import Path
-from typing import List, Dict, Any, Tuple
-import fcntl
+import gc
+import logging
+import pickle
 import time
+from pathlib import Path
+from typing import List, Dict, Any, Tuple, Optional
+import fcntl
+from collections import defaultdict
+from tqdm import tqdm
 
 import torch
 
@@ -31,6 +38,10 @@ torch.set_float32_matmul_precision('high')
 
 from utils.steering_utils import ActivationSteering
 from utils.probing_utils import load_model, generate_text
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class JSONLHandler:
@@ -62,27 +73,197 @@ class JSONLHandler:
             
         return existing
     
-    def write_row(self, row_data: Dict[str, Any]) -> bool:
-        """Write a single row to JSONL with file locking."""
+    def write_rows(self, row_data_list: List[Dict[str, Any]]) -> bool:
+        """Write multiple rows to JSONL with file locking."""
         max_retries = 3
         for attempt in range(max_retries):
             try:
                 with open(self.jsonl_path, 'a', encoding='utf-8') as f:
                     fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock for writing
-                    f.write(json.dumps(row_data) + '\n')
+                    for row_data in row_data_list:
+                        f.write(json.dumps(row_data) + '\n')
                     return True
             except Exception as e:
                 if attempt == max_retries - 1:
-                    print(f"Failed to write row after {max_retries} attempts: {e}")
+                    print(f"Failed to write rows after {max_retries} attempts: {e}")
                     return False
                 time.sleep(0.1)  # Brief delay before retry
         return False
 
 
+class WorkQueueManager:
+    """Manages work queue creation, persistence, and progress tracking."""
+    
+    def __init__(self, queue_state_file: Optional[str] = None):
+        self.queue_state_file = queue_state_file
+        
+    def create_work_batches(
+        self, 
+        work_units: List[Dict], 
+        batch_size: int,
+        existing_combinations: set = None
+    ) -> List[List[Dict]]:
+        """Create batches of work units for queue processing."""
+        if existing_combinations is None:
+            existing_combinations = set()
+            
+        # Filter out existing combinations
+        filtered_work_units = []
+        for work_unit in work_units:
+            combination_key = (work_unit['prompt'], work_unit['magnitude'])
+            if combination_key not in existing_combinations:
+                filtered_work_units.append(work_unit)
+        
+        logger.info(f"Filtered {len(work_units)} work units to {len(filtered_work_units)} new units")
+        
+        # Group by magnitude for more efficient processing
+        work_by_magnitude = defaultdict(list)
+        for work_unit in filtered_work_units:
+            work_by_magnitude[work_unit['magnitude']].append(work_unit)
+        
+        # Create batches within each magnitude group
+        all_batches = []
+        for magnitude, magnitude_work_units in work_by_magnitude.items():
+            # Create batches of the specified size
+            for i in range(0, len(magnitude_work_units), batch_size):
+                batch = magnitude_work_units[i:i + batch_size]
+                all_batches.append(batch)
+        
+        logger.info(f"Created {len(all_batches)} work batches from {len(filtered_work_units)} work units")
+        return all_batches
+    
+    def save_queue_state(self, remaining_batches: List[List[Dict]], completed_count: int):
+        """Save current queue state for restart capability."""
+        if not self.queue_state_file:
+            return
+            
+        state = {
+            'remaining_batches': remaining_batches,
+            'completed_count': completed_count,
+            'timestamp': time.time()
+        }
+        
+        try:
+            with open(self.queue_state_file, 'wb') as f:
+                pickle.dump(state, f)
+            logger.info(f"Saved queue state: {len(remaining_batches)} batches remaining")
+        except Exception as e:
+            logger.error(f"Failed to save queue state: {e}")
+    
+    def load_queue_state(self) -> Tuple[List[List[Dict]], int]:
+        """Load queue state from file if it exists."""
+        if not self.queue_state_file or not os.path.exists(self.queue_state_file):
+            return [], 0
+            
+        try:
+            with open(self.queue_state_file, 'rb') as f:
+                state = pickle.load(f)
+            
+            remaining_batches = state.get('remaining_batches', [])
+            completed_count = state.get('completed_count', 0)
+            timestamp = state.get('timestamp', 0)
+            
+            logger.info(f"Loaded queue state: {len(remaining_batches)} batches remaining, "
+                       f"{completed_count} completed, saved at {time.ctime(timestamp)}")
+            
+            return remaining_batches, completed_count
+        except Exception as e:
+            logger.error(f"Failed to load queue state: {e}")
+            return [], 0
+
+
+def generate_batched_responses(
+    model, 
+    tokenizer, 
+    prompts: List[str], 
+    max_new_tokens: int = 1024,
+    temperature: float = 0.7,
+    max_length: int = 2048
+) -> List[str]:
+    """
+    Generate responses for a batch of prompts efficiently using real batch inference.
+    All prompts in the batch should have the same steering magnitude for safety.
+    """
+    try:
+        if not prompts:
+            return []
+        
+        # Format prompts for chat if needed
+        formatted_prompts = []
+        for prompt in prompts:
+            if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
+                # Apply chat template
+                messages = [{"role": "user", "content": prompt}]
+                formatted_prompt = tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+                formatted_prompts.append(formatted_prompt)
+            else:
+                formatted_prompts.append(prompt)
+        
+        # Tokenize all prompts at once
+        batch_inputs = tokenizer(
+            formatted_prompts,
+            padding=True,
+            truncation=True,
+            max_length=max_length,
+            return_tensors="pt"
+        ).to(model.device)
+        
+        # Set up generation parameters
+        generation_config = {
+            'max_new_tokens': max_new_tokens,
+            'temperature': temperature,
+            'do_sample': True if temperature > 0 else False,
+            'pad_token_id': tokenizer.pad_token_id or tokenizer.eos_token_id,
+            'eos_token_id': tokenizer.eos_token_id,
+            'use_cache': True
+        }
+        
+        # Generate responses for entire batch at once
+        with torch.no_grad():
+            batch_outputs = model.generate(
+                input_ids=batch_inputs.input_ids,
+                attention_mask=batch_inputs.attention_mask,
+                **generation_config
+            )
+        
+        # Decode responses
+        batch_responses = []
+        input_lengths = batch_inputs.input_ids.shape[1]
+        
+        for i, output in enumerate(batch_outputs):
+            # Extract only the generated part (after input)
+            generated_tokens = output[input_lengths:]
+            response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+            batch_responses.append(response.strip())
+        
+        return batch_responses
+        
+    except Exception as e:
+        logger.error(f"Error processing batch: {e}")
+        # Fallback to sequential processing if batch fails
+        logger.info("Falling back to sequential processing")
+        try:
+            batch_responses = []
+            for prompt in prompts:
+                response = generate_text(
+                    model, tokenizer, prompt,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    chat_format=True
+                )
+                batch_responses.append(response)
+            return batch_responses
+        except Exception as fallback_e:
+            logger.error(f"Fallback processing also failed: {fallback_e}")
+            return [""] * len(prompts)
+
+
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Magnitude-based GPU parallelized steering script",
+        description="Optimized GPU parallelized steering script with hybrid queue-batch processing",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
@@ -159,6 +340,26 @@ def parse_arguments():
         type=float,
         default=0.7,
         help="Temperature for text generation"
+    )
+    
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=8,
+        help="Batch size for processing prompts"
+    )
+    
+    parser.add_argument(
+        "--max_length",
+        type=int,
+        default=2048,
+        help="Maximum sequence length"
+    )
+    
+    parser.add_argument(
+        "--queue_state_file",
+        type=str,
+        help="File to save/load queue state for restart capability"
     )
     
     parser.add_argument(
@@ -356,56 +557,74 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
     return processed_prompts
 
 
-def distribute_magnitudes(magnitudes: List[float], n_gpus: int) -> List[List[float]]:
-    """Distribute magnitudes across GPUs as evenly as possible."""
-    if n_gpus <= 0:
-        raise ValueError("Number of GPUs must be positive")
+def create_work_units(prompts_data, magnitudes, is_combined_format=False):
+    """Create work units from prompts and magnitudes."""
+    work_units = []
     
-    if len(magnitudes) == 0:
-        return [[] for _ in range(n_gpus)]
+    if is_combined_format:
+        # prompts_data contains pre-processed combined prompts
+        for prompt_data in prompts_data:
+            for magnitude in magnitudes:
+                work_unit = {
+                    'role_id': prompt_data['role_id'],
+                    'role_label': prompt_data['role_label'],
+                    'question_id': prompt_data['question_id'],
+                    'question_label': prompt_data['question_label'],
+                    'prompt': prompt_data['combined_prompt'],
+                    'magnitude': magnitude
+                }
+                work_units.append(work_unit)
+    else:
+        # prompts_data contains [questions, roles]
+        questions, roles = prompts_data
+        for role in roles:
+            for question in questions:
+                for magnitude in magnitudes:
+                    work_unit = {
+                        'role_id': role['id'],
+                        'role_label': role['type'],
+                        'question_id': question['id'],
+                        'question_label': question['semantic_category'],
+                        'prompt': f"{role['text']} {question['text']}",
+                        'magnitude': magnitude
+                    }
+                    work_units.append(work_unit)
     
-    # Calculate base number of magnitudes per GPU
-    base_count = len(magnitudes) // n_gpus
-    remainder = len(magnitudes) % n_gpus
-    
-    assignments = []
-    start_idx = 0
-    
-    for gpu_id in range(n_gpus):
-        # Some GPUs get one extra magnitude if there's a remainder
-        count = base_count + (1 if gpu_id < remainder else 0)
-        end_idx = start_idx + count
-        
-        assignments.append(magnitudes[start_idx:end_idx])
-        start_idx = end_idx
-    
-    return assignments
+    return work_units
 
 
 def worker_process(
     gpu_id: int,
-    assigned_magnitudes: List[float],
+    work_queue: mp.Queue,
+    results_queue: mp.Queue,
     pca_filepath: str,
     component: int,
-    prompts_data: List[Dict[str, Any]],  # Can be combined prompts or (questions, roles) 
     layer: int,
     model_name: str,
     output_jsonl: str,
     max_new_tokens: int,
     temperature: float,
-    is_combined_format: bool = False
+    max_length: int
 ):
     """
-    Worker process that handles steering for assigned magnitudes on a single GPU.
+    Optimized worker process that pulls work batches from queue and processes them with batch efficiency.
     """
-    torch.set_float32_matmul_precision('high')  # Set precision for each worker process
+    torch.set_float32_matmul_precision('high')
+    
     try:
-        print(f"Worker GPU {gpu_id}: Starting with {len(assigned_magnitudes)} magnitudes")
+        logger = logging.getLogger(f"GPU-{gpu_id}")
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(f'%(asctime)s - GPU-{gpu_id} - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        
+        logger.info(f"Starting optimized work queue consumer")
         
         # Load model on assigned GPU
         device = f"cuda:{gpu_id}"
         model, tokenizer = load_model(model_name, device=device)
-        print(f"Worker GPU {gpu_id}: Model loaded on {device}")
+        logger.info(f"Model loaded on {device}")
         
         # Load PCA results
         pca_results = torch.load(pca_filepath, weights_only=False)
@@ -414,7 +633,7 @@ def worker_process(
         steering_vector = torch.from_numpy(pca_results['pca'].components_[component])
         steering_vector = steering_vector.to(device=device, dtype=model.dtype)
         
-        print(f"Worker GPU {gpu_id}: Using PC{component+1}, steering vector shape: {steering_vector.shape}")
+        logger.info(f"Using PC{component+1}, steering vector shape: {steering_vector.shape}")
         
         # Initialize JSONL handler
         jsonl_handler = JSONLHandler(output_jsonl)
@@ -422,201 +641,167 @@ def worker_process(
         # Clear GPU cache before starting
         torch.cuda.empty_cache()
         
-        # Get existing combinations to avoid duplicates
-        all_existing_combinations = jsonl_handler.read_existing_combinations()
+        processed_batches = 0
+        processed_work_units = 0
         
-        # Filter existing combinations to only those relevant to our assigned magnitudes
-        existing_combinations = {combo for combo in all_existing_combinations 
-                               if combo[1] in assigned_magnitudes}  # combo[1] is magnitude
-        
-        print(f"Worker GPU {gpu_id}: Found {len(all_existing_combinations)} total existing combinations")
-        print(f"Worker GPU {gpu_id}: {len(existing_combinations)} combinations relevant to assigned magnitudes {assigned_magnitudes}")
-        
-        if is_combined_format:
-            # prompts_data contains pre-processed combined prompts
-            prompts_per_magnitude = len(prompts_data)
-            total_prompts = len(assigned_magnitudes) * prompts_per_magnitude
-            completed_prompts = 0
-            skipped_prompts = 0
-            
-            # Calculate how many will actually be processed (excluding existing)
-            new_prompts_to_process = 0
-            for magnitude in assigned_magnitudes:
-                for prompt_data in prompts_data:
-                    prompt = prompt_data['combined_prompt']
-                    if (prompt, magnitude) not in existing_combinations:
-                        new_prompts_to_process += 1
-            
-            print(f"Worker GPU {gpu_id}: Will process {new_prompts_to_process} NEW prompts out of {total_prompts} total "
-                  f"({prompts_per_magnitude} prompts × {len(assigned_magnitudes)} magnitudes)")
-            print(f"Worker GPU {gpu_id}: Skipping {total_prompts - new_prompts_to_process} already completed prompts")
-            
-            # Process each assigned magnitude
-            for magnitude in assigned_magnitudes:
-                print(f"Worker GPU {gpu_id}: Processing magnitude {magnitude}")
-                
+        # Process work batches from queue
+        while True:
+            try:
+                # Get work batch from queue with timeout
                 try:
-                    with ActivationSteering(
-                        model=model,
-                        steering_vectors=[steering_vector],
-                        coefficients=magnitude,
-                        layer_indices=layer,
-                        intervention_type="addition",
-                        positions="all"
-                    ) as steerer:
-                        
-                        # Process all combined prompts for this magnitude
-                        for prompt_data in prompts_data:
-                            # Use the combined prompt for generation
-                            prompt = prompt_data['combined_prompt']
+                    work_batch = work_queue.get(timeout=10)  # 10 second timeout
+                except:
+                    # Queue is empty or timeout reached
+                    logger.info("No more work available, exiting")
+                    break
+                
+                if work_batch is None:  # Sentinel value to indicate end
+                    logger.info("Received end signal, exiting")
+                    work_queue.put(None)  # Re-add sentinel for other workers
+                    break
+                
+                logger.info(f"Processing batch of {len(work_batch)} work units")
+                
+                # Group work units by magnitude for efficient processing
+                work_by_magnitude = defaultdict(list)
+                for work_unit in work_batch:
+                    work_by_magnitude[work_unit['magnitude']].append(work_unit)
+                
+                batch_processed_count = 0
+                
+                # Process each magnitude group
+                for magnitude, magnitude_work_units in work_by_magnitude.items():
+                    try:
+                        with ActivationSteering(
+                            model=model,
+                            steering_vectors=[steering_vector],
+                            coefficients=magnitude,
+                            layer_indices=layer,
+                            intervention_type="addition",
+                            positions="all"
+                        ) as steerer:
                             
-                            # Check if this combination already exists
-                            combination_key = (prompt, magnitude)
-                            if combination_key in existing_combinations:
-                                skipped_prompts += 1
-                                continue
+                            # Extract prompts from work units
+                            batch_prompts = [wu['prompt'] for wu in magnitude_work_units]
                             
-                            # Generate response
-                            response = generate_text(
-                                model, tokenizer, prompt, 
+                            # Generate responses for the batch
+                            batch_responses = generate_batched_responses(
+                                model, tokenizer, batch_prompts,
                                 max_new_tokens=max_new_tokens,
                                 temperature=temperature,
-                                chat_format=True
+                                max_length=max_length
                             )
                             
-                            # Prepare row data
-                            row_data = {
-                                'role_id': prompt_data['role_id'],
-                                'role_label': prompt_data['role_label'],
-                                'question_id': prompt_data['question_id'], 
-                                'question_label': prompt_data['question_label'],
-                                'prompt': prompt,
-                                'response': response,
-                                'magnitude': magnitude
-                            }
-                            
-                            # Write to JSONL
-                            if jsonl_handler.write_row(row_data):
-                                completed_prompts += 1
-                                if completed_prompts % 5 == 0:  # Log every 5 prompts
-                                    progress = completed_prompts / max(new_prompts_to_process, 1) * 100
-                                    print(f"Worker GPU {gpu_id}: Progress {progress:.1f}% "
-                                          f"({completed_prompts}/{new_prompts_to_process} new prompts completed, "
-                                          f"{skipped_prompts} skipped)")
-                            else:
-                                print(f"Worker GPU {gpu_id}: Failed to write row for "
-                                      f"role_id {prompt_data['role_id']}, question_id {prompt_data['question_id']}, magnitude {magnitude}")
-                    
-                except Exception as e:
-                    print(f"Worker GPU {gpu_id}: Error with magnitude {magnitude}: {e}")
-                    continue
-                finally:
-                    # Clear cache after each magnitude to prevent memory buildup
-                    torch.cuda.empty_cache()
-        else:
-            # Original format: prompts_data contains [questions, roles]
-            questions, roles = prompts_data
-            
-            # Calculate total work (prompts = role × question combinations)
-            prompts_per_magnitude = len(roles) * len(questions)
-            total_prompts = len(assigned_magnitudes) * prompts_per_magnitude
-            completed_prompts = 0
-            skipped_prompts = 0
-            
-            # Calculate how many will actually be processed (excluding existing)
-            new_prompts_to_process = 0
-            for magnitude in assigned_magnitudes:
-                for role in roles:
-                    for question in questions:
-                        prompt = f"{role['text']} {question['text']}"
-                        if (prompt, magnitude) not in existing_combinations:
-                            new_prompts_to_process += 1
-            
-            print(f"Worker GPU {gpu_id}: Will process {new_prompts_to_process} NEW prompts out of {total_prompts} total "
-                  f"({prompts_per_magnitude} prompts × {len(assigned_magnitudes)} magnitudes)")
-            print(f"Worker GPU {gpu_id}: Skipping {total_prompts - new_prompts_to_process} already completed prompts")
-            
-            # Process each assigned magnitude
-            for magnitude in assigned_magnitudes:
-                print(f"Worker GPU {gpu_id}: Processing magnitude {magnitude}")
-                
-                try:
-                    with ActivationSteering(
-                        model=model,
-                        steering_vectors=[steering_vector],
-                        coefficients=magnitude,
-                        layer_indices=layer,
-                        intervention_type="addition",
-                        positions="all"
-                    ) as steerer:
-                        
-                        # Process all role-question combinations for this magnitude
-                        for role in roles:
-                            for question in questions:
-                                # Generate prompt by concatenating role and question
-                                prompt = f"{role['text']} {question['text']}"
-                                
-                                # Check if this combination already exists
-                                combination_key = (prompt, magnitude)
-                                if combination_key in existing_combinations:
-                                    skipped_prompts += 1
-                                    continue
-                                
-                                # Generate response
-                                response = generate_text(
-                                    model, tokenizer, prompt, 
-                                    max_new_tokens=max_new_tokens,
-                                    temperature=temperature,
-                                    chat_format=True
-                                )
-                                
-                                # Prepare row data
+                            # Prepare row data for batch
+                            batch_row_data = []
+                            for work_unit, response in zip(magnitude_work_units, batch_responses):
                                 row_data = {
-                                    'role_id': role['id'],
-                                    'role_label': role['type'],
-                                    'question_id': question['id'], 
-                                    'question_label': question['semantic_category'],
-                                    'prompt': prompt,
+                                    'role_id': work_unit['role_id'],
+                                    'role_label': work_unit['role_label'],
+                                    'question_id': work_unit['question_id'],
+                                    'question_label': work_unit['question_label'],
+                                    'prompt': work_unit['prompt'],
                                     'response': response,
-                                    'magnitude': magnitude
+                                    'magnitude': work_unit['magnitude']
                                 }
-                                
-                                # Write to JSONL
-                                if jsonl_handler.write_row(row_data):
-                                    completed_prompts += 1
-                                    if completed_prompts % 5 == 0:  # Log every 5 prompts
-                                        progress = completed_prompts / max(new_prompts_to_process, 1) * 100
-                                        print(f"Worker GPU {gpu_id}: Progress {progress:.1f}% "
-                                              f"({completed_prompts}/{new_prompts_to_process} new prompts completed, "
-                                              f"{skipped_prompts} skipped)")
-                                else:
-                                    print(f"Worker GPU {gpu_id}: Failed to write row for "
-                                          f"role {role['id']}, question {question['id']}, magnitude {magnitude}")
+                                batch_row_data.append(row_data)
+                            
+                            # Write batch to JSONL
+                            if jsonl_handler.write_rows(batch_row_data):
+                                batch_processed_count += len(magnitude_work_units)
+                            else:
+                                logger.error(f"Failed to write batch of {len(magnitude_work_units)} work units")
                     
-                except Exception as e:
-                    print(f"Worker GPU {gpu_id}: Error with magnitude {magnitude}: {e}")
-                    continue
+                    except Exception as e:
+                        logger.error(f"Error processing magnitude {magnitude}: {e}")
+                        continue
+                    finally:
+                        # Clear cache after each magnitude
+                        torch.cuda.empty_cache()
+                
+                processed_batches += 1
+                processed_work_units += batch_processed_count
+                
+                # Report progress to main process
+                results_queue.put({
+                    'gpu_id': gpu_id,
+                    'processed_work_units': batch_processed_count,
+                    'batch_count': 1
+                })
+                
+                logger.info(f"Completed batch {processed_batches}, total work units: {processed_work_units}")
+                
+                # Periodic garbage collection
+                if processed_batches % 2 == 0:
+                    gc.collect()
+                
+            except Exception as e:
+                logger.error(f"Error processing work batch: {e}")
+                continue
         
-        print(f"Worker GPU {gpu_id}: Completed processing. "
-              f"Total: {completed_prompts} prompts written, {skipped_prompts} skipped")
+        logger.info(f"Worker completed. Processed {processed_batches} batches, {processed_work_units} work units")
         
     except Exception as e:
-        print(f"Worker GPU {gpu_id}: Fatal error: {e}")
+        logger.error(f"Fatal error: {e}")
         raise
+    finally:
+        # Final cleanup
+        if 'model' in locals():
+            del model
+            del tokenizer
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        gc.collect()
+
+
+def progress_monitor(results_queue: mp.Queue, total_work_units: int, n_workers: int):
+    """Monitor progress from worker processes and display unified progress."""
+    completed_work_units = 0
+    active_workers = n_workers
+    
+    with tqdm(total=total_work_units, desc="Overall progress", unit="work_units") as pbar:
+        while active_workers > 0:
+            try:
+                result = results_queue.get(timeout=30)  # 30 second timeout
+                
+                if result is None:  # Worker finished
+                    active_workers -= 1
+                    continue
+                
+                processed_count = result.get('processed_work_units', 0)
+                gpu_id = result.get('gpu_id', 'unknown')
+                
+                completed_work_units += processed_count
+                pbar.update(processed_count)
+                pbar.set_postfix(
+                    completed=completed_work_units,
+                    workers=active_workers,
+                    last_gpu=gpu_id
+                )
+                
+            except:
+                # Timeout or queue closed
+                break
+    
+    logger.info(f"Progress monitoring completed. Total processed: {completed_work_units}")
 
 
 def main():
-    """Main function to orchestrate magnitude-based GPU steering."""
+    """Main function to orchestrate optimized hybrid queue-batch GPU steering."""
     args = parse_arguments()
     
     print("="*60)
-    print("Magnitude-Based GPU Parallelized Steering")
+    print("Optimized Hybrid Queue-Batch GPU Parallelized Steering")
     print("="*60)
     
     # Create output directory
     output_dir = os.path.dirname(args.output_jsonl)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
+    
+    # Initialize work queue manager
+    queue_manager = WorkQueueManager(args.queue_state_file)
     
     # Load and validate inputs
     pca_results = load_pca_results(args.pca_filepath)
@@ -637,7 +822,6 @@ def main():
                 print("Warning: No prompts available for test mode")
         
         prompts_data = combined_prompts
-        n_prompts_per_magnitude = len(combined_prompts)
         n_unique_roles = len(set(p['role_id'] for p in combined_prompts))
         n_unique_questions = len(set(p['question_id'] for p in combined_prompts))
         
@@ -656,7 +840,6 @@ def main():
                 print("Warning: No questions available for test mode")
         
         prompts_data = [questions, roles]
-        n_prompts_per_magnitude = len(questions) * len(roles)
         n_unique_roles = len(roles)
         n_unique_questions = len(questions)
     
@@ -665,11 +848,37 @@ def main():
     if args.component < 0 or args.component >= n_components:
         raise ValueError(f"Component index {args.component} out of range [0, {n_components-1}]")
     
+    # Create work units
+    work_units = create_work_units(prompts_data, args.magnitudes, is_combined_format)
+    
     mode_str = "TEST MODE - " if args.test_mode else ""
     format_str = "combined prompts" if is_combined_format else f"{n_unique_questions} questions and {n_unique_roles} roles"
     print(f"{mode_str}Using PC{args.component+1} with {format_str}")
-    print(f"Total combinations per magnitude: {n_prompts_per_magnitude}")
-    print(f"Processing {len(args.magnitudes)} magnitudes: {args.magnitudes}")
+    print(f"Total work units: {len(work_units)} ({len(args.magnitudes)} magnitudes)")
+    print(f"Batch size: {args.batch_size}")
+    
+    # Get existing combinations to filter work units
+    jsonl_handler = JSONLHandler(args.output_jsonl)
+    existing_combinations = jsonl_handler.read_existing_combinations()
+    
+    # Try to load previous queue state
+    remaining_batches, completed_count = queue_manager.load_queue_state()
+    
+    if remaining_batches:
+        print(f"Resuming from previous state: {len(remaining_batches)} batches remaining")
+        work_batches = remaining_batches
+    else:
+        # Create new work batches
+        work_batches = queue_manager.create_work_batches(
+            work_units, args.batch_size, existing_combinations
+        )
+    
+    if not work_batches:
+        print("No work to process")
+        return
+    
+    total_work_units = sum(len(batch) for batch in work_batches)
+    print(f"Processing {total_work_units} work units in {len(work_batches)} batches")
     
     # Check GPU availability
     if not torch.cuda.is_available():
@@ -678,45 +887,45 @@ def main():
     n_gpus = torch.cuda.device_count()
     print(f"Found {n_gpus} GPUs available")
     
-    # Validate GPU ID if specified
+    # Determine GPU IDs to use
     if args.gpu_id is not None:
         if args.gpu_id < 0 or args.gpu_id >= n_gpus:
             raise ValueError(f"GPU ID {args.gpu_id} is out of range [0, {n_gpus-1}]")
-        print(f"Using specific GPU: {args.gpu_id}")
-        # Use only the specified GPU
         gpu_ids = [args.gpu_id]
-        magnitude_assignments = [args.magnitudes]  # All magnitudes go to the single GPU
     else:
-        print("Using all available GPUs")
         gpu_ids = list(range(n_gpus))
-        # Distribute magnitudes across all GPUs
-        magnitude_assignments = distribute_magnitudes(args.magnitudes, n_gpus)
     
-    print("\nGPU assignments:")
-    for i, (gpu_id, magnitudes) in enumerate(zip(gpu_ids, magnitude_assignments)):
-        if magnitudes:
-            print(f"  GPU {gpu_id}: {magnitudes}")
+    print(f"Using GPUs: {gpu_ids}")
+    
+    # Create work queue and results queue
+    work_queue = mp.Queue()
+    results_queue = mp.Queue()
+    
+    # Populate work queue with batches
+    for batch in work_batches:
+        work_queue.put(batch)
+    
+    # Add sentinel values for workers to know when to stop
+    for _ in gpu_ids:
+        work_queue.put(None)
     
     # Launch worker processes
     processes = []
-    for i, (gpu_id, magnitudes) in enumerate(zip(gpu_ids, magnitude_assignments)):
-        if not magnitudes:  # Skip GPUs with no assigned magnitudes
-            continue
-            
+    for gpu_id in gpu_ids:
         p = mp.Process(
             target=worker_process,
             args=(
                 gpu_id,
-                magnitudes,
+                work_queue,
+                results_queue,
                 args.pca_filepath,
                 args.component,
-                prompts_data,
                 args.layer,
                 args.model_name,
                 args.output_jsonl,
                 args.max_new_tokens,
                 args.temperature,
-                is_combined_format
+                args.max_length
             )
         )
         p.start()
@@ -724,13 +933,29 @@ def main():
     
     print(f"\nLaunched {len(processes)} worker processes")
     
-    # Wait for all processes to complete
+    # Start progress monitor in separate process
+    monitor_process = mp.Process(
+        target=progress_monitor,
+        args=(results_queue, total_work_units, len(processes))
+    )
+    monitor_process.start()
+    
+    # Wait for all worker processes to complete
     for i, p in enumerate(processes):
         p.join()
         if p.exitcode != 0:
-            print(f"Warning: Process {i} exited with code {p.exitcode}")
+            print(f"Warning: Worker process {i} exited with code {p.exitcode}")
         else:
-            print(f"Process {i} completed successfully")
+            print(f"Worker process {i} completed successfully")
+    
+    # Signal monitor to stop
+    results_queue.put(None)
+    monitor_process.join()
+    
+    # Clean up queue state file if all work completed
+    if args.queue_state_file and os.path.exists(args.queue_state_file):
+        os.remove(args.queue_state_file)
+        print("Removed queue state file (all work completed)")
     
     print(f"\nAll workers completed!")
     print(f"Results saved to: {args.output_jsonl}")
