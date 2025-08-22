@@ -52,8 +52,8 @@ class JSONLHandler:
                 for line in f:
                     try:
                         data = json.loads(line.strip())
-                        # Create unique key from role_id, question_id, magnitude
-                        key = (str(data['role_id']), str(data['question_id']), float(data['magnitude']))
+                        # Create unique key from prompt text and magnitude
+                        key = (data['prompt'], float(data['magnitude']))
                         existing.add(key)
                     except (json.JSONDecodeError, KeyError):
                         continue
@@ -398,6 +398,7 @@ def worker_process(
     """
     Worker process that handles steering for assigned magnitudes on a single GPU.
     """
+    torch.set_float32_matmul_precision('high')  # Set precision for each worker process
     try:
         print(f"Worker GPU {gpu_id}: Starting with {len(assigned_magnitudes)} magnitudes")
         
@@ -418,9 +419,18 @@ def worker_process(
         # Initialize JSONL handler
         jsonl_handler = JSONLHandler(output_jsonl)
         
+        # Clear GPU cache before starting
+        torch.cuda.empty_cache()
+        
         # Get existing combinations to avoid duplicates
-        existing_combinations = jsonl_handler.read_existing_combinations()
-        print(f"Worker GPU {gpu_id}: Found {len(existing_combinations)} existing combinations")
+        all_existing_combinations = jsonl_handler.read_existing_combinations()
+        
+        # Filter existing combinations to only those relevant to our assigned magnitudes
+        existing_combinations = {combo for combo in all_existing_combinations 
+                               if combo[1] in assigned_magnitudes}  # combo[1] is magnitude
+        
+        print(f"Worker GPU {gpu_id}: Found {len(all_existing_combinations)} total existing combinations")
+        print(f"Worker GPU {gpu_id}: {len(existing_combinations)} combinations relevant to assigned magnitudes {assigned_magnitudes}")
         
         if is_combined_format:
             # prompts_data contains pre-processed combined prompts
@@ -429,8 +439,17 @@ def worker_process(
             completed_prompts = 0
             skipped_prompts = 0
             
-            print(f"Worker GPU {gpu_id}: Will process {total_prompts} total prompts "
+            # Calculate how many will actually be processed (excluding existing)
+            new_prompts_to_process = 0
+            for magnitude in assigned_magnitudes:
+                for prompt_data in prompts_data:
+                    prompt = prompt_data['combined_prompt']
+                    if (prompt, magnitude) not in existing_combinations:
+                        new_prompts_to_process += 1
+            
+            print(f"Worker GPU {gpu_id}: Will process {new_prompts_to_process} NEW prompts out of {total_prompts} total "
                   f"({prompts_per_magnitude} prompts × {len(assigned_magnitudes)} magnitudes)")
+            print(f"Worker GPU {gpu_id}: Skipping {total_prompts - new_prompts_to_process} already completed prompts")
             
             # Process each assigned magnitude
             for magnitude in assigned_magnitudes:
@@ -448,14 +467,14 @@ def worker_process(
                         
                         # Process all combined prompts for this magnitude
                         for prompt_data in prompts_data:
+                            # Use the combined prompt for generation
+                            prompt = prompt_data['combined_prompt']
+                            
                             # Check if this combination already exists
-                            combination_key = (str(prompt_data['role_id']), str(prompt_data['question_id']), magnitude)
+                            combination_key = (prompt, magnitude)
                             if combination_key in existing_combinations:
                                 skipped_prompts += 1
                                 continue
-                            
-                            # Use the combined prompt for generation
-                            prompt = prompt_data['combined_prompt']
                             
                             # Generate response
                             response = generate_text(
@@ -491,6 +510,9 @@ def worker_process(
                 except Exception as e:
                     print(f"Worker GPU {gpu_id}: Error with magnitude {magnitude}: {e}")
                     continue
+                finally:
+                    # Clear cache after each magnitude to prevent memory buildup
+                    torch.cuda.empty_cache()
         else:
             # Original format: prompts_data contains [questions, roles]
             questions, roles = prompts_data
@@ -501,8 +523,18 @@ def worker_process(
             completed_prompts = 0
             skipped_prompts = 0
             
-            print(f"Worker GPU {gpu_id}: Will process {total_prompts} total prompts "
+            # Calculate how many will actually be processed (excluding existing)
+            new_prompts_to_process = 0
+            for magnitude in assigned_magnitudes:
+                for role in roles:
+                    for question in questions:
+                        prompt = f"{role['text']} {question['text']}"
+                        if (prompt, magnitude) not in existing_combinations:
+                            new_prompts_to_process += 1
+            
+            print(f"Worker GPU {gpu_id}: Will process {new_prompts_to_process} NEW prompts out of {total_prompts} total "
                   f"({prompts_per_magnitude} prompts × {len(assigned_magnitudes)} magnitudes)")
+            print(f"Worker GPU {gpu_id}: Skipping {total_prompts - new_prompts_to_process} already completed prompts")
             
             # Process each assigned magnitude
             for magnitude in assigned_magnitudes:
@@ -521,14 +553,14 @@ def worker_process(
                         # Process all role-question combinations for this magnitude
                         for role in roles:
                             for question in questions:
+                                # Generate prompt by concatenating role and question
+                                prompt = f"{role['text']} {question['text']}"
+                                
                                 # Check if this combination already exists
-                                combination_key = (str(role['id']), str(question['id']), magnitude)
+                                combination_key = (prompt, magnitude)
                                 if combination_key in existing_combinations:
                                     skipped_prompts += 1
                                     continue
-                                
-                                # Generate prompt by concatenating role and question
-                                prompt = f"{role['text']} {question['text']}"
                                 
                                 # Generate response
                                 response = generate_text(
