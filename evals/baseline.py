@@ -13,7 +13,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set, Tuple
 
 # Add project paths
 project_root = Path(__file__).parent.parent
@@ -21,6 +21,28 @@ sys.path.append(str(project_root))
 sys.path.append(str(project_root / 'utils'))
 
 from utils.inference_utils import load_vllm_model, batch_chat, close_vllm_model
+
+
+def read_existing_results(output_jsonl: str) -> Set[Tuple[str, str]]:
+    """Read existing results to avoid duplicates."""
+    existing = set()
+    if not os.path.exists(output_jsonl):
+        return existing
+        
+    try:
+        with open(output_jsonl, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    data = json.loads(line.strip())
+                    # Create unique key from role_id and question_id
+                    key = (str(data['role_id']), str(data['question_id']))
+                    existing.add(key)
+                except (json.JSONDecodeError, KeyError):
+                    continue
+    except Exception as e:
+        print(f"Warning: Could not read existing results: {e}")
+        
+    return existing
 
 
 def parse_arguments():
@@ -247,12 +269,19 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
     return processed_prompts
 
 
-def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Generate all role-question combination prompts."""
+def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[Tuple[str, str]]) -> List[Dict[str, Any]]:
+    """Generate all role-question combination prompts, filtering out existing ones."""
     prompts_data = []
+    skipped_count = 0
     
     for role in roles:
         for question in questions:
+            # Check if this combination already exists
+            combination_key = (str(role['id']), str(question['id']))
+            if combination_key in existing_results:
+                skipped_count += 1
+                continue
+                
             # Concatenate role and question
             prompt = f"{role['text']} {question['text']}"
             
@@ -264,11 +293,14 @@ def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, 
                 'prompt': prompt
             })
     
+    if skipped_count > 0:
+        print(f"Filtered out {skipped_count} existing combinations")
+    
     return prompts_data
 
 
-def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str):
-    """Write results to JSONL file."""
+def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[Tuple[str, str]]):
+    """Write results to JSONL file, appending new results only."""
     print(f"Writing results to {output_jsonl}")
     
     # Create output directory if it doesn't exist
@@ -276,8 +308,18 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
     
-    with open(output_jsonl, 'w', encoding='utf-8') as f:
+    written_count = 0
+    skipped_count = 0
+    
+    # Use append mode to add new results
+    with open(output_jsonl, 'a', encoding='utf-8') as f:
         for prompt_data, response in zip(prompts_data, responses):
+            # Check if this combination already exists
+            combination_key = (str(prompt_data['role_id']), str(prompt_data['question_id']))
+            if combination_key in existing_results:
+                skipped_count += 1
+                continue
+                
             row_data = {
                 'role_id': prompt_data['role_id'],
                 'role_label': prompt_data['role_label'],
@@ -288,8 +330,11 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
                 'magnitude': 0.0
             }
             f.write(json.dumps(row_data) + '\n')
+            written_count += 1
     
-    print(f"Successfully wrote {len(responses)} results to {output_jsonl}")
+    print(f"Successfully wrote {written_count} new results to {output_jsonl}")
+    if skipped_count > 0:
+        print(f"Skipped {skipped_count} existing results")
 
 
 def main():
@@ -299,6 +344,11 @@ def main():
     print("="*60)
     print("Baseline Response Generation")
     print("="*60)
+    
+    # Check for existing results to enable restart functionality
+    existing_results = read_existing_results(args.output_jsonl)
+    if existing_results:
+        print(f"Found {len(existing_results)} existing results, will skip duplicates")
     
     # Load and validate inputs
     if args.prompts_file:
@@ -314,6 +364,13 @@ def main():
                 print(f"TEST MODE: Using only question_id {first_question_id} ({len(prompts_data)} prompts)")
             else:
                 print("Warning: No prompts available for test mode")
+        
+        # Filter out existing results
+        original_count = len(prompts_data)
+        prompts_data = [p for p in prompts_data if (str(p['role_id']), str(p['question_id'])) not in existing_results]
+        filtered_count = original_count - len(prompts_data)
+        if filtered_count > 0:
+            print(f"Filtered out {filtered_count} existing combinations from combined prompts")
         
         n_unique_roles = len(set(p['role_id'] for p in prompts_data))
         n_unique_questions = len(set(p['question_id'] for p in prompts_data))
@@ -334,9 +391,14 @@ def main():
         
         # Generate all prompts
         print(f"Generating prompts for {len(questions)} questions and {len(roles)} roles")
-        prompts_data = generate_all_prompts(roles, questions)
+        prompts_data = generate_all_prompts(roles, questions, existing_results)
         print(f"Generated {len(prompts_data)} total prompts")
     
+    # Check if we have any new prompts to process after filtering
+    if len(prompts_data) == 0:
+        print("No new prompts to process - all combinations already exist!")
+        return
+        
     # Extract just the prompt strings for batch processing
     prompts = [data['prompt'] for data in prompts_data]
     
@@ -374,7 +436,7 @@ def main():
         )
         
         # Write results to JSONL
-        write_results_to_jsonl(prompts_data, responses, args.output_jsonl)
+        write_results_to_jsonl(prompts_data, responses, args.output_jsonl, existing_results)
         
         print(f"\nBaseline generation completed!")
         print(f"Results saved to: {args.output_jsonl}")
