@@ -181,27 +181,83 @@ def generate_batched_responses(
     max_length: int = 2048
 ) -> List[str]:
     """
-    Generate responses for a batch of prompts efficiently.
+    Generate responses for a batch of prompts efficiently using real batch inference.
+    All prompts in the batch should have the same steering magnitude for safety.
     """
     try:
-        # For now, process each prompt individually within the batch
-        # This maintains compatibility with the existing generate_text function
-        batch_responses = []
+        if not prompts:
+            return []
+        
+        # Format prompts for chat if needed
+        formatted_prompts = []
         for prompt in prompts:
-            response = generate_text(
-                model, tokenizer, prompt,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                chat_format=True
+            if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
+                # Apply chat template
+                messages = [{"role": "user", "content": prompt}]
+                formatted_prompt = tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+                formatted_prompts.append(formatted_prompt)
+            else:
+                formatted_prompts.append(prompt)
+        
+        # Tokenize all prompts at once
+        batch_inputs = tokenizer(
+            formatted_prompts,
+            padding=True,
+            truncation=True,
+            max_length=max_length,
+            return_tensors="pt"
+        ).to(model.device)
+        
+        # Set up generation parameters
+        generation_config = {
+            'max_new_tokens': max_new_tokens,
+            'temperature': temperature,
+            'do_sample': True if temperature > 0 else False,
+            'pad_token_id': tokenizer.pad_token_id or tokenizer.eos_token_id,
+            'eos_token_id': tokenizer.eos_token_id,
+            'use_cache': True
+        }
+        
+        # Generate responses for entire batch at once
+        with torch.no_grad():
+            batch_outputs = model.generate(
+                input_ids=batch_inputs.input_ids,
+                attention_mask=batch_inputs.attention_mask,
+                **generation_config
             )
-            batch_responses.append(response)
+        
+        # Decode responses
+        batch_responses = []
+        input_lengths = batch_inputs.input_ids.shape[1]
+        
+        for i, output in enumerate(batch_outputs):
+            # Extract only the generated part (after input)
+            generated_tokens = output[input_lengths:]
+            response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+            batch_responses.append(response.strip())
         
         return batch_responses
         
     except Exception as e:
         logger.error(f"Error processing batch: {e}")
-        # Return empty responses for failed batch
-        return [""] * len(prompts)
+        # Fallback to sequential processing if batch fails
+        logger.info("Falling back to sequential processing")
+        try:
+            batch_responses = []
+            for prompt in prompts:
+                response = generate_text(
+                    model, tokenizer, prompt,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    chat_format=True
+                )
+                batch_responses.append(response)
+            return batch_responses
+        except Exception as fallback_e:
+            logger.error(f"Fallback processing also failed: {fallback_e}")
+            return [""] * len(prompts)
 
 
 def parse_arguments():
