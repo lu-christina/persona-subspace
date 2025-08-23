@@ -536,7 +536,7 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
                 prompt_obj = json.loads(line.strip())
                 
                 # Validate required fields
-                required_fields = ['role', 'prompt_id', 'question_id', 'prompt', 'question']
+                required_fields = ['role', 'prompt_id', 'id', 'prompt', 'question']
                 for field in required_fields:
                     if field not in prompt_obj:
                         print(f"Warning: Missing '{field}' field on line {line_num}")
@@ -562,7 +562,7 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
         processed_prompt = {
             'role_id': role_to_id[role],
             'role_label': 'role' if role != 'default' else 'default',
-            'question_id': prompt_obj['question_id'],
+            'question_id': prompt_obj['id'],
             'question_label': role,
             'combined_prompt': f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']
         }
