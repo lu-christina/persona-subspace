@@ -17,13 +17,13 @@ uv run steering.py \
 
 uv run steering.py \
     --pca_filepath /workspace/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
-    --prompts_file /root/git/persona-subspace/evals/data/roles_20_long.jsonl \
+    --prompts_file /root/git/persona-subspace/evals/data/roles_20.jsonl \
     --magnitudes -4000.0 -2000.0 \
     --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/roles_20.jsonl
 
 uv run steering.py \
     --pca_filepath /workspace/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
-    --prompts_file /root/git/persona-subspace/evals/data/default_20_long.jsonl \
+    --prompts_file /root/git/persona-subspace/evals/data/default_20.jsonl \
     --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/default_20.jsonl
 
 """
@@ -564,7 +564,7 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
             'role_label': 'role' if role != 'default' else 'default',
             'question_id': prompt_obj['question_id'],
             'question_label': role,
-            'combined_prompt': f"{prompt_obj['prompt']} {prompt_obj['question']}"
+            'combined_prompt': f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']
         }
         
         processed_prompts.append(processed_prompt)
@@ -601,7 +601,7 @@ def create_work_units(prompts_data, magnitudes, is_combined_format=False):
                         'role_label': role['type'],
                         'question_id': question['id'],
                         'question_label': question['semantic_category'],
-                        'prompt': f"{role['text']} {question['text']}",
+                        'prompt': f"{role['text']} {question['text']}".strip() if role['text'] else question['text'],
                         'magnitude': magnitude
                     }
                     work_units.append(work_unit)

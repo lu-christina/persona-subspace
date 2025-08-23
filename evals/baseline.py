@@ -32,7 +32,7 @@ sys.path.append(str(project_root / 'utils'))
 from utils.inference_utils import load_vllm_model, batch_chat, close_vllm_model
 
 
-def read_existing_results(output_jsonl: str) -> Set[Tuple[str, str]]:
+def read_existing_results(output_jsonl: str) -> Set[str]:
     """Read existing results to avoid duplicates."""
     existing = set()
     if not os.path.exists(output_jsonl):
@@ -43,8 +43,8 @@ def read_existing_results(output_jsonl: str) -> Set[Tuple[str, str]]:
             for line in f:
                 try:
                     data = json.loads(line.strip())
-                    # Create unique key from role_id and question_id
-                    key = (str(data['role_id']), str(data['question_id']))
+                    # Create unique key from prompt content
+                    key = data['prompt']
                     existing.add(key)
                 except (json.JSONDecodeError, KeyError):
                     continue
@@ -269,7 +269,7 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
             'role_label': 'role' if role != 'default' else 'default',
             'question_id': prompt_obj['question_id'],
             'question_label': role,
-            'prompt': f"{prompt_obj['prompt']} {prompt_obj['question']}"
+            'prompt': f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']
         }
         
         processed_prompts.append(processed_prompt)
@@ -278,21 +278,20 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
     return processed_prompts
 
 
-def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[Tuple[str, str]]) -> List[Dict[str, Any]]:
+def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[str]) -> List[Dict[str, Any]]:
     """Generate all role-question combination prompts, filtering out existing ones."""
     prompts_data = []
     skipped_count = 0
     
     for role in roles:
         for question in questions:
-            # Check if this combination already exists
-            combination_key = (str(role['id']), str(question['id']))
-            if combination_key in existing_results:
+            # Concatenate role and question
+            prompt = f"{role['text']} {question['text']}".strip() if role['text'] else question['text']
+            
+            # Check if this prompt already exists
+            if prompt in existing_results:
                 skipped_count += 1
                 continue
-                
-            # Concatenate role and question
-            prompt = f"{role['text']} {question['text']}"
             
             prompts_data.append({
                 'role_id': role['id'],
@@ -308,7 +307,7 @@ def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, 
     return prompts_data
 
 
-def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[Tuple[str, str]]):
+def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[str]):
     """Write results to JSONL file, appending new results only."""
     print(f"Writing results to {output_jsonl}")
     
@@ -323,9 +322,8 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
     # Use append mode to add new results
     with open(output_jsonl, 'a', encoding='utf-8') as f:
         for prompt_data, response in zip(prompts_data, responses):
-            # Check if this combination already exists
-            combination_key = (str(prompt_data['role_id']), str(prompt_data['question_id']))
-            if combination_key in existing_results:
+            # Check if this prompt already exists
+            if prompt_data['prompt'] in existing_results:
                 skipped_count += 1
                 continue
                 
@@ -376,7 +374,7 @@ def main():
         
         # Filter out existing results
         original_count = len(prompts_data)
-        prompts_data = [p for p in prompts_data if (str(p['role_id']), str(p['question_id'])) not in existing_results]
+        prompts_data = [p for p in prompts_data if p['prompt'] not in existing_results]
         filtered_count = original_count - len(prompts_data)
         if filtered_count > 0:
             print(f"Filtered out {filtered_count} existing combinations from combined prompts")
