@@ -242,7 +242,8 @@ def vllm_model_context(model_name: str, **kwargs):
 def format_chat_prompt(
     message: str,
     system_prompt: Optional[str] = None,
-    conversation_history: Optional[List[Dict[str, str]]] = None
+    conversation_history: Optional[List[Dict[str, str]]] = None,
+    enable_thinking: bool = False
 ) -> List[Dict[str, str]]:
     """
     Format messages for chat template.
@@ -251,15 +252,25 @@ def format_chat_prompt(
         message: Current user message
         system_prompt: Optional system message
         conversation_history: Previous conversation as list of dicts with 'role' and 'content' keys
+        enable_thinking: Enable thinking/reasoning mode (default: False)
         
     Returns:
         List of message dictionaries formatted for the model
     """
     messages = []
     
-    # Add system prompt if provided
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
+    # Build system prompt with thinking mode if enabled
+    final_system_prompt = system_prompt or ""
+    if enable_thinking:
+        thinking_instruction = """Think step by step before responding. Break down complex problems and show your reasoning process."""
+        if final_system_prompt:
+            final_system_prompt = f"{final_system_prompt}\n\n{thinking_instruction}"
+        else:
+            final_system_prompt = thinking_instruction
+    
+    # Add system prompt if we have one
+    if final_system_prompt:
+        messages.append({"role": "system", "content": final_system_prompt})
     
     # Add conversation history if provided
     if conversation_history:
@@ -279,6 +290,7 @@ def chat_with_model(
     top_p: float = 0.9,
     system_prompt: Optional[str] = None,
     conversation_history: Optional[List[Dict[str, str]]] = None,
+    enable_thinking: bool = False,
     **kwargs
 ) -> str:
     """
@@ -290,8 +302,9 @@ def chat_with_model(
         temperature: Sampling temperature (default: 0.7)
         max_tokens: Maximum response tokens (default: 512)
         top_p: Top-p sampling parameter (default: 0.9)
-        system_prompt: Optional system message
+        system_prompt: Optional system message (default: None)
         conversation_history: Previous conversation history
+        enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
         
     Returns:
@@ -302,14 +315,17 @@ def chat_with_model(
     """
     try:
         # Format the messages
-        formatted_messages = format_chat_prompt(message, system_prompt, conversation_history)
+        formatted_messages = format_chat_prompt(message, system_prompt, conversation_history, enable_thinking)
         
         # Apply chat template using the tokenizer
         if hasattr(model_wrapper.tokenizer, 'apply_chat_template'):
+            # Disable thinking for Qwen models as per https://github.com/vllm-project/vllm/issues/18066
+            chat_template_kwargs = {"enable_thinking": False} if "qwen" in model_wrapper.model_name.lower() else {}
             prompt = model_wrapper.tokenizer.apply_chat_template(
                 formatted_messages, 
                 tokenize=False, 
-                add_generation_prompt=True
+                add_generation_prompt=True,
+                **chat_template_kwargs
             )
         else:
             # Fallback: simple concatenation if no chat template
@@ -352,6 +368,7 @@ def chat_conversation(
     temperature: float = 0.7,
     max_tokens: int = 512,
     top_p: float = 0.9,
+    enable_thinking: bool = False,
     **kwargs
 ) -> str:
     """
@@ -363,23 +380,47 @@ def chat_conversation(
         temperature: Sampling temperature (default: 0.7)
         max_tokens: Maximum response tokens (default: 512)
         top_p: Top-p sampling parameter (default: 0.9)
+        enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
         
     Returns:
         Generated response string
     """
     try:
+        # Add thinking mode to system message if enabled
+        processed_messages = messages.copy()
+        if enable_thinking:
+            thinking_instruction = """Think step by step before responding. Break down complex problems and show your reasoning process."""
+            
+            # Find existing system message or create a new one
+            system_msg_found = False
+            for i, msg in enumerate(processed_messages):
+                if msg["role"] == "system":
+                    processed_messages[i] = {
+                        "role": "system", 
+                        "content": f"{msg['content']}\n\n{thinking_instruction}"
+                    }
+                    system_msg_found = True
+                    break
+            
+            # If no system message exists, add one at the beginning
+            if not system_msg_found:
+                processed_messages.insert(0, {"role": "system", "content": thinking_instruction})
+        
         # Apply chat template using the tokenizer
         if hasattr(model_wrapper.tokenizer, 'apply_chat_template'):
+            # Disable thinking for Qwen models as per https://github.com/vllm-project/vllm/issues/18066
+            chat_template_kwargs = {"enable_thinking": False} if "qwen" in model_wrapper.model_name.lower() else {}
             prompt = model_wrapper.tokenizer.apply_chat_template(
-                messages, 
+                processed_messages, 
                 tokenize=False, 
-                add_generation_prompt=True
+                add_generation_prompt=True,
+                **chat_template_kwargs
             )
         else:
             # Fallback: simple concatenation if no chat template
             prompt = ""
-            for msg in messages:
+            for msg in processed_messages:
                 if msg["role"] == "system":
                     prompt += f"System: {msg['content']}\n"
                 elif msg["role"] == "user":
@@ -417,6 +458,7 @@ def continue_conversation(
     new_message: str,
     temperature: float = 0.7,
     max_tokens: int = 512,
+    enable_thinking: bool = False,
     **kwargs
 ) -> Tuple[str, List[Dict[str, str]]]:
     """
@@ -428,6 +470,7 @@ def continue_conversation(
         new_message: New user message to append
         temperature: Sampling temperature (default: 0.7)
         max_tokens: Maximum response tokens (default: 512)
+        enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
         
     Returns:
@@ -438,7 +481,7 @@ def continue_conversation(
     updated_history.append({"role": "user", "content": new_message})
     
     # Get response
-    response = chat_conversation(model_wrapper, updated_history, temperature, max_tokens, **kwargs)
+    response = chat_conversation(model_wrapper, updated_history, temperature, max_tokens, enable_thinking, **kwargs)
     
     # Add assistant response to history
     updated_history.append({"role": "assistant", "content": response})
@@ -454,6 +497,7 @@ def batch_chat(
     top_p: float = 0.9,
     system_prompt: Optional[str] = None,
     progress: bool = True,
+    enable_thinking: bool = False,
     **kwargs
 ) -> List[str]:
     """
@@ -465,8 +509,9 @@ def batch_chat(
         temperature: Sampling temperature (default: 0.7)
         max_tokens: Maximum response tokens (default: 512)
         top_p: Top-p sampling parameter (default: 0.9)
-        system_prompt: Optional system message applied to all
+        system_prompt: Optional system message applied to all (default: None)
         progress: Show progress bar (default: True)
+        enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
         
     Returns:
@@ -476,14 +521,17 @@ def batch_chat(
         # Prepare all prompts
         prompts = []
         for message in messages:
-            formatted_messages = format_chat_prompt(message, system_prompt)
+            formatted_messages = format_chat_prompt(message, system_prompt, None, enable_thinking)
             
             # Apply chat template
             if hasattr(model_wrapper.tokenizer, 'apply_chat_template'):
+                # Disable thinking for Qwen models as per https://github.com/vllm-project/vllm/issues/18066
+                chat_template_kwargs = {"enable_thinking": False} if "qwen" in model_wrapper.model_name.lower() else {}
                 prompt = model_wrapper.tokenizer.apply_chat_template(
                     formatted_messages, 
                     tokenize=False, 
-                    add_generation_prompt=True
+                    add_generation_prompt=True,
+                    **chat_template_kwargs
                 )
             else:
                 # Fallback: simple concatenation if no chat template
@@ -541,6 +589,7 @@ def batch_chat_with_system(
     max_tokens: int = 512,
     top_p: float = 0.9,
     progress: bool = True,
+    enable_thinking: bool = False,
     **kwargs
 ) -> List[str]:
     """
@@ -554,13 +603,14 @@ def batch_chat_with_system(
         max_tokens: Maximum response tokens (default: 512)
         top_p: Top-p sampling parameter (default: 0.9)
         progress: Show progress bar (default: True)
+        enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
         
     Returns:
         List of response strings
     """
     return batch_chat(
-        model_wrapper, messages, temperature, max_tokens, top_p, system_prompt, progress, **kwargs
+        model_wrapper, messages, temperature, max_tokens, top_p, system_prompt, progress, enable_thinking, **kwargs
     )
 
 
@@ -571,6 +621,7 @@ def batch_conversation_chat(
     max_tokens: int = 512,
     top_p: float = 0.9,
     progress: bool = True,
+    enable_thinking: bool = False,
     **kwargs
 ) -> List[str]:
     """
@@ -584,6 +635,7 @@ def batch_conversation_chat(
         max_tokens: Maximum response tokens (default: 512)
         top_p: Top-p sampling parameter (default: 0.9)
         progress: Show progress bar (default: True)
+        enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
         
     Returns:
@@ -593,17 +645,40 @@ def batch_conversation_chat(
         # Prepare all prompts from conversation histories
         prompts = []
         for conversation in conversations:
+            # Add thinking mode to conversation if enabled
+            processed_conversation = conversation.copy()
+            if enable_thinking:
+                thinking_instruction = """Think step by step before responding. Break down complex problems and show your reasoning process."""
+                
+                # Find existing system message or create a new one
+                system_msg_found = False
+                for i, msg in enumerate(processed_conversation):
+                    if msg["role"] == "system":
+                        processed_conversation[i] = {
+                            "role": "system", 
+                            "content": f"{msg['content']}\n\n{thinking_instruction}"
+                        }
+                        system_msg_found = True
+                        break
+                
+                # If no system message exists, add one at the beginning
+                if not system_msg_found:
+                    processed_conversation.insert(0, {"role": "system", "content": thinking_instruction})
+            
             # Apply chat template to each conversation
             if hasattr(model_wrapper.tokenizer, 'apply_chat_template'):
+                # Disable thinking for Qwen models as per https://github.com/vllm-project/vllm/issues/18066
+                chat_template_kwargs = {"enable_thinking": False} if "qwen" in model_wrapper.model_name.lower() else {}
                 prompt = model_wrapper.tokenizer.apply_chat_template(
-                    conversation, 
+                    processed_conversation, 
                     tokenize=False, 
-                    add_generation_prompt=True
+                    add_generation_prompt=True,
+                    **chat_template_kwargs
                 )
             else:
                 # Fallback: simple concatenation if no chat template
                 prompt = ""
-                for msg in conversation:
+                for msg in processed_conversation:
                     if msg["role"] == "system":
                         prompt += f"System: {msg['content']}\n"
                     elif msg["role"] == "user":
@@ -656,6 +731,7 @@ def batch_continue_conversations(
     max_tokens: int = 512,
     top_p: float = 0.9,
     progress: bool = True,
+    enable_thinking: bool = False,
     **kwargs
 ) -> Tuple[List[str], List[List[Dict[str, str]]]]:
     """
@@ -670,6 +746,7 @@ def batch_continue_conversations(
         max_tokens: Maximum response tokens (default: 512)
         top_p: Top-p sampling parameter (default: 0.9)
         progress: Show progress bar (default: True)
+        enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
         
     Returns:
@@ -699,6 +776,7 @@ def batch_continue_conversations(
         max_tokens, 
         top_p, 
         progress, 
+        enable_thinking,
         **kwargs
     )
     

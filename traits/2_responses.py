@@ -239,23 +239,51 @@ class TraitResponseGenerator:
         logger.info(f"Successfully loaded {len(trait_files)} trait files")
         return trait_files
     
-    def format_gemma_prompt(self, instruction: Optional[str], question: str) -> str:
+    def supports_system_prompt(self) -> bool:
         """
-        Format prompt for Gemma models (no system prompt support).
+        Check if the current model supports system prompts.
+        
+        Most models support system prompts by default. Gemma models are the exception.
+        
+        Returns:
+            True if model supports system prompts, False if it requires concatenation
+        """
+        # Gemma models don't support system prompts properly
+        if self.model_name.startswith("google/"):
+            return False
+        # All other models (Qwen, Llama, etc.) support system prompts
+        return True
+    
+    def format_conversation(self, instruction: Optional[str], question: str) -> List[Dict[str, str]]:
+        """
+        Format conversation for different model types.
+        
+        Default behavior: Use instruction as system prompt, question as user message
+        Gemma models (google/*): Concatenate instruction and question as single user message
         
         Args:
             instruction: Optional instruction text (None for default/baseline)
             question: Question text
             
         Returns:
-            Formatted prompt string
+            List of message dictionaries for conversation
         """
-        if instruction is None:
-            # Default case: just the question
-            return question
+        if self.supports_system_prompt():
+            # Most models: use proper system prompt
+            messages = []
+            if instruction:
+                messages.append({"role": "system", "content": instruction})
+            messages.append({"role": "user", "content": question})
+            return messages
         else:
-            # Instruction + question
-            return f"{instruction}\n\n{question}"
+            # Gemma models: concatenate instruction and question
+            if instruction is None:
+                # Default case: just the question
+                formatted_prompt = question
+            else:
+                # Instruction + question
+                formatted_prompt = f"{instruction}\n\n{question}"
+            return [{"role": "user", "content": formatted_prompt}]
     
     def generate_trait_responses(self, trait_name: str, trait_data: Dict) -> List[Dict]:
         """
@@ -336,8 +364,7 @@ class TraitResponseGenerator:
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
                     
-                    formatted_prompt = self.format_gemma_prompt(pos_instruction, question)
-                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    conversation = self.format_conversation(pos_instruction, question)
                     all_conversations.append(conversation)
                     all_metadata.append({
                         "system_prompt": pos_instruction,
@@ -357,8 +384,7 @@ class TraitResponseGenerator:
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
                     
-                    formatted_prompt = self.format_gemma_prompt(neg_instruction, question)
-                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    conversation = self.format_conversation(neg_instruction, question)
                     all_conversations.append(conversation)
                     all_metadata.append({
                         "system_prompt": neg_instruction,
@@ -378,8 +404,7 @@ class TraitResponseGenerator:
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
                     
-                    formatted_prompt = self.format_gemma_prompt(default_instruction, question)
-                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    conversation = self.format_conversation(default_instruction, question)
                     all_conversations.append(conversation)
                     all_metadata.append({
                         "system_prompt": default_instruction,
@@ -400,7 +425,8 @@ class TraitResponseGenerator:
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 top_p=self.top_p,
-                progress=True
+                progress=True,
+                enable_thinking=False
             )
             
             logger.info(f"Generated {len(responses)} responses for trait '{trait_name}'")
@@ -416,8 +442,7 @@ class TraitResponseGenerator:
                 "system_prompt": metadata["system_prompt"],
                 "label": metadata["label"],
                 "prompt_index": metadata["prompt_index"],
-                "conversation": [
-                    {"role": "user", "content": all_conversations[len(new_result_objects)][0]["content"]},
+                "conversation": all_conversations[len(new_result_objects)] + [
                     {"role": "assistant", "content": response}
                 ],
                 "question_index": metadata["question_index"],
@@ -515,8 +540,7 @@ class TraitResponseGenerator:
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
                     
-                    formatted_prompt = self.format_gemma_prompt(pos_instruction, question)
-                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    conversation = self.format_conversation(pos_instruction, question)
                     all_conversations.append(conversation)
                     all_metadata.append({
                         "system_prompt": pos_instruction,
@@ -536,8 +560,7 @@ class TraitResponseGenerator:
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
                     
-                    formatted_prompt = self.format_gemma_prompt(neg_instruction, question)
-                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    conversation = self.format_conversation(neg_instruction, question)
                     all_conversations.append(conversation)
                     all_metadata.append({
                         "system_prompt": neg_instruction,
@@ -557,8 +580,7 @@ class TraitResponseGenerator:
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
                     
-                    formatted_prompt = self.format_gemma_prompt(default_instruction, question)
-                    conversation = [{"role": "user", "content": formatted_prompt}]
+                    conversation = self.format_conversation(default_instruction, question)
                     all_conversations.append(conversation)
                     all_metadata.append({
                         "system_prompt": default_instruction,
@@ -579,7 +601,8 @@ class TraitResponseGenerator:
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 top_p=self.top_p,
-                progress=True
+                progress=True,
+                enable_thinking=False
             )
             
             logger.info(f"Generated {len(responses)} responses for trait '{trait_name}'")
@@ -595,8 +618,7 @@ class TraitResponseGenerator:
                 "system_prompt": metadata["system_prompt"],
                 "label": metadata["label"],
                 "prompt_index": metadata["prompt_index"],
-                "conversation": [
-                    {"role": "user", "content": all_conversations[len(new_result_objects)][0]["content"]},
+                "conversation": all_conversations[len(new_result_objects)] + [
                     {"role": "assistant", "content": response}
                 ],
                 "question_index": metadata["question_index"],
