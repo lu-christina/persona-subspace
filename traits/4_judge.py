@@ -28,10 +28,10 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Constants
-INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
-RESPONSES_DIR = Path("/workspace/traits/responses")
-OUTPUT_DIR = Path("/workspace/traits/extract_scores")
+# Default constants
+DEFAULT_INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
+DEFAULT_RESPONSES_DIR = Path("/workspace/traits/responses")
+DEFAULT_OUTPUT_DIR = Path("/workspace/traits/extract_scores")
 DEFAULT_JUDGE_MODEL = "gpt-4.1-mini"
 
 
@@ -80,7 +80,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=360,
+        default=400,
         help="Batch size for API requests (default: 100)"
     )
     parser.add_argument(
@@ -106,21 +106,39 @@ def parse_arguments() -> argparse.Namespace:
         default=400,
         help="Rate limit for API requests per second across all workers (default: 400)"
     )
+    parser.add_argument(
+        "--instructions-dir",
+        type=Path,
+        default=DEFAULT_INSTRUCTIONS_DIR,
+        help=f"Directory containing instruction files (default: {DEFAULT_INSTRUCTIONS_DIR})"
+    )
+    parser.add_argument(
+        "--responses-dir",
+        type=Path,
+        default=DEFAULT_RESPONSES_DIR,
+        help=f"Directory containing response files (default: {DEFAULT_RESPONSES_DIR})"
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_OUTPUT_DIR,
+        help=f"Directory to save output files (default: {DEFAULT_OUTPUT_DIR})"
+    )
     
     return parser.parse_args()
 
 
-def get_available_traits() -> List[str]:
+def get_available_traits(instructions_dir: Path, responses_dir: Path) -> List[str]:
     """Get list of available traits from the instructions directory."""
-    if not INSTRUCTIONS_DIR.exists():
-        logger.error(f"Instructions directory not found: {INSTRUCTIONS_DIR}")
+    if not instructions_dir.exists():
+        logger.error(f"Instructions directory not found: {instructions_dir}")
         return []
     
     traits = []
-    for file_path in INSTRUCTIONS_DIR.glob("*.json"):
+    for file_path in instructions_dir.glob("*.json"):
         trait_name = file_path.stem
         # Check if corresponding response file exists
-        response_file = RESPONSES_DIR / f"{trait_name}.jsonl"
+        response_file = responses_dir / f"{trait_name}.jsonl"
         if response_file.exists():
             traits.append(trait_name)
         else:
@@ -129,9 +147,9 @@ def get_available_traits() -> List[str]:
     return sorted(traits)
 
 
-def load_instruction_data(trait: str) -> Dict[str, Any]:
+def load_instruction_data(trait: str, instructions_dir: Path) -> Dict[str, Any]:
     """Load instruction data for a given trait."""
-    instruction_file = INSTRUCTIONS_DIR / f"{trait}.json"
+    instruction_file = instructions_dir / f"{trait}.json"
     
     if not instruction_file.exists():
         raise FileNotFoundError(f"Instruction file not found: {instruction_file}")
@@ -147,9 +165,9 @@ def load_instruction_data(trait: str) -> Dict[str, Any]:
     return data
 
 
-def load_response_data(trait: str) -> List[Dict[str, Any]]:
+def load_response_data(trait: str, responses_dir: Path) -> List[Dict[str, Any]]:
     """Load response data for a given trait."""
-    response_file = RESPONSES_DIR / f"{trait}.jsonl"
+    response_file = responses_dir / f"{trait}.jsonl"
     
     if not response_file.exists():
         raise FileNotFoundError(f"Response file not found: {response_file}")
@@ -384,7 +402,10 @@ async def process_trait(
     judge_model: str,
     max_tokens: int,
     batch_size: int,
-    rate_limiter: RateLimiter
+    rate_limiter: RateLimiter,
+    instructions_dir: Path,
+    responses_dir: Path,
+    output_dir: Path
 ) -> Optional[Dict[str, int]]:
     """
     Process a single trait and return the organized scores.
@@ -395,8 +416,8 @@ async def process_trait(
     try:
         # Load data
         logger.info(f"Loading data for trait: {trait}")
-        instruction_data = load_instruction_data(trait)
-        response_data = load_response_data(trait)
+        instruction_data = load_instruction_data(trait, instructions_dir)
+        response_data = load_response_data(trait, responses_dir)
         
         # Organize responses
         organized_responses = organize_responses_by_question_and_label(response_data)
@@ -445,7 +466,7 @@ async def process_trait(
         logger.info(f"Successfully parsed {len(organized_scores)} scores for trait: {trait}")
         
         # Load existing scores and convert to new format if needed
-        output_file = OUTPUT_DIR / f"{trait}.json"
+        output_file = output_dir / f"{trait}.json"
         existing_scores = {}
         
         if output_file.exists():
@@ -478,7 +499,10 @@ async def process_trait_worker(
     max_tokens: int,
     batch_size: int,
     rate_limiter: RateLimiter,
-    semaphore: asyncio.Semaphore
+    semaphore: asyncio.Semaphore,
+    instructions_dir: Path,
+    responses_dir: Path,
+    output_dir: Path
 ) -> Tuple[str, bool, Optional[str]]:
     """
     Worker function to process a single trait.
@@ -496,12 +520,15 @@ async def process_trait_worker(
                 judge_model=judge_model,
                 max_tokens=max_tokens,
                 batch_size=batch_size,
-                rate_limiter=rate_limiter
+                rate_limiter=rate_limiter,
+                instructions_dir=instructions_dir,
+                responses_dir=responses_dir,
+                output_dir=output_dir
             )
             
             if scores:
                 # Save results
-                output_file = OUTPUT_DIR / f"{trait}.json"
+                output_file = output_dir / f"{trait}.json"
                 with open(output_file, 'w', encoding='utf-8') as f:
                     json.dump(scores, f, ensure_ascii=False, indent=2)
                 
@@ -531,7 +558,7 @@ async def main():
     if args.traits:
         traits_to_process = args.traits
     else:
-        traits_to_process = get_available_traits()
+        traits_to_process = get_available_traits(args.instructions_dir, args.responses_dir)
     
     if not traits_to_process:
         logger.error("No traits to process")
@@ -547,8 +574,8 @@ async def main():
         for trait in traits_to_process:
             try:
                 # Load data to count prompts
-                instruction_data = load_instruction_data(trait)
-                response_data = load_response_data(trait)
+                instruction_data = load_instruction_data(trait, args.instructions_dir)
+                response_data = load_response_data(trait, args.responses_dir)
                 organized_responses = organize_responses_by_question_and_label(response_data)
                 evaluation_prompts = create_evaluation_prompts(trait, instruction_data, organized_responses)
                 
@@ -560,11 +587,17 @@ async def main():
                 # Show one example API call request
                 if not example_call_shown and evaluation_prompts:
                     _, _, _, _, example_prompt = evaluation_prompts[0]
-                    logger.info("\nExample API call request:")
-                    logger.info(f"  Model: {args.judge_model}")
-                    logger.info(f"  Max tokens: {args.max_tokens}")
-                    logger.info(f"  Temperature: 0.0")
-                    logger.info(f"  Message content preview: {example_prompt}...")
+                    logger.info("\n" + "=" * 80)
+                    logger.info("SAMPLE JUDGE MESSAGE:")
+                    logger.info("=" * 80)
+                    logger.info(f"Model: {args.judge_model}")
+                    logger.info(f"Max tokens: {args.max_tokens}")
+                    logger.info(f"Temperature: 0.0")
+                    logger.info("\nFull message content:")
+                    logger.info("-" * 40)
+                    logger.info(example_prompt)
+                    logger.info("-" * 40)
+                    logger.info("=" * 80)
                     example_call_shown = True
                     
             except Exception as e:
@@ -574,8 +607,8 @@ async def main():
         return
     
     # Create output directory
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Output directory: {OUTPUT_DIR}")
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Output directory: {args.output_dir}")
     
     # Initialize OpenAI client
     client = openai.AsyncOpenAI()
@@ -597,7 +630,10 @@ async def main():
             max_tokens=args.max_tokens,
             batch_size=args.batch_size,
             rate_limiter=rate_limiter,
-            semaphore=semaphore
+            semaphore=semaphore,
+            instructions_dir=args.instructions_dir,
+            responses_dir=args.responses_dir,
+            output_dir=args.output_dir
         )
         tasks.append(task)
     

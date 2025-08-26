@@ -33,10 +33,10 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("openai").setLevel(logging.WARNING)
 logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
-# Constants
-INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
-RESPONSES_DIR = Path("/workspace/roles_240/responses")
-OUTPUT_DIR = Path("/workspace/roles_240/extract_labels")
+# Default constants
+DEFAULT_INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
+DEFAULT_RESPONSES_DIR = Path("/workspace/roles_240/responses")
+DEFAULT_OUTPUT_DIR = Path("/workspace/roles_240/extract_labels")
 DEFAULT_JUDGE_MODEL = "gpt-4.1-mini"
 
 
@@ -85,7 +85,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=300,
+        default=400,
         help="Batch size for API requests (default: 100)"
     )
     parser.add_argument(
@@ -111,21 +111,39 @@ def parse_arguments() -> argparse.Namespace:
         default=400,
         help="Rate limit for API requests per second across all workers (default: 400)"
     )
+    parser.add_argument(
+        "--instructions-dir",
+        type=Path,
+        default=DEFAULT_INSTRUCTIONS_DIR,
+        help=f"Directory containing instruction files (default: {DEFAULT_INSTRUCTIONS_DIR})"
+    )
+    parser.add_argument(
+        "--responses-dir",
+        type=Path,
+        default=DEFAULT_RESPONSES_DIR,
+        help=f"Directory containing response files (default: {DEFAULT_RESPONSES_DIR})"
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_OUTPUT_DIR,
+        help=f"Directory to save output files (default: {DEFAULT_OUTPUT_DIR})"
+    )
     
     return parser.parse_args()
 
 
-def get_available_roles() -> List[str]:
+def get_available_roles(instructions_dir: Path, responses_dir: Path) -> List[str]:
     """Get list of available roles from the instructions directory."""
-    if not INSTRUCTIONS_DIR.exists():
-        logger.error(f"Instructions directory not found: {INSTRUCTIONS_DIR}")
+    if not instructions_dir.exists():
+        logger.error(f"Instructions directory not found: {instructions_dir}")
         return []
     
     roles = []
-    for file_path in INSTRUCTIONS_DIR.glob("*.json"):
+    for file_path in instructions_dir.glob("*.json"):
         role_name = file_path.stem
         # Check if corresponding response file exists
-        response_file = RESPONSES_DIR / f"{role_name}.jsonl"
+        response_file = responses_dir / f"{role_name}.jsonl"
         if response_file.exists():
             roles.append(role_name)
         else:
@@ -134,9 +152,9 @@ def get_available_roles() -> List[str]:
     return sorted(roles)
 
 
-def load_instruction_data(role: str) -> Dict[str, Any]:
+def load_instruction_data(role: str, instructions_dir: Path) -> Dict[str, Any]:
     """Load instruction data for a given role."""
-    instruction_file = INSTRUCTIONS_DIR / f"{role}.json"
+    instruction_file = instructions_dir / f"{role}.json"
     
     if not instruction_file.exists():
         raise FileNotFoundError(f"Instruction file not found: {instruction_file}")
@@ -152,9 +170,9 @@ def load_instruction_data(role: str) -> Dict[str, Any]:
     return data
 
 
-def load_response_data(role: str) -> List[Dict[str, Any]]:
+def load_response_data(role: str, responses_dir: Path) -> List[Dict[str, Any]]:
     """Load response data for a given role."""
-    response_file = RESPONSES_DIR / f"{role}.jsonl"
+    response_file = responses_dir / f"{role}.jsonl"
     
     if not response_file.exists():
         raise FileNotFoundError(f"Response file not found: {response_file}")
@@ -385,7 +403,10 @@ async def process_role(
     judge_model: str,
     max_tokens: int,
     batch_size: int,
-    rate_limiter: RateLimiter
+    rate_limiter: RateLimiter,
+    instructions_dir: Path,
+    responses_dir: Path,
+    output_dir: Path
 ) -> Optional[Dict[str, int]]:
     """
     Process a single role and return the organized scores.
@@ -396,11 +417,11 @@ async def process_role(
     try:
         # Load data
         logger.info(f"Loading data for role: {role}")
-        instruction_data = load_instruction_data(role)
-        response_data = load_response_data(role)
+        instruction_data = load_instruction_data(role, instructions_dir)
+        response_data = load_response_data(role, responses_dir)
         
         # Load existing scores first to check what we already have
-        output_file = OUTPUT_DIR / f"{role}.json"
+        output_file = output_dir / f"{role}.json"
         existing_scores = {}
         
         if output_file.exists():
@@ -494,7 +515,10 @@ async def process_role_worker(
     max_tokens: int,
     batch_size: int,
     rate_limiter: RateLimiter,
-    semaphore: asyncio.Semaphore
+    semaphore: asyncio.Semaphore,
+    instructions_dir: Path,
+    responses_dir: Path,
+    output_dir: Path
 ) -> Tuple[str, bool, Optional[str]]:
     """
     Worker function to process a single role.
@@ -512,12 +536,15 @@ async def process_role_worker(
                 judge_model=judge_model,
                 max_tokens=max_tokens,
                 batch_size=batch_size,
-                rate_limiter=rate_limiter
+                rate_limiter=rate_limiter,
+                instructions_dir=instructions_dir,
+                responses_dir=responses_dir,
+                output_dir=output_dir
             )
             
             if scores:
                 # Save results
-                output_file = OUTPUT_DIR / f"{role}.json"
+                output_file = output_dir / f"{role}.json"
                 with open(output_file, 'w', encoding='utf-8') as f:
                     json.dump(scores, f, ensure_ascii=False, indent=2)
                 
@@ -547,7 +574,7 @@ async def main():
     if args.roles:
         roles_to_process = args.roles
     else:
-        roles_to_process = get_available_roles()
+        roles_to_process = get_available_roles(args.instructions_dir, args.responses_dir)
     
     if not roles_to_process:
         logger.error("No roles to process")
@@ -563,8 +590,8 @@ async def main():
         for role in roles_to_process:
             try:
                 # Load data to count prompts
-                instruction_data = load_instruction_data(role)
-                response_data = load_response_data(role)
+                instruction_data = load_instruction_data(role, args.instructions_dir)
+                response_data = load_response_data(role, args.responses_dir)
                 organized_responses = organize_responses_by_question_and_label(response_data)
                 evaluation_prompts = create_evaluation_prompts(role, instruction_data, organized_responses)
                 
@@ -576,11 +603,17 @@ async def main():
                 # Show one example API call request
                 if not example_call_shown and evaluation_prompts:
                     _, _, _, _, example_prompt = evaluation_prompts[0]
-                    logger.info("\nExample API call request:")
-                    logger.info(f"  Model: {args.judge_model}")
-                    logger.info(f"  Max tokens: {args.max_tokens}")
-                    logger.info(f"  Temperature: 0.0")
-                    logger.info(f"  Message content preview: {example_prompt}...")
+                    logger.info("\n" + "=" * 80)
+                    logger.info("SAMPLE JUDGE MESSAGE:")
+                    logger.info("=" * 80)
+                    logger.info(f"Model: {args.judge_model}")
+                    logger.info(f"Max tokens: {args.max_tokens}")
+                    logger.info(f"Temperature: 0.0")
+                    logger.info("\nFull message content:")
+                    logger.info("-" * 40)
+                    logger.info(example_prompt)
+                    logger.info("-" * 40)
+                    logger.info("=" * 80)
                     example_call_shown = True
                     
             except Exception as e:
@@ -590,8 +623,8 @@ async def main():
         return
     
     # Create output directory
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Output directory: {OUTPUT_DIR}")
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Output directory: {args.output_dir}")
     
     # Initialize OpenAI client
     client = openai.AsyncOpenAI()
@@ -613,7 +646,10 @@ async def main():
             max_tokens=args.max_tokens,
             batch_size=args.batch_size,
             rate_limiter=rate_limiter,
-            semaphore=semaphore
+            semaphore=semaphore,
+            instructions_dir=args.instructions_dir,
+            responses_dir=args.responses_dir,
+            output_dir=args.output_dir
         )
         tasks.append(task)
     

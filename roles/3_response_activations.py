@@ -800,7 +800,7 @@ Examples:
     # Multi-GPU options
     parser.add_argument('--multi-gpu', action='store_true',
                        help='Use multi-GPU processing')
-    parser.add_argument('--num-gpus', type=int, default=6,
+    parser.add_argument('--num-gpus', type=int, default=8,
                        help='Number of GPUs to use (default: 6)')
     parser.add_argument('--gpu-ids', type=str, default=None,
                        help='Comma-separated list of GPU IDs to use')
