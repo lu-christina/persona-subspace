@@ -424,6 +424,21 @@ async def process_trait(
         instruction_data = load_instruction_data(trait, instructions_dir)
         response_data = load_response_data(trait, responses_dir)
         
+        # Load existing scores first to check what we already have
+        output_file = output_dir / f"{trait}.json"
+        existing_scores = {}
+        
+        if output_file.exists():
+            try:
+                with open(output_file, 'r', encoding='utf-8') as f:
+                    existing_scores = json.load(f)
+                
+                # Convert old format to new format if needed
+                existing_scores = convert_old_scores_format(existing_scores)
+                logger.info(f"Loaded and converted {len(existing_scores)} existing scores for trait: {trait}")
+            except Exception as e:
+                logger.warning(f"Failed to load existing scores for trait {trait}: {e}")
+        
         # Organize responses
         organized_responses = organize_responses_by_question_and_label(response_data)
         logger.info(f"Found {len(organized_responses)} response entries for trait: {trait}")
@@ -434,10 +449,25 @@ async def process_trait(
         
         if not evaluation_prompts:
             logger.warning(f"No evaluation prompts created for trait: {trait}")
-            return None
+            return existing_scores if existing_scores else None
+        
+        # Filter out prompts that already have scores
+        prompts_to_evaluate = []
+        for prompt_data in evaluation_prompts:
+            trait_name, prompt_index, question_index, label, prompt_text = prompt_data
+            key = f"{label}_p{prompt_index}_q{question_index}"
+            
+            if key not in existing_scores:
+                prompts_to_evaluate.append(prompt_data)
+        
+        logger.info(f"Need to evaluate {len(prompts_to_evaluate)} new prompts (skipping {len(evaluation_prompts) - len(prompts_to_evaluate)} existing scores)")
+        
+        if not prompts_to_evaluate:
+            logger.info(f"All scores already exist for trait: {trait}")
+            return existing_scores
         
         # Extract just the prompt texts for the API call
-        prompt_texts = [prompt_text for _, _, _, _, prompt_text in evaluation_prompts]
+        prompt_texts = [prompt_text for _, _, _, _, prompt_text in prompts_to_evaluate]
         
         # Call the judge model
         logger.info(f"Sending {len(prompt_texts)} prompts to judge model for trait: {trait}")
@@ -452,10 +482,10 @@ async def process_trait(
         
         logger.info(f"Received {len(responses)} responses for trait: {trait}")
         
-        # Parse scores and organize results
+        # Parse scores and organize results (only for new prompts)
         organized_scores = {}
         
-        for i, (trait_name, prompt_index, question_index, label, prompt_text) in enumerate(evaluation_prompts):
+        for i, (trait_name, prompt_index, question_index, label, prompt_text) in enumerate(prompts_to_evaluate):
             if i < len(responses) and responses[i] is not None:
                 response_text = responses[i]
                 score = parse_judge_score(response_text)
@@ -468,22 +498,7 @@ async def process_trait(
             else:
                 logger.warning(f"No response received for {trait}, prompt {prompt_index}, question {question_index}, label {label}")
         
-        logger.info(f"Successfully parsed {len(organized_scores)} scores for trait: {trait}")
-        
-        # Load existing scores and convert to new format if needed
-        output_file = output_dir / f"{trait}.json"
-        existing_scores = {}
-        
-        if output_file.exists():
-            try:
-                with open(output_file, 'r', encoding='utf-8') as f:
-                    existing_scores = json.load(f)
-                
-                # Convert old format to new format if needed
-                existing_scores = convert_old_scores_format(existing_scores)
-                logger.info(f"Loaded and converted {len(existing_scores)} existing scores for trait: {trait}")
-            except Exception as e:
-                logger.warning(f"Failed to load existing scores for trait {trait}: {e}")
+        logger.info(f"Successfully parsed {len(organized_scores)} new scores for trait: {trait}")
         
         # Merge existing scores with new scores (new scores take precedence)
         final_scores = existing_scores.copy()
@@ -581,17 +596,43 @@ async def main():
                 # Load data to count prompts
                 instruction_data = load_instruction_data(trait, args.instructions_dir)
                 response_data = load_response_data(trait, args.responses_dir)
+                
+                # Load existing scores to check what we already have
+                output_file = args.output_dir / f"{trait}.json"
+                existing_scores = {}
+                
+                if output_file.exists():
+                    try:
+                        with open(output_file, 'r', encoding='utf-8') as f:
+                            existing_scores = json.load(f)
+                        
+                        # Convert old format to new format if needed
+                        existing_scores = convert_old_scores_format(existing_scores)
+                    except Exception as e:
+                        logger.warning(f"Failed to load existing scores for trait {trait}: {e}")
+                
                 organized_responses = organize_responses_by_question_and_label(response_data)
                 evaluation_prompts = create_evaluation_prompts(trait, instruction_data, organized_responses)
                 
-                trait_prompt_count = len(evaluation_prompts)
+                # Filter out prompts that already have scores (same logic as process_trait)
+                prompts_to_evaluate = []
+                for prompt_data in evaluation_prompts:
+                    trait_name, prompt_index, question_index, label, prompt_text = prompt_data
+                    key = f"{label}_p{prompt_index}_q{question_index}"
+                    
+                    if key not in existing_scores:
+                        prompts_to_evaluate.append(prompt_data)
+                
+                trait_prompt_count = len(prompts_to_evaluate)
+                existing_count = len(evaluation_prompts) - len(prompts_to_evaluate)
                 total_prompts += trait_prompt_count
                 
-                logger.info(f"Would process trait: {trait} ({trait_prompt_count} prompts)")
+                if trait_prompt_count > 0:
+                    logger.info(f"Would process trait: {trait} ({trait_prompt_count} prompts)")
                 
                 # Show one example API call request
-                if not example_call_shown and evaluation_prompts:
-                    _, _, _, _, example_prompt = evaluation_prompts[0]
+                if not example_call_shown and prompts_to_evaluate:
+                    _, _, _, _, example_prompt = prompts_to_evaluate[0]
                     logger.info("\n" + "=" * 80)
                     logger.info("SAMPLE JUDGE MESSAGE:")
                     logger.info("=" * 80)
