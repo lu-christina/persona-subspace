@@ -125,12 +125,12 @@ def process_role(role: str, min_count_threshold: int, activations_base_path: str
 
 def main():
     parser = argparse.ArgumentParser(description="Generate role vectors from activations and scores")
-    parser.add_argument("--min_count_threshold", type=int, default=25,
-                       help="Minimum number of activations needed to create a vector (default: 25)")
+    parser.add_argument("--min_count_threshold", type=int, default=50,
+                       help="Minimum number of activations needed to create a vector (default: 50)")
     parser.add_argument("--activations_path", type=str, default="/workspace/roles/response_activations",
                        help="Path to directory containing activation tensors (default: /workspace/roles/response_activations)")
-    parser.add_argument("--scores_path", type=str, default="/workspace/roles/extract_labels", 
-                       help="Path to directory containing score labels (default: /workspace/roles/extract_labels)")
+    parser.add_argument("--scores_path", type=str, default="/workspace/roles/extract_scores", 
+                       help="Path to directory containing score labels (default: /workspace/roles/extract_scores)")
     parser.add_argument("--output_path", type=str, default="/workspace/roles/vectors",
                        help="Path to directory for saving vectors (default: /workspace/roles/vectors)")
     parser.add_argument("--roles", nargs="+", 

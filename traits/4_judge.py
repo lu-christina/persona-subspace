@@ -28,10 +28,15 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Suppress verbose HTTP logging from httpx/openai (only show errors)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+
 # Default constants
 DEFAULT_INSTRUCTIONS_DIR = Path(__file__).parent / "data" / "instructions"
-DEFAULT_RESPONSES_DIR = Path("/workspace/traits/responses")
-DEFAULT_OUTPUT_DIR = Path("/workspace/traits/extract_scores")
+DEFAULT_RESPONSES_DIR = Path("/workspace/traits_240/responses")
+DEFAULT_OUTPUT_DIR = Path("/workspace/traits_240/extract_labels")
 DEFAULT_JUDGE_MODEL = "gpt-4.1-mini"
 
 
