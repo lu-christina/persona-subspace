@@ -128,6 +128,35 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def read_existing_scores(output_file: str) -> set:
+    """Read existing scores to avoid duplicate evaluations."""
+    existing = set()
+    output_path = Path(output_file)
+    
+    if not output_path.exists():
+        return existing
+        
+    try:
+        with open(output_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                try:
+                    data = json.loads(line)
+                    # Create unique key from id, role_id, and magnitude to match baseline script
+                    if all(key in data for key in ['id', 'role_id', 'magnitude']):
+                        key = f"{data['id']}_{data['role_id']}_{data['magnitude']}"
+                        existing.add(key)
+                except (json.JSONDecodeError, KeyError):
+                    continue
+    except Exception as e:
+        logger.warning(f"Could not read existing scores: {e}")
+        
+    return existing
+
+
 def load_prompt_template(prompt_file: str, prompt_key: str = "judge") -> str:
     """Load prompt template from Python file containing PROMPTS dict."""
     prompt_path = Path(prompt_file)
@@ -474,6 +503,11 @@ async def main():
         logger.error("No input data loaded")
         sys.exit(1)
     
+    # Check for existing results to enable restart functionality
+    existing_scores = read_existing_scores(args.output)
+    if existing_scores:
+        logger.info(f"Found {len(existing_scores)} existing scores, will skip duplicates")
+    
     # Create evaluation prompts
     logger.info("Creating evaluation prompts using single template")
     evaluation_prompts = create_evaluation_prompts(input_data, prompt_template)
@@ -481,6 +515,27 @@ async def main():
     if not evaluation_prompts:
         logger.error("No evaluation prompts created")
         sys.exit(1)
+    
+    # Filter out already-processed items
+    original_count = len(evaluation_prompts)
+    if existing_scores:
+        filtered_prompts = []
+        for input_data_item, prompt_text in evaluation_prompts:
+            # Create unique key from input data to match existing scores
+            if all(key in input_data_item for key in ['id', 'role_id', 'magnitude']):
+                key = f"{input_data_item['id']}_{input_data_item['role_id']}_{input_data_item['magnitude']}"
+                if key not in existing_scores:
+                    filtered_prompts.append((input_data_item, prompt_text))
+        
+        evaluation_prompts = filtered_prompts
+        skipped_count = original_count - len(evaluation_prompts)
+        
+        if skipped_count > 0:
+            logger.info(f"Filtered out {skipped_count} already-processed items")
+    
+    if not evaluation_prompts:
+        logger.info("No new items to process - all evaluations already complete!")
+        return
     
     if args.dry_run:
         logger.info("Dry run mode - no API calls will be made")
@@ -499,11 +554,6 @@ async def main():
     # Setup output file
     output_file = Path(args.output)
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Clear output file if it exists
-    if output_file.exists():
-        logger.info(f"Clearing existing output file: {output_file}")
-        output_file.unlink()
     
     logger.info(f"Results will be written to: {output_file}")
     
@@ -569,7 +619,14 @@ async def main():
             logger.error(f"L [{completed_count}/{total_count}] Batch exception: {e}")
     
     elapsed_time = time.time() - start_time
-    logger.info(f"Processing complete: {total_successful}/{total_items} items processed successfully in {elapsed_time:.1f}s")
+    
+    # Calculate final statistics
+    skipped_count = original_count - total_items if existing_scores else 0
+    logger.info(f"Processing complete: {total_successful}/{total_items} new items processed successfully in {elapsed_time:.1f}s")
+    
+    if skipped_count > 0:
+        logger.info(f"Skipped {skipped_count} items that were already completed")
+        logger.info(f"Total items in dataset: {original_count}")
     
     if total_successful < total_items:
         failed_count = total_items - total_successful

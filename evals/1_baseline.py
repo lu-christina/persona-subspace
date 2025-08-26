@@ -7,10 +7,10 @@ for efficient inference across multiple GPUs.
 
 Output: JSONL with role_id, role_label, question_id, question_label, prompt, response
 
-uv run baseline.py \
-	--questions_file /root/git/persona-subspace/evals/data/questions/harmbench.jsonl \
-	--roles_file /root/git/persona-subspace/evals/data/roles/good_evil.jsonl \
-	--output_jsonl /root/git/persona-subspace/evals/results/roles_traits/harmbench_baseline.jsonl \
+uv run 1_baseline.py \
+	--questions_file /root/git/persona-subspace/evals/data/harmbench/harmbench.jsonl \
+	--roles_file /root/git/persona-subspace/evals/data/harmbench/roles.jsonl \
+	--output_jsonl /root/git/persona-subspace/evals/results/roles_traits/harmbench_baseline.jsonl
 
 uv run baseline.py \
     --prompts_file /root/git/persona-subspace/evals/data/roles_20.jsonl \

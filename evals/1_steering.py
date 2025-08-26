@@ -80,7 +80,7 @@ class JSONLHandler:
                     try:
                         data = json.loads(line.strip())
                         # Create unique key from prompt text and magnitude
-                        key = (data['prompt'], float(data['magnitude']))
+                        key = (data['prompt'].strip(), float(data['magnitude']))
                         existing.add(key)
                     except (json.JSONDecodeError, KeyError):
                         continue
@@ -126,7 +126,7 @@ class WorkQueueManager:
         # Filter out existing combinations
         filtered_work_units = []
         for work_unit in work_units:
-            combination_key = (work_unit['prompt'], work_unit['magnitude'])
+            combination_key = (work_unit['prompt'].strip(), work_unit['magnitude'])
             if combination_key not in existing_combinations:
                 filtered_work_units.append(work_unit)
         
@@ -564,7 +564,7 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
             'role_label': 'role' if role != 'default' else 'default',
             'id': prompt_obj['id'],
             'question_label': role,
-            'combined_prompt': f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']
+            'combined_prompt': (f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']).strip()
         }
         
         processed_prompts.append(processed_prompt)
@@ -586,7 +586,7 @@ def create_work_units(prompts_data, magnitudes, is_combined_format=False):
                     'role_label': prompt_data['role_label'],
                     'id': prompt_data['id'],
                     'question_label': prompt_data['question_label'],
-                    'prompt': prompt_data['combined_prompt'],
+                    'prompt': prompt_data['combined_prompt'].strip(),
                     'magnitude': magnitude
                 }
                 work_units.append(work_unit)
@@ -601,7 +601,7 @@ def create_work_units(prompts_data, magnitudes, is_combined_format=False):
                         'role_label': role['type'],
                         'id': question['id'],
                         'question_label': question['semantic_category'],
-                        'prompt': f"{role['text']} {question['text']}".strip() if role['text'] else question['text'],
+                        'prompt': (f"{role['text']} {question['text']}".strip() if role['text'] else question['text']).strip(),
                         'magnitude': magnitude
                     }
                     work_units.append(work_unit)
