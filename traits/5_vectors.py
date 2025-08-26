@@ -10,7 +10,7 @@ Creates 6 types of vectors for each trait:
 5. pos_70: mean(pos) for all positive responses with score >= 70
 6. pos_40_70: mean(pos) for all positive responses with score >= 40 and < 70
 
-Each vector has shape (n_layers, hidden_dim) = (46, 4608)
+Each vector has shape (n_layers, hidden_dim)
 """
 
 import argparse
@@ -22,10 +22,10 @@ import torch
 from tqdm import tqdm
 
 
-def load_data(trait: str) -> Tuple[Optional[Dict[str, torch.Tensor]], Optional[Dict[str, Union[int, str]]]]:
+def load_data(trait: str, activations_base_path: str, scores_base_path: str) -> Tuple[Optional[Dict[str, torch.Tensor]], Optional[Dict[str, Union[int, str]]]]:
     """Load activation tensors and scores for a given trait."""
-    activations_path = f"/workspace/traits_240/response_activations/{trait}.pt"
-    scores_path = f"/workspace/traits_240/extract_scores/{trait}.json"
+    activations_path = f"{activations_base_path}/{trait}.pt"
+    scores_path = f"{scores_base_path}/{trait}.json"
     
     try:
         activations = torch.load(activations_path, map_location='cpu')
@@ -145,39 +145,18 @@ def compute_vectors(
     return result
 
 
-def process_trait(trait: str, pos_neg_threshold: int, pos_default_threshold: int) -> bool:
+def process_trait(trait: str, pos_neg_threshold: int, pos_default_threshold: int, activations_base_path: str, scores_base_path: str, output_base_path: str) -> bool:
     """Process a single trait and save vectors."""
-    activations, scores = load_data(trait)
+    activations, scores = load_data(trait, activations_base_path, scores_base_path)
     
     if activations is None or scores is None:
         return False
     
-    output_path = f"/workspace/traits_240/vectors/{trait}.pt"
+    vectors = compute_vectors(activations, scores, pos_neg_threshold, pos_default_threshold)
     
-    # Check if existing vectors file exists
-    if os.path.exists(output_path):
-        # Load existing vectors
-        try:
-            existing_vectors = torch.load(output_path, map_location='cpu')
-            print(f"  Loading existing vectors for {trait}, adding new ones...")
-        except Exception as e:
-            print(f"  Error loading existing vectors for {trait}: {e}")
-            return False
-        
-        # Compute all vectors (including existing ones)
-        all_vectors = compute_vectors(activations, scores, pos_neg_threshold, pos_default_threshold)
-        
-        # Merge: keep existing vectors, add only the new ones
-        merged_vectors = existing_vectors.copy()
-        merged_vectors['pos_70'] = all_vectors['pos_70']
-        merged_vectors['pos_40_70'] = all_vectors['pos_40_70']
-        
-        # Save merged vectors
-        torch.save(merged_vectors, output_path)
-    else:
-        # No existing file, compute and save all vectors
-        vectors = compute_vectors(activations, scores, pos_neg_threshold, pos_default_threshold)
-        torch.save(vectors, output_path)
+    # Save vectors
+    output_path = f"{output_base_path}/{trait}.pt"
+    torch.save(vectors, output_path)
     
     return True
 
@@ -188,6 +167,12 @@ def main():
                        help="Score difference threshold for pos-neg filtering (default: 50)")
     parser.add_argument("--pos_default_threshold", type=int, default=50,
                        help="Score difference threshold for pos-default filtering (default: 50)")
+    parser.add_argument("--activations_path", type=str, default="/workspace/traits_240/response_activations",
+                       help="Path to directory containing activation tensors (default: /workspace/traits_240/response_activations)")
+    parser.add_argument("--scores_path", type=str, default="/workspace/traits_240/extract_scores", 
+                       help="Path to directory containing score labels (default: /workspace/traits_240/extract_scores)")
+    parser.add_argument("--output_path", type=str, default="/workspace/traits_240/vectors",
+                       help="Path to directory for saving vectors (default: /workspace/traits_240/vectors)")
     parser.add_argument("--traits", nargs="+", 
                        help="Specific traits to process (default: all traits)")
     parser.add_argument("--list_traits", action="store_true",
@@ -196,7 +181,7 @@ def main():
     args = parser.parse_args()
     
     # Get list of available traits from activations directory
-    activations_dir = Path("/workspace/traits_240/response_activations")
+    activations_dir = Path(args.activations_path)
     available_traits = [f.stem for f in activations_dir.glob("*.pt")]
     available_traits.sort()
     
@@ -215,25 +200,28 @@ def main():
     else:
         traits_to_process = available_traits
     
-    print(f"Processing {len(traits_to_process)} traits with thresholds:")
+    print(f"Processing {len(traits_to_process)} traits with settings:")
     print(f"  pos_neg_threshold: {args.pos_neg_threshold}")
     print(f"  pos_default_threshold: {args.pos_default_threshold}")
+    print(f"  activations_path: {args.activations_path}")
+    print(f"  scores_path: {args.scores_path}")
+    print(f"  output_path: {args.output_path}")
     
     # Ensure output directory exists
-    os.makedirs("/workspace/traits_240/vectors", exist_ok=True)
+    os.makedirs(args.output_path, exist_ok=True)
     
     # Process traits with progress bar
     successful = 0
     failed = 0
     
     for trait in tqdm(traits_to_process, desc="Processing traits"):
-        if process_trait(trait, args.pos_neg_threshold, args.pos_default_threshold):
+        if process_trait(trait, args.pos_neg_threshold, args.pos_default_threshold, args.activations_path, args.scores_path, args.output_path):
             successful += 1
         else:
             failed += 1
     
     print(f"\nCompleted: {successful} successful, {failed} failed")
-    print(f"Vectors saved to /workspace/traits_240/vectors/")
+    print(f"Vectors saved to {args.output_path}")
 
 
 if __name__ == "__main__":
