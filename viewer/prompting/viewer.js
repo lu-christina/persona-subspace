@@ -5,11 +5,13 @@ class TraitsRolesViewer {
             scores: {}
         };
         this.filteredData = [];
+        this.currentModel = '';
         this.currentDataSource = '';
         this.currentTraitRole = '';
         this.urlParams = new URLSearchParams(window.location.search);
         
         // DOM elements
+        this.modelSelect = document.getElementById('model-select');
         this.dataSourceSelect = document.getElementById('data-source');
         this.traitRoleSelect = document.getElementById('trait-role-select');
         this.loadBtn = document.getElementById('load-btn');
@@ -55,17 +57,25 @@ class TraitsRolesViewer {
     }
     
     parseUrlParameters() {
+        const modelParam = this.urlParams.get('model');
         const dataSourceParam = this.urlParams.get('source');
         const traitRoleParam = this.urlParams.get('trait') || this.urlParams.get('role');
         
+        const model = modelParam;
         const dataSource = this.getDataSourceFromUrlParam(dataSourceParam);
         const traitRole = traitRoleParam;
         
-        return { dataSource, traitRole };
+        return { model, dataSource, traitRole };
     }
     
-    updateUrlParameters(dataSource = null, traitRole = null) {
+    updateUrlParameters(model = null, dataSource = null, traitRole = null) {
         const url = new URL(window.location);
+        
+        if (model) {
+            url.searchParams.set('model', model);
+        } else {
+            url.searchParams.delete('model');
+        }
         
         if (dataSource) {
             const urlParam = this.getUrlParamFromDataSource(dataSource);
@@ -92,6 +102,7 @@ class TraitsRolesViewer {
     
     initEventListeners() {
         this.loadBtn.addEventListener('click', () => this.loadData());
+        this.modelSelect.addEventListener('change', () => this.onModelChange());
         this.dataSourceSelect.addEventListener('change', () => this.onDataSourceChange());
         
         // Filter change listeners
@@ -109,17 +120,19 @@ class TraitsRolesViewer {
     async initializeViewer() {
         this.setStatus('Initializing viewer...', 'loading');
         try {
-            await this.loadDataSources();
+            await this.loadModels();
             
             // Check for URL parameters and auto-load if present
-            const { dataSource, traitRole } = this.parseUrlParameters();
-            if (dataSource && traitRole) {
+            const { model, dataSource, traitRole } = this.parseUrlParameters();
+            if (model && dataSource && traitRole) {
+                this.modelSelect.value = model;
+                await this.onModelChange();
                 this.dataSourceSelect.value = dataSource;
                 await this.onDataSourceChange();
                 this.traitRoleSelect.value = traitRole;
                 await this.loadData();
             } else {
-                this.setStatus('Select a data source and trait/role to begin', '');
+                this.setStatus('Select a model, data source and trait/role to begin', '');
             }
         } catch (error) {
             console.error('Error initializing viewer:', error);
@@ -127,7 +140,33 @@ class TraitsRolesViewer {
         }
     }
     
-    async loadDataSources() {
+    async loadModels() {
+        const models = [
+            { value: 'gemma-2-27b', label: 'Gemma-2-27B' },
+            { value: 'qwen-3-32b', label: 'Qwen-3-32B' }
+        ];
+        
+        // Clear and populate model select
+        this.modelSelect.innerHTML = '<option value="">Select model...</option>';
+        
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.value;
+            option.textContent = model.label;
+            this.modelSelect.appendChild(option);
+        });
+    }
+    
+    async onModelChange() {
+        const model = this.modelSelect.value;
+        if (!model) {
+            this.dataSourceSelect.innerHTML = '<option value="">Select model first</option>';
+            return;
+        }
+        
+        this.currentModel = model;
+        this.updateUrlParameters(model, null, null);
+        
         const dataSources = [
             { value: 'roles', label: 'Roles (Unique Questions)' },
             { value: 'roles_240', label: 'Roles (Shared Questions)' },
@@ -144,22 +183,26 @@ class TraitsRolesViewer {
             option.textContent = source.label;
             this.dataSourceSelect.appendChild(option);
         });
+        
+        // Reset dependent selects
+        this.traitRoleSelect.innerHTML = '<option value="">Select data source first</option>';
     }
     
     async onDataSourceChange() {
+        const model = this.modelSelect.value;
         const dataSource = this.dataSourceSelect.value;
-        if (!dataSource) {
-            this.traitRoleSelect.innerHTML = '<option value="">Select data source first</option>';
+        if (!model || !dataSource) {
+            this.traitRoleSelect.innerHTML = '<option value="">Select model and data source first</option>';
             return;
         }
         
         this.currentDataSource = dataSource;
-        this.updateUrlParameters(dataSource, null);
+        this.updateUrlParameters(this.currentModel, dataSource, null);
         this.setStatus('Loading trait/role list...', 'loading');
         this.showLoadingBar();
         
         try {
-            const traitRoles = await this.discoverTraitRoles(dataSource);
+            const traitRoles = await this.discoverTraitRoles(model, dataSource);
             this.populateTraitRoleSelect(traitRoles);
             this.setStatus(`Found ${traitRoles.length} ${dataSource}`, '');
         } catch (error) {
@@ -171,9 +214,9 @@ class TraitsRolesViewer {
         }
     }
     
-    async discoverTraitRoles(dataSource) {
+    async discoverTraitRoles(model, dataSource) {
         try {
-            const response = await fetch(`data/${dataSource}/index.txt`);
+            const response = await fetch(`data/${model}/${dataSource}/index.txt`);
             if (!response.ok) {
                 throw new Error(`Failed to load index: ${response.status}`);
             }
@@ -204,16 +247,17 @@ class TraitsRolesViewer {
     }
     
     async loadData() {
+        const model = this.modelSelect.value;
         const dataSource = this.dataSourceSelect.value;
         const traitRole = this.traitRoleSelect.value;
         
-        if (!dataSource || !traitRole) {
-            this.setStatus('Please select both data source and trait/role', 'error');
+        if (!model || !dataSource || !traitRole) {
+            this.setStatus('Please select model, data source and trait/role', 'error');
             return;
         }
         
         this.currentTraitRole = traitRole;
-        this.updateUrlParameters(this.currentDataSource, traitRole);
+        this.updateUrlParameters(this.currentModel, this.currentDataSource, traitRole);
         this.setStatus('Loading data...', 'loading');
         this.showLoadingBar();
         this.loadBtn.disabled = true;
@@ -221,8 +265,8 @@ class TraitsRolesViewer {
         try {
             // Load responses and scores in parallel
             const [responses, scores] = await Promise.all([
-                this.loadResponses(dataSource, traitRole),
-                this.loadScores(dataSource, traitRole)
+                this.loadResponses(model, dataSource, traitRole),
+                this.loadScores(model, dataSource, traitRole)
             ]);
             
             this.data.responses = responses;
@@ -242,8 +286,8 @@ class TraitsRolesViewer {
         }
     }
     
-    async loadResponses(dataSource, traitRole) {
-        const response = await fetch(`data/${dataSource}/responses/${traitRole}.jsonl`);
+    async loadResponses(model, dataSource, traitRole) {
+        const response = await fetch(`data/${model}/${dataSource}/responses/${traitRole}.jsonl`);
         if (!response.ok) {
             throw new Error(`Failed to load responses: ${response.status}`);
         }
@@ -253,10 +297,19 @@ class TraitsRolesViewer {
         return lines.map(line => JSON.parse(line));
     }
     
-    async loadScores(dataSource, traitRole) {
-        // Use extract_labels for roles, extract_scores for traits
-        const scoreDir = dataSource.includes('roles') ? 'extract_labels' : 'extract_scores';
-        const response = await fetch(`data/${dataSource}/${scoreDir}/${traitRole}.json`);
+    async loadScores(model, dataSource, traitRole) {
+        // Try extract_scores first (consistent naming), fallback to extract_labels for backwards compatibility
+        let response;
+        let scoreDir = 'extract_scores';
+        
+        response = await fetch(`data/${model}/${dataSource}/${scoreDir}/${traitRole}.json`);
+        
+        if (!response.ok && model === 'gemma-2-27b' && dataSource.includes('roles')) {
+            // Fallback to extract_labels for gemma roles if extract_scores doesn't exist
+            scoreDir = 'extract_labels';
+            response = await fetch(`data/${model}/${dataSource}/${scoreDir}/${traitRole}.json`);
+        }
+        
         if (!response.ok) {
             throw new Error(`Failed to load scores: ${response.status}`);
         }
