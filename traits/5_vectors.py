@@ -48,6 +48,10 @@ def compute_vectors(
 ) -> Dict[str, torch.Tensor]:
     """Compute the 6 vector types from activations and scores."""
     
+    # Get tensor shape from first activation tensor
+    sample_tensor = next(iter(activations.values()))
+    tensor_shape = sample_tensor.shape
+    
     # Collect all pairs for different conditions
     pos_neg_all_pairs = []
     pos_neg_filtered_pairs = []
@@ -113,8 +117,8 @@ def compute_vectors(
     # Compute mean differences for each vector type
     def compute_mean_difference(pairs: List[Tuple[torch.Tensor, torch.Tensor]]) -> torch.Tensor:
         if not pairs:
-            # Return zeros tensor with correct shape (46, 4608)
-            return torch.zeros(46, 4608)
+            # Return zeros tensor with correct shape
+            return torch.zeros(tensor_shape)
         
         pos_tensors = [pair[0] for pair in pairs]
         comparison_tensors = [pair[1] for pair in pairs]
@@ -127,8 +131,8 @@ def compute_vectors(
     # Compute mean activations for score-based vectors
     def compute_mean_activation(activations: List[torch.Tensor]) -> torch.Tensor:
         if not activations:
-            # Return zeros tensor with correct shape (46, 4608)
-            return torch.zeros(46, 4608)
+            # Return zeros tensor with correct shape
+            return torch.zeros(tensor_shape)
         
         return torch.stack(activations).mean(dim=0)
     
