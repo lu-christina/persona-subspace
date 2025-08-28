@@ -166,14 +166,49 @@ class TraitsRolesViewer {
         
         this.currentModel = model;
         this.updateUrlParameters(model, null, null);
+        this.setStatus('Discovering available data sources...', 'loading');
         
-        const dataSources = [
+        try {
+            const availableDataSources = await this.discoverDataSources(model);
+            this.populateDataSourceSelect(availableDataSources);
+            this.setStatus(`Found ${availableDataSources.length} data sources for ${model}`, '');
+        } catch (error) {
+            console.error('Error discovering data sources:', error);
+            this.setStatus('Error discovering data sources', 'error');
+            this.dataSourceSelect.innerHTML = '<option value="">Error loading data sources</option>';
+        }
+        
+        // Reset dependent selects
+        this.traitRoleSelect.innerHTML = '<option value="">Select data source first</option>';
+    }
+    
+    async discoverDataSources(model) {
+        const allDataSources = [
             { value: 'roles', label: 'Roles (Unique Questions)' },
             { value: 'roles_240', label: 'Roles (Shared Questions)' },
             { value: 'traits', label: 'Traits (Unique Questions)' },
             { value: 'traits_240', label: 'Traits (Shared Questions)' }
         ];
         
+        const availableDataSources = [];
+        
+        for (const dataSource of allDataSources) {
+            try {
+                // Check if this data source exists by trying to fetch its index file
+                const response = await fetch(`data/${model}/${dataSource.value}/index.txt`);
+                if (response.ok) {
+                    availableDataSources.push(dataSource);
+                }
+            } catch (error) {
+                // Data source doesn't exist, skip it
+                console.log(`Data source ${dataSource.value} not available for model ${model}`);
+            }
+        }
+        
+        return availableDataSources;
+    }
+    
+    populateDataSourceSelect(dataSources) {
         // Clear and populate data source select
         this.dataSourceSelect.innerHTML = '<option value="">Select data source...</option>';
         
@@ -183,11 +218,8 @@ class TraitsRolesViewer {
             option.textContent = source.label;
             this.dataSourceSelect.appendChild(option);
         });
-        
-        // Reset dependent selects
-        this.traitRoleSelect.innerHTML = '<option value="">Select data source first</option>';
     }
-    
+
     async onDataSourceChange() {
         const model = this.modelSelect.value;
         const dataSource = this.dataSourceSelect.value;
