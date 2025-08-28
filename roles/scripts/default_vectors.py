@@ -219,7 +219,7 @@ def process_directory(input_dir: str, output_dir: str) -> None:
     
     scores_dir = os.path.join(input_dir, "extract_scores")
     activations_dir = os.path.join(input_dir, "response_activations")
-    output_path = os.path.join(output_dir, "default_activations.pt")
+    output_path = os.path.join(output_dir, "default_vectors.pt")
     
     # Determine processing type based on directory name
     is_roles_240 = "roles_240" in input_dir

@@ -252,7 +252,7 @@ def plot_pca_cosine_similarity(pca_results, trait_labels, pc_component,
             y=cosine_scaled_counts,
             width=cosine_bin_width * 0.8,
             marker_color='limegreen',
-            opacity=1.0,
+            opacity=0.7,
             showlegend=False,
             hoverinfo='skip'
         ),
@@ -552,7 +552,7 @@ def plot_pca_projection(pca_results, trait_labels, pc_component,
             y=proj_scaled_counts,
             width=proj_bin_width * 0.8,
             marker_color='limegreen',
-            opacity=1.0,
+            opacity=0.7,
             showlegend=False,
             hoverinfo='skip'
         ),
@@ -692,20 +692,21 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     """
     
     # Extract the specified PC component for cosine similarity
-    pc_direction = torch.from_numpy(pca_results['pca'].components_[pc_component])
-    vectors = torch.stack(pca_results['vectors']['pos_neg_50'])[:, layer, :]
-    pc_direction_norm = F.normalize(pc_direction.unsqueeze(0), dim=1)
-    vectors_norm = F.normalize(vectors, dim=1)
-    cosine_sims = vectors_norm.float() @ pc_direction_norm.float().T
-    cosine_sims = cosine_sims.squeeze(1).numpy()
+    pc_direction = pca_results['pca'].components_[pc_component]
+    vectors = torch.stack(pca_results['vectors']['pos_neg_50'])[:, layer, :].float().numpy()
+    scaled_vectors = pca_results['scaler'].transform(vectors)
+    pc_direction_norm = pc_direction / np.linalg.norm(pc_direction)
+    vectors_norm = scaled_vectors / np.linalg.norm(scaled_vectors, axis=1, keepdims=True)
+    cosine_sims = vectors_norm @ pc_direction_norm.T
     
     # Calculate assistant cosine similarity if provided
     assistant_cosine_sim = None
     if assistant_activation is not None and layer is not None:
-        assistant_activation_layer = assistant_activation[layer, :]
-        assistant_activation_norm = F.normalize(assistant_activation_layer.unsqueeze(0), dim=1)
-        assistant_cosine_sim = assistant_activation_norm.float() @ pc_direction_norm.float().T
-        assistant_cosine_sim = assistant_cosine_sim.squeeze(1).numpy()[0]
+        assistant_layer_activation = assistant_activation[layer, :].float().numpy().reshape(1, -1)
+        asst_scaled = pca_results['scaler'].transform(assistant_layer_activation)
+        asst_scaled_norm = asst_scaled / np.linalg.norm(asst_scaled)
+        assistant_cosine_sim = asst_scaled_norm @ pc_direction.T
+        assistant_cosine_sim = assistant_cosine_sim[0]
     
     # Extract projection data
     pc_values = pca_results['pca_transformed'][:, pc_component]
@@ -867,10 +868,9 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
         go.Bar(
             x=cosine_bin_centers,
             y=cosine_scaled_counts,
-            base=1,  # Position bars at marker line level
             width=cosine_bin_width * 0.8,
             marker_color='limegreen',
-            opacity=1.0,
+            opacity=0.7,
             showlegend=False,
             hoverinfo='skip'
         ),
@@ -1010,10 +1010,9 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
         go.Bar(
             x=proj_bin_centers,
             y=proj_scaled_counts,
-            base=1,  # Position bars at marker line level
             width=proj_bin_width * 0.8,
             marker_color='limegreen',
-            opacity=1.0,
+            opacity=0.7,
             showlegend=False,
             hoverinfo='skip'
         ),
