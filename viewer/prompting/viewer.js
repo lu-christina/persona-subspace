@@ -521,7 +521,7 @@ class TraitsRolesViewer {
             scoreDisplay = item.score !== null ? item.score : 'N/A';
         }
         
-        const response = item.conversation?.[1]?.content || 'No response available';
+        const response = item.conversation?.[item.conversation.length - 1]?.content || 'No response available';
         const systemPrompt = item.system_prompt || '';
         const question = item.question || '';
         const scoreTextColor = this.getScoreTextColor(item.score, isRoles);
