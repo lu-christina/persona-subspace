@@ -1724,6 +1724,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None, dir=None,
     # Update layout
     fig.update_layout(
         height=800,
+        width=1200,
         title=dict(
             text=title,
             subtitle={"text": subtitle},
