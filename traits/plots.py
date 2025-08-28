@@ -57,16 +57,8 @@ def plot_pca_cosine_similarity(pca_results, trait_labels, pc_component,
     high_extreme_indices = sorted_indices[-10:]
     extreme_indices = set(list(low_extreme_indices) + list(high_extreme_indices))
     
-    # Create subplot figure
-    fig = sp.make_subplots(
-        rows=2, cols=1,
-        row_heights=[0.6, 0.4],
-        vertical_spacing=0.1,
-        subplot_titles=[
-            f'PC{pc_component+1} Cosine Similarity',
-            'Trait Frequency Distribution'
-        ]
-    )
+    # Create single plot figure
+    fig = go.Figure()
     
     # Split points into regular and extreme for different display modes
     regular_x, regular_y, regular_colors, regular_labels, regular_symbols = [], [], [], [], []
@@ -132,9 +124,9 @@ def plot_pca_cosine_similarity(pca_results, trait_labels, pc_component,
     if len(extreme_indices) > 0:
         # Create predefined alternating heights with variation
         # High positions with variation
-        high_positions = [1.65, 1.45, 1.55, 1.35, 1.25, 1.65, 1.45, 1.55, 1.35, 1.25]
+        high_positions = [1.45, 1.9, 1.6, 1.3, 1.75, 1.45, 1.9, 1.6, 1.3, 1.75]
         # Low positions with variation  
-        low_positions = [0.35, 0.55, 0.75, 0.65, 0.45, 0.35, 0.55, 0.75, 0.65, 0.45]
+        low_positions = [0.6, 0.15, 0.45, 0.75, 0.30, 0.6, 0.15, 0.45, 0.75, 0.30]
         
         # Alternate high-low pattern
         all_y_positions = []
@@ -222,13 +214,13 @@ def plot_pca_cosine_similarity(pca_results, trait_labels, pc_component,
         fig.add_vline(x=assistant_cosine_sim, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=1, col=1)
         
         # Add Assistant label at same height as extremes
-        assistant_y_position = 1.6  # Same as first high position
+        assistant_y_position = 2  # Higher position for better visibility
         fig.add_annotation(
             x=assistant_cosine_sim,
             y=assistant_y_position,
             text="Assistant",
             showarrow=False,
-            font=dict(size=10, color="red"),
+            font=dict(size=14, color="red"),
             bgcolor="rgba(255, 255, 255, 0.9)",
             bordercolor="red",
             borderwidth=1,
@@ -244,17 +236,29 @@ def plot_pca_cosine_similarity(pca_results, trait_labels, pc_component,
         row=2, col=1
     )
     
-    # Bottom panel: Histogram
+    # Add histogram as opaque bars at marker line
+    nbins = 30
+    cosine_hist_counts, cosine_bin_edges = np.histogram(cosine_sims, bins=nbins)
+    cosine_bin_centers = (cosine_bin_edges[:-1] + cosine_bin_edges[1:]) / 2
+    cosine_bin_width = cosine_bin_edges[1] - cosine_bin_edges[0]
+    
+    # Scale histogram heights 
+    max_hist_height = 0.9
+    cosine_scaled_counts = (cosine_hist_counts / np.max(cosine_hist_counts)) * max_hist_height
+    
     fig.add_trace(
-        go.Histogram(
-            x=cosine_sims,
-            nbinsx=30,
-            opacity=1.0,
+        go.Bar(
+            x=cosine_bin_centers,
+            y=cosine_scaled_counts,
+            width=cosine_bin_width * 0.8,
             marker_color='limegreen',
-            showlegend=False
+            opacity=1.0,
+            showlegend=False,
+            hoverinfo='skip'
         ),
-        row=2, col=1
+        row=1, col=1
     )
+    
 
     # Update layout
     fig.update_layout(
@@ -291,7 +295,7 @@ def plot_pca_cosine_similarity(pca_results, trait_labels, pc_component,
         title_text="",
         showticklabels=False,
         row=1, col=1,
-        range=[0.25, 1.75]  # Range for varied label heights
+        range=[0.25, 2.5]  # Range for varied label heights with extra top space
     )
     
     fig.update_yaxes(
@@ -420,9 +424,9 @@ def plot_pca_projection(pca_results, trait_labels, pc_component,
     if len(extreme_indices) > 0:
         # Create predefined alternating heights with variation
         # High positions with variation
-        high_positions = [1.65, 1.45, 1.55, 1.35, 1.25, 1.65, 1.45, 1.55, 1.35, 1.25]
+        high_positions = [1.45, 1.9, 1.6, 1.3, 1.75, 1.45, 1.9, 1.6, 1.3, 1.75]
         # Low positions with variation  
-        low_positions = [0.35, 0.55, 0.75, 0.65, 0.45, 0.35, 0.55, 0.75, 0.65, 0.45]
+        low_positions = [0.6, 0.15, 0.45, 0.75, 0.30, 0.6, 0.15, 0.45, 0.75, 0.30]
         
         # Alternate high-low pattern
         all_y_positions = []
@@ -510,13 +514,13 @@ def plot_pca_projection(pca_results, trait_labels, pc_component,
         fig.add_vline(x=assistant_projection, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=1, col=1)
         
         # Add Assistant label at same height as extremes
-        assistant_y_position = 1.6  # Same as first high position
+        assistant_y_position = 2  # Higher position for better visibility
         fig.add_annotation(
             x=assistant_projection,
             y=assistant_y_position,
             text="Assistant",
             showarrow=False,
-            font=dict(size=10, color="red"),
+            font=dict(size=14, color="red"),
             bgcolor="rgba(255, 255, 255, 0.9)",
             bordercolor="red",
             borderwidth=1,
@@ -532,17 +536,29 @@ def plot_pca_projection(pca_results, trait_labels, pc_component,
         row=2, col=1
     )
     
-    # Bottom panel: Histogram
+    # Add histogram as opaque bars at marker line  
+    nbins = 30
+    proj_hist_counts, proj_bin_edges = np.histogram(projections, bins=nbins)
+    proj_bin_centers = (proj_bin_edges[:-1] + proj_bin_edges[1:]) / 2
+    proj_bin_width = proj_bin_edges[1] - proj_bin_edges[0]
+    
+    # Scale histogram heights to fit at marker line level
+    max_hist_height = 0.5
+    proj_scaled_counts = (proj_hist_counts / np.max(proj_hist_counts)) * max_hist_height
+    
     fig.add_trace(
-        go.Histogram(
-            x=projections,
-            nbinsx=30,
-            opacity=1.0,
+        go.Bar(
+            x=proj_bin_centers,
+            y=proj_scaled_counts,
+            width=proj_bin_width * 0.8,
             marker_color='limegreen',
-            showlegend=False
+            opacity=1.0,
+            showlegend=False,
+            hoverinfo='skip'
         ),
-        row=2, col=1
+        row=1, col=1
     )
+    
 
     # Update layout
     fig.update_layout(
@@ -579,7 +595,7 @@ def plot_pca_projection(pca_results, trait_labels, pc_component,
         title_text="",
         showticklabels=False,
         row=1, col=1,
-        range=[0.25, 1.75]  # Range for varied label heights
+        range=[0.25, 2.5]  # Range for varied label heights with extra top space
     )
     
     fig.update_yaxes(
@@ -653,3 +669,402 @@ def plot_3d_pca(pca_transformed, variance_explained, trait_labels, assistant_pro
     )
     
     return fig_3d
+
+def plot_pc(pca_results, trait_labels, pc_component, layer=None, 
+           assistant_activation=None, assistant_projection=None,
+           title="PCA on Trait Vectors", subtitle=""):
+    """
+    Create a combined plot with cosine similarity (left) and normalized projection (right).
+    Shows histograms directly on the plots at y=1 level.
+    
+    Parameters:
+    - pca_results: Dictionary containing PCA results and vectors
+    - trait_labels: List of labels for each data point
+    - pc_component: Which PC component to use (0-indexed, so PC1 = 0)
+    - layer: Layer number (used for assistant_activation if provided)
+    - assistant_activation: Optional assistant activation for cosine similarity comparison
+    - assistant_projection: Optional assistant projection for projection comparison
+    - title: Main title for the plot
+    - subtitle: Subtitle for the plot
+    
+    Returns:
+    - Plotly figure object
+    """
+    
+    # Extract the specified PC component for cosine similarity
+    pc_direction = torch.from_numpy(pca_results['pca'].components_[pc_component])
+    vectors = torch.stack(pca_results['vectors']['pos_neg_50'])[:, layer, :]
+    pc_direction_norm = F.normalize(pc_direction.unsqueeze(0), dim=1)
+    vectors_norm = F.normalize(vectors, dim=1)
+    cosine_sims = vectors_norm.float() @ pc_direction_norm.float().T
+    cosine_sims = cosine_sims.squeeze(1).numpy()
+    
+    # Calculate assistant cosine similarity if provided
+    assistant_cosine_sim = None
+    if assistant_activation is not None and layer is not None:
+        assistant_activation_layer = assistant_activation[layer, :]
+        assistant_activation_norm = F.normalize(assistant_activation_layer.unsqueeze(0), dim=1)
+        assistant_cosine_sim = assistant_activation_norm.float() @ pc_direction_norm.float().T
+        assistant_cosine_sim = assistant_cosine_sim.squeeze(1).numpy()[0]
+    
+    # Extract projection data
+    pc_values = pca_results['pca_transformed'][:, pc_component]
+    projections = pc_values / np.linalg.norm(pc_values)
+
+    if assistant_projection is not None:
+        assistant_pc_value = assistant_projection[pc_component]
+        assistant_normalized_projection = assistant_pc_value / np.linalg.norm(np.concatenate([pc_values, [assistant_pc_value]]))
+    
+    # Identify extreme points for both plots
+    cosine_sorted_indices = np.argsort(cosine_sims)
+    cosine_low_extreme = cosine_sorted_indices[:10]
+    cosine_high_extreme = cosine_sorted_indices[-10:]
+    cosine_extreme_indices = set(list(cosine_low_extreme) + list(cosine_high_extreme))
+    
+    proj_sorted_indices = np.argsort(projections)
+    proj_low_extreme = proj_sorted_indices[:10]
+    proj_high_extreme = proj_sorted_indices[-10:]
+    proj_extreme_indices = set(list(proj_low_extreme) + list(proj_high_extreme))
+    
+    # Create subplot figure
+    fig = sp.make_subplots(
+        rows=2, cols=1,
+        vertical_spacing=0.1,
+        subplot_titles=[
+            f'PC{pc_component+1} Cosine Similarity',
+            f'PC{pc_component+1} Normalized Projection'
+        ]
+    )
+    
+    # Label positions for extreme points
+    high_positions = [1.45, 1.9, 1.6, 1.3, 1.75, 1.45, 1.9, 1.6, 1.3, 1.75]
+    low_positions = [0.6, 0.15, 0.45, 0.75, 0.30, 0.6, 0.15, 0.45, 0.75, 0.30]
+    cosine_y_positions = []
+    for i in range(10):
+        cosine_y_positions.extend([high_positions[i], low_positions[i]])
+    proj_y_positions = []
+    for i in range(10):
+        proj_y_positions.extend([high_positions[i], low_positions[i]])
+    
+    # === LEFT SUBPLOT: COSINE SIMILARITY ===
+    
+    # Add regular cosine similarity points
+    regular_cosine_x, regular_cosine_labels = [], []
+    extreme_cosine_x, extreme_cosine_labels = [], []
+    
+    for i, (sim, label) in enumerate(zip(cosine_sims, trait_labels)):
+        if i in cosine_extreme_indices:
+            extreme_cosine_x.append(sim)
+            extreme_cosine_labels.append(label)
+        else:
+            regular_cosine_x.append(sim)
+            regular_cosine_labels.append(label)
+    
+    # Regular points
+    if regular_cosine_x:
+        fig.add_trace(
+            go.Scatter(
+                x=regular_cosine_x,
+                y=[1] * len(regular_cosine_x),
+                mode='markers',
+                marker=dict(
+                    color='limegreen',
+                    size=8,
+                    opacity=1.0,
+                    symbol='diamond',
+                    line=dict(width=1, color='black')
+                ),
+                text=regular_cosine_labels,
+                showlegend=False,
+                hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
+            ),
+            row=1, col=1
+        )
+    
+    # Extreme points with labels
+    if extreme_cosine_x:
+        fig.add_trace(
+            go.Scatter(
+                x=extreme_cosine_x,
+                y=[1] * len(extreme_cosine_x),
+                mode='markers',
+                marker=dict(
+                    color='limegreen',
+                    size=8,
+                    opacity=1.0,
+                    symbol='diamond',
+                    line=dict(width=1, color='black')
+                ),
+                text=extreme_cosine_labels,
+                showlegend=False,
+                hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
+            ),
+            row=1, col=1
+        )
+        
+        # Add leader lines and annotations for extreme cosine points
+        for i, idx in enumerate(cosine_low_extreme):
+            x_pos = cosine_sims[idx]
+            label = trait_labels[idx]
+            y_label = cosine_y_positions[i]
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_pos, x_pos],
+                    y=[1.0, y_label],
+                    mode='lines',
+                    line=dict(color='black', width=1),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ),
+                row=1, col=1
+            )
+            
+            fig.add_annotation(
+                x=x_pos, y=y_label, text=label, showarrow=False,
+                font=dict(size=10, color='black'),
+                bgcolor="rgba(255, 255, 255, 0.9)",
+                bordercolor='black', borderwidth=1,
+                row=1, col=1
+            )
+        
+        for i, idx in enumerate(cosine_high_extreme):
+            x_pos = cosine_sims[idx]
+            label = trait_labels[idx]
+            y_label = cosine_y_positions[i + 10]
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_pos, x_pos],
+                    y=[1.0, y_label],
+                    mode='lines',
+                    line=dict(color='black', width=1),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ),
+                row=1, col=1
+            )
+            
+            fig.add_annotation(
+                x=x_pos, y=y_label, text=label, showarrow=False,
+                font=dict(size=10, color='black'),
+                bgcolor="rgba(255, 255, 255, 0.9)",
+                bordercolor='black', borderwidth=1,
+                row=1, col=1
+            )
+    
+    # Add cosine similarity histogram as bars
+    nbins = 30
+    cosine_hist_counts, cosine_bin_edges = np.histogram(cosine_sims, bins=nbins)
+    cosine_bin_centers = (cosine_bin_edges[:-1] + cosine_bin_edges[1:]) / 2
+    cosine_bin_width = cosine_bin_edges[1] - cosine_bin_edges[0]
+    
+    # Scale histogram heights 
+    max_hist_height = 0.9
+    cosine_scaled_counts = (cosine_hist_counts / np.max(cosine_hist_counts)) * max_hist_height
+    
+    fig.add_trace(
+        go.Bar(
+            x=cosine_bin_centers,
+            y=cosine_scaled_counts,
+            base=1,  # Position bars at marker line level
+            width=cosine_bin_width * 0.8,
+            marker_color='limegreen',
+            opacity=1.0,
+            showlegend=False,
+            hoverinfo='skip'
+        ),
+        row=1, col=1
+    )
+    
+    # Add vertical line at x=0 and assistant line for cosine similarity
+    fig.add_vline(x=0, line_dash="solid", line_color="gray", line_width=1, opacity=0.7, row=1, col=1)
+    
+    if assistant_cosine_sim is not None:
+        fig.add_vline(x=assistant_cosine_sim, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=1, col=1)
+        fig.add_annotation(
+            x=assistant_cosine_sim, y=2, text="Assistant", showarrow=False,
+            font=dict(size=14, color="red"),
+            bgcolor="rgba(255, 255, 255, 0.9)",
+            bordercolor="red", borderwidth=1,
+            row=1, col=1
+        )
+    
+    # === RIGHT SUBPLOT: PROJECTION ===
+    
+    # Add regular projection points
+    regular_proj_x, regular_proj_labels = [], []
+    extreme_proj_x, extreme_proj_labels = [], []
+    
+    for i, (proj, label) in enumerate(zip(projections, trait_labels)):
+        if i in proj_extreme_indices:
+            extreme_proj_x.append(proj)
+            extreme_proj_labels.append(label)
+        else:
+            regular_proj_x.append(proj)
+            regular_proj_labels.append(label)
+    
+    # Regular points
+    if regular_proj_x:
+        fig.add_trace(
+            go.Scatter(
+                x=regular_proj_x,
+                y=[1] * len(regular_proj_x),
+                mode='markers',
+                marker=dict(
+                    color='limegreen',
+                    size=8,
+                    opacity=1.0,
+                    symbol='diamond',
+                    line=dict(width=1, color='black')
+                ),
+                text=regular_proj_labels,
+                showlegend=False,
+                hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
+            ),
+            row=2, col=1
+        )
+    
+    # Extreme points with labels
+    if extreme_proj_x:
+        fig.add_trace(
+            go.Scatter(
+                x=extreme_proj_x,
+                y=[1] * len(extreme_proj_x),
+                mode='markers',
+                marker=dict(
+                    color='limegreen',
+                    size=8,
+                    opacity=1.0,
+                    symbol='diamond',
+                    line=dict(width=1, color='black')
+                ),
+                text=extreme_proj_labels,
+                showlegend=False,
+                hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
+            ),
+            row=2, col=1
+        )
+        
+        # Add leader lines and annotations for extreme projection points
+        for i, idx in enumerate(proj_low_extreme):
+            x_pos = projections[idx]
+            label = trait_labels[idx]
+            y_label = proj_y_positions[i]
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_pos, x_pos],
+                    y=[1.0, y_label],
+                    mode='lines',
+                    line=dict(color='black', width=1),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ),
+                row=2, col=1
+            )
+            
+            fig.add_annotation(
+                x=x_pos, y=y_label, text=label, showarrow=False,
+                font=dict(size=10, color='black'),
+                bgcolor="rgba(255, 255, 255, 0.9)",
+                bordercolor='black', borderwidth=1,
+                row=2, col=1
+            )
+        
+        for i, idx in enumerate(proj_high_extreme):
+            x_pos = projections[idx]
+            label = trait_labels[idx]
+            y_label = proj_y_positions[i + 10]
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_pos, x_pos],
+                    y=[1.0, y_label],
+                    mode='lines',
+                    line=dict(color='black', width=1),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ),
+                row=2, col=1
+            )
+            
+            fig.add_annotation(
+                x=x_pos, y=y_label, text=label, showarrow=False,
+                font=dict(size=10, color='black'),
+                bgcolor="rgba(255, 255, 255, 0.9)",
+                bordercolor='black', borderwidth=1,
+                row=2, col=1
+            )
+    
+    # Add projection histogram as bars
+    proj_hist_counts, proj_bin_edges = np.histogram(projections, bins=nbins)
+    proj_bin_centers = (proj_bin_edges[:-1] + proj_bin_edges[1:]) / 2
+    proj_bin_width = proj_bin_edges[1] - proj_bin_edges[0]
+    
+    # Scale histogram heights
+    max_hist_height = 0.9
+    proj_scaled_counts = (proj_hist_counts / np.max(proj_hist_counts)) * max_hist_height
+    
+    fig.add_trace(
+        go.Bar(
+            x=proj_bin_centers,
+            y=proj_scaled_counts,
+            base=1,  # Position bars at marker line level
+            width=proj_bin_width * 0.8,
+            marker_color='limegreen',
+            opacity=1.0,
+            showlegend=False,
+            hoverinfo='skip'
+        ),
+        row=2, col=1
+    )
+    
+    # Add vertical line at x=0 and assistant line for projection
+    fig.add_vline(x=0, line_dash="solid", line_color="gray", line_width=1, opacity=0.7, row=2, col=1)
+    
+    if assistant_projection is not None:
+        fig.add_vline(x=assistant_normalized_projection, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=2, col=1)
+        fig.add_annotation(
+            x=assistant_normalized_projection, y=2, text="Assistant", showarrow=False,
+            font=dict(size=14, color="red"),
+            bgcolor="rgba(255, 255, 255, 0.9)",
+            bordercolor="red", borderwidth=1,
+            row=2, col=1
+        )
+    
+    # Update layout
+    fig.update_layout(
+        height=800,
+        title=dict(
+            text=title,
+            subtitle={"text": subtitle},
+            x=0.5,
+            font=dict(size=16)
+        ),
+        showlegend=False
+    )
+    
+    # Update x-axes ranges
+    cosine_max_abs = max(abs(min(cosine_sims)), abs(max(cosine_sims)))
+    cosine_x_width = cosine_max_abs * 1.1
+    
+    proj_max_abs = max(abs(min(projections)), abs(max(projections)))
+    proj_x_width = proj_max_abs * 1.1
+    
+    fig.update_xaxes(range=[-cosine_x_width, cosine_x_width], row=1, col=1)
+    fig.update_xaxes(range=[-proj_x_width, proj_x_width], row=2, col=1)
+    
+    # Update y-axes
+    fig.update_yaxes(
+        showticklabels=False,
+        range=[0, 2.5],
+        row=1, col=1
+    )
+    fig.update_yaxes(
+        showticklabels=False,
+        range=[0, 2.5],
+        row=2, col=1
+    )
+    
+    return fig
