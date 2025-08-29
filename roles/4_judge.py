@@ -456,11 +456,11 @@ async def process_role(
             if key not in existing_scores:
                 prompts_to_evaluate.append(prompt_data)
         
-        logger.info(f"Need to evaluate {len(prompts_to_evaluate)} new prompts (skipping {len(evaluation_prompts) - len(prompts_to_evaluate)} existing scores)")
-        
         if not prompts_to_evaluate:
-            logger.info(f"All scores already exist for role: {role}")
+            logger.info(f"All scores already processed for role: {role}")
             return existing_scores
+        
+        logger.info(f"Need to evaluate {len(prompts_to_evaluate)} new prompts (skipping {len(evaluation_prompts) - len(prompts_to_evaluate)} existing scores)")
         
         # Extract just the prompt texts for the API call
         prompt_texts = [prompt_text for _, _, _, _, prompt_text in prompts_to_evaluate]

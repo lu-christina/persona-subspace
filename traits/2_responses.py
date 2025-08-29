@@ -503,7 +503,7 @@ class TraitResponseGenerator:
             "",
             "You are an AI assistant.",
             "You are a large language model.",
-            "You are Gemma.",
+            "You are Llama.",
             "Respond as yourself."
         ] if self.include_default else []
         

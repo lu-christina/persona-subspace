@@ -143,6 +143,7 @@ class TraitsRolesViewer {
     async loadModels() {
         const models = [
             { value: 'gemma-2-27b', label: 'Gemma-2-27B' },
+            { value: 'llama-3.3-70b', label: 'Llama-3.3-70B' },
             { value: 'qwen-3-32b', label: 'Qwen-3-32B' }
         ];
         
