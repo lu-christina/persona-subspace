@@ -12,9 +12,10 @@ uv run 1_baseline.py \
 	--roles_file /root/git/persona-subspace/evals/data/harmbench/roles.jsonl \
 	--output_jsonl /root/git/persona-subspace/evals/results/roles_traits/harmbench_baseline.jsonl
 
-uv run baseline.py \
-    --prompts_file /root/git/persona-subspace/evals/data/roles_20.jsonl \
-    --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/roles_20_baseline.jsonl
+uv run 1_baseline.py \
+    --model_name google/gemma-2-27b-it \
+    --prompts_file /root/git/persona-subspace/evals/data/jailbreak/persona_jailbreak.jsonl \
+    --output_jsonl /root/git/persona-subspace/evals/results/gemma-2-27b/jailbreak_baseline.jsonl
 """
 
 import argparse
@@ -29,7 +30,7 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 sys.path.append(str(project_root / 'utils'))
 
-from utils.inference_utils import load_vllm_model, batch_chat, close_vllm_model
+from utils.inference_utils import load_vllm_model, batch_conversation_chat, close_vllm_model
 
 
 def read_existing_results(output_jsonl: str) -> Set[str]:
@@ -120,6 +121,19 @@ def parse_arguments():
         help="Specific GPU ID to use (if not specified, will auto-detect and use all available GPUs)"
     )
     
+    parser.add_argument(
+        "--company",
+        type=str,
+        default="Acme Corp",
+        help="Company name to substitute for {company} placeholder in prompts"
+    )
+    
+    parser.add_argument(
+        "--no_system_prompt",
+        action="store_true",
+        help="Only use the question text, ignore any role/system prompt"
+    )
+    
     args = parser.parse_args()
     
     # Validate mutually exclusive arguments
@@ -134,7 +148,7 @@ def parse_arguments():
 
 
 def load_questions(questions_file: str) -> List[Dict[str, Any]]:
-    """Load questions from JSONL file with id and semantic_category fields."""
+    """Load questions from JSONL file."""
     print(f"Loading questions from {questions_file}")
     
     if not os.path.exists(questions_file):
@@ -146,16 +160,7 @@ def load_questions(questions_file: str) -> List[Dict[str, Any]]:
             try:
                 question_obj = json.loads(line.strip())
                 
-                # Validate required fields
-                if 'id' not in question_obj:
-                    print(f"Warning: Missing 'id' field on line {line_num}")
-                    continue
-                    
-                if 'semantic_category' not in question_obj:
-                    print(f"Warning: Missing 'semantic_category' field on line {line_num}")
-                    continue
-                
-                # Extract question text (try multiple possible field names)
+                # Only validate presence of question field
                 question_text = None
                 for field in ['question', 'text', 'prompt']:
                     if field in question_obj:
@@ -166,11 +171,9 @@ def load_questions(questions_file: str) -> List[Dict[str, Any]]:
                     print(f"Warning: No question text found on line {line_num}")
                     continue
                 
-                questions.append({
-                    'id': question_obj['id'],
-                    'semantic_category': question_obj['semantic_category'],
-                    'text': question_text
-                })
+                # Store the original object with the identified text field
+                question_obj['_question_text'] = question_text
+                questions.append(question_obj)
                 
             except json.JSONDecodeError as e:
                 print(f"Warning: Skipping invalid JSON on line {line_num}: {e}")
@@ -180,7 +183,7 @@ def load_questions(questions_file: str) -> List[Dict[str, Any]]:
 
 
 def load_roles(roles_file: str) -> List[Dict[str, Any]]:
-    """Load roles from JSONL file with id and type fields."""
+    """Load roles from JSONL file."""
     print(f"Loading roles from {roles_file}")
     
     if not os.path.exists(roles_file):
@@ -192,16 +195,7 @@ def load_roles(roles_file: str) -> List[Dict[str, Any]]:
             try:
                 role_obj = json.loads(line.strip())
                 
-                # Validate required fields
-                if 'id' not in role_obj:
-                    print(f"Warning: Missing 'id' field on line {line_num}")
-                    continue
-                    
-                if 'type' not in role_obj:
-                    print(f"Warning: Missing 'type' field on line {line_num}")
-                    continue
-                
-                # Extract role text
+                # Only validate presence of role field
                 role_text = None
                 for field in ['role', 'text', 'prompt']:
                     if field in role_obj:
@@ -212,11 +206,9 @@ def load_roles(roles_file: str) -> List[Dict[str, Any]]:
                     print(f"Warning: No role text found on line {line_num}")
                     continue
                 
-                roles.append({
-                    'id': role_obj['id'],
-                    'type': role_obj['type'],
-                    'text': role_text
-                })
+                # Store the original object with the identified text field
+                role_obj['_role_text'] = role_text
+                roles.append(role_obj)
                 
             except json.JSONDecodeError as e:
                 print(f"Warning: Skipping invalid JSON on line {line_num}: {e}")
@@ -226,86 +218,110 @@ def load_roles(roles_file: str) -> List[Dict[str, Any]]:
 
 
 def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
-    """Load prompts from combined JSONL file with role, prompt_id, question_id, prompt, question fields."""
+    """Load prompts from combined JSONL file."""
     print(f"Loading prompts from {prompts_file}")
     
     if not os.path.exists(prompts_file):
         raise FileNotFoundError(f"Prompts file not found: {prompts_file}")
     
     prompts = []
-    unique_roles = set()
     
     with open(prompts_file, 'r') as f:
         for line_num, line in enumerate(f, 1):
             try:
                 prompt_obj = json.loads(line.strip())
                 
-                # Validate required fields
-                required_fields = ['role', 'prompt_id', 'question_id', 'id','prompt', 'question']
-                for field in required_fields:
-                    if field not in prompt_obj:
-                        print(f"Warning: Missing '{field}' field on line {line_num}")
-                        continue
+                # Only validate presence of prompt and question fields
+                if 'prompt' not in prompt_obj or 'question' not in prompt_obj:
+                    print(f"Warning: Missing 'prompt' or 'question' field on line {line_num}")
+                    continue
                 
-                # Track unique roles for alphabetical ordering
-                unique_roles.add(prompt_obj['role'])
+                # Create combined prompt text
+                combined_prompt = f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']
+                prompt_obj['_combined_prompt'] = combined_prompt
                 
                 prompts.append(prompt_obj)
                 
             except json.JSONDecodeError as e:
                 print(f"Warning: Skipping invalid JSON on line {line_num}: {e}")
     
-    # Create alphabetical ordering for role_id
-    sorted_roles = sorted(unique_roles)
-    role_to_id = {role: idx for idx, role in enumerate(sorted_roles)}
-    
-    # Process prompts with proper mappings
-    processed_prompts = []
-    for prompt_obj in prompts:
-        role = prompt_obj['role']
-        
-        processed_prompt = {
-            'id': prompt_obj['id'],
-            'role_id': role_to_id[role],
-            'role_label': 'role' if role != 'default' else 'default',
-            'question_id': prompt_obj['question_id'],
-            'question_label': role,
-            'prompt': f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']
-        }
-        
-        processed_prompts.append(processed_prompt)
-    
-    print(f"Loaded {len(processed_prompts)} prompts from {len(sorted_roles)} unique roles: {sorted_roles}")
-    return processed_prompts
+    print(f"Loaded {len(prompts)} prompts")
+    return prompts
 
 
-def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[str]) -> List[Dict[str, Any]]:
+def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[str], company_name: str = "Acme Corp", no_system_prompt: bool = False) -> List[Dict[str, Any]]:
     """Generate all role-question combination prompts, filtering out existing ones."""
     prompts_data = []
     skipped_count = 0
     
     for role in roles:
         for question in questions:
-            # Concatenate role and question
-            prompt = f"{role['text']} {question['text']}".strip() if role['text'] else question['text']
+            # Format company name in role and question text
+            role_text = role['_role_text'].format(company=company_name)
+            question_text = question['_question_text'].format(company=company_name)
+            
+            if no_system_prompt:
+                # In no-system-prompt mode, only use the question text
+                prompt = question_text
+                system_prompt = ''
+                user_message = question_text
+            else:
+                # Normal mode: combine role and question
+                prompt = f"{role_text} {question_text}".strip() if role_text else question_text
+                system_prompt = role_text
+                user_message = question_text
             
             # Check if this prompt already exists
             if prompt in existing_results:
                 skipped_count += 1
                 continue
             
-            prompts_data.append({
-                'role_id': role['id'],
-                'role_label': role['type'],
-                'question_id': question['id'],
-                'question_label': question['semantic_category'],
-                'prompt': prompt
-            })
+            # Combine all fields from both role and question
+            prompt_data = {}
+            prompt_data.update(role)
+            prompt_data.update(question)
+            prompt_data['prompt'] = prompt  # Formatted version for output
+            prompt_data['_system_prompt'] = system_prompt
+            prompt_data['_user_message'] = user_message
+            
+            # Clean up temporary fields
+            if '_role_text' in prompt_data:
+                del prompt_data['_role_text']
+            if '_question_text' in prompt_data:
+                del prompt_data['_question_text']
+            
+            prompts_data.append(prompt_data)
     
     if skipped_count > 0:
         print(f"Filtered out {skipped_count} existing combinations")
     
     return prompts_data
+
+
+def format_messages_for_chat(prompts_data: List[Dict[str, Any]], model_name: str, no_system_prompt: bool = False) -> List[List[Dict[str, str]]]:
+    """Format prompts into chat messages for vLLM batch processing."""
+    # Determine if this is a Gemma model (no system prompt support)
+    is_gemma = 'gemma' in model_name.lower()
+    
+    formatted_messages = []
+    for prompt_data in prompts_data:
+        system_prompt = prompt_data.get('_system_prompt', '')
+        user_message = prompt_data.get('_user_message', '')
+        
+        if no_system_prompt or is_gemma or not system_prompt:
+            # No system prompt mode, Gemma model, or no system prompt: only use user message
+            content = user_message if no_system_prompt else (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
+            messages = [{"role": "user", "content": content}]
+        else:
+            # Default: Use system prompt + user message (for Qwen, Llama, etc.)
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
+        
+        formatted_messages.append(messages)
+    
+    return formatted_messages
 
 
 def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[str]):
@@ -328,15 +344,15 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
                 skipped_count += 1
                 continue
                 
-            row_data = {
-                'role_id': prompt_data['role_id'],
-                'role_label': prompt_data['role_label'],
-                'question_id': prompt_data['question_id'],
-                'question_label': prompt_data['question_label'],
-                'prompt': prompt_data['prompt'],
-                'response': response,
-                'magnitude': 0.0
-            }
+            row_data = prompt_data.copy()  # Copy all original fields
+            row_data['response'] = response
+            row_data['magnitude'] = 0.0
+            
+            # Remove underscore fields from output
+            fields_to_remove = [k for k in row_data.keys() if k.startswith('_')]
+            for field in fields_to_remove:
+                del row_data[field]
+            
             f.write(json.dumps(row_data) + '\n')
             written_count += 1
     
@@ -366,22 +382,43 @@ def main():
         # Apply test mode filtering
         if args.test_mode:
             if len(prompts_data) > 0:
-                # In test mode, keep only first unique question_id
-                first_question_id = prompts_data[0]['question_id']
-                prompts_data = [p for p in prompts_data if p['question_id'] == first_question_id]
-                print(f"TEST MODE: Using only question_id {first_question_id} ({len(prompts_data)} prompts)")
+                # In test mode, keep only first 10 prompts
+                prompts_data = prompts_data[:10]
+                print(f"TEST MODE: Using only first 10 prompts ({len(prompts_data)} prompts)")
             else:
                 print("Warning: No prompts available for test mode")
         
-        # Filter out existing results
+        # Set up separate fields for system/user messages and format company
+        for p in prompts_data:
+            # Format company name in prompts
+            system_prompt_text = p.get('prompt', '').format(company=args.company)
+            user_message = p.get('question', '').format(company=args.company)
+            
+            if args.no_system_prompt:
+                # In no-system-prompt mode, only use the question text
+                formatted_combined = user_message
+                system_prompt = ''
+            else:
+                # Normal mode: combine system prompt and question
+                formatted_combined = f"{system_prompt_text} {user_message}".strip() if system_prompt_text else user_message
+                system_prompt = system_prompt_text
+            
+            p['prompt'] = formatted_combined  # Formatted version for output
+            p['_system_prompt'] = system_prompt
+            p['_user_message'] = user_message
+            
+            # Clean up temporary fields
+            if '_combined_prompt' in p:
+                del p['_combined_prompt']
+        
         original_count = len(prompts_data)
         prompts_data = [p for p in prompts_data if p['prompt'] not in existing_results]
         filtered_count = original_count - len(prompts_data)
         if filtered_count > 0:
             print(f"Filtered out {filtered_count} existing combinations from combined prompts")
         
-        n_unique_roles = len(set(p['role_id'] for p in prompts_data))
-        n_unique_questions = len(set(p['question_id'] for p in prompts_data))
+        n_unique_roles = len(set(p.get('role', '') for p in prompts_data))
+        n_unique_questions = len(set(p.get('id', p.get('question_id', '')) for p in prompts_data))
         print(f"Using combined prompts format: {len(prompts_data)} prompts from {n_unique_roles} roles and {n_unique_questions} questions")
         
     else:
@@ -392,14 +429,14 @@ def main():
         # Apply test mode filtering
         if args.test_mode:
             if len(questions) > 0:
-                questions = questions[:1]  # Keep only first question
-                print("TEST MODE: Using only the first question")
+                questions = questions[:10]  # Keep only first 10 questions
+                print(f"TEST MODE: Using only first 10 questions ({len(questions)} questions)")
             else:
                 print("Warning: No questions available for test mode")
         
         # Generate all prompts
         print(f"Generating prompts for {len(questions)} questions and {len(roles)} roles")
-        prompts_data = generate_all_prompts(roles, questions, existing_results)
+        prompts_data = generate_all_prompts(roles, questions, existing_results, args.company, args.no_system_prompt)
         print(f"Generated {len(prompts_data)} total prompts")
     
     # Check if we have any new prompts to process after filtering
@@ -407,8 +444,8 @@ def main():
         print("No new prompts to process - all combinations already exist!")
         return
         
-    # Extract just the prompt strings for batch processing
-    prompts = [data['prompt'] for data in prompts_data]
+    # Format messages for chat-based processing
+    messages_list = format_messages_for_chat(prompts_data, args.model_name, args.no_system_prompt)
     
     # Load vLLM model with GPU configuration
     print(f"Loading vLLM model: {args.model_name}")
@@ -433,11 +470,11 @@ def main():
     )
     
     try:
-        # Generate responses using batch processing
+        # Generate responses using batch processing with formatted messages
         print(f"Generating responses with batch processing...")
-        responses = batch_chat(
+        responses = batch_conversation_chat(
             model_wrapper=model_wrapper,
-            messages=prompts,
+            conversations=messages_list,
             temperature=args.temperature,
             max_tokens=args.max_new_tokens,
             progress=True

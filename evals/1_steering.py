@@ -191,31 +191,49 @@ class WorkQueueManager:
 def generate_batched_responses(
     model, 
     tokenizer, 
-    prompts: List[str], 
+    work_units: List[Dict[str, Any]], 
     max_new_tokens: int = 1024,
     temperature: float = 0.7,
-    max_length: int = 2048
+    max_length: int = 2048,
+    no_system_prompt: bool = False
 ) -> List[str]:
     """
-    Generate responses for a batch of prompts efficiently using real batch inference.
-    All prompts in the batch should have the same steering magnitude for safety.
+    Generate responses for a batch of work units efficiently using real batch inference.
+    All work units in the batch should have the same steering magnitude for safety.
     """
     try:
-        if not prompts:
+        if not work_units:
             return []
         
-        # Format prompts for chat if needed
+        # Determine if this is a Gemma model (no system prompt support)
+        is_gemma = 'gemma' in model.config.name_or_path.lower() if hasattr(model.config, 'name_or_path') else False
+        
+        # Format prompts for chat
         formatted_prompts = []
-        for prompt in prompts:
+        for work_unit in work_units:
+            system_prompt = work_unit.get('_system_prompt', '')
+            user_message = work_unit.get('_user_message', '')
+            
             if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
-                # Apply chat template
-                messages = [{"role": "user", "content": prompt}]
+                if no_system_prompt or is_gemma or not system_prompt:
+                    # No system prompt mode, Gemma model, or no system prompt: only use user message
+                    content = user_message if no_system_prompt else (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
+                    messages = [{"role": "user", "content": content}]
+                else:
+                    # Use system prompt + user message
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message}
+                    ]
+                
                 formatted_prompt = tokenizer.apply_chat_template(
                     messages, tokenize=False, add_generation_prompt=True
                 )
                 formatted_prompts.append(formatted_prompt)
             else:
-                formatted_prompts.append(prompt)
+                # Fallback to simple concatenation
+                content = user_message if no_system_prompt else (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
+                formatted_prompts.append(content)
         
         # Tokenize all prompts at once
         batch_inputs = tokenizer(
@@ -262,7 +280,9 @@ def generate_batched_responses(
         logger.info("Falling back to sequential processing")
         try:
             batch_responses = []
-            for prompt in prompts:
+            for work_unit in work_units:
+                # Use the combined prompt for fallback
+                prompt = work_unit['prompt']
                 response = generate_text(
                     model, tokenizer, prompt,
                     max_new_tokens=max_new_tokens,
@@ -273,7 +293,7 @@ def generate_batched_responses(
             return batch_responses
         except Exception as fallback_e:
             logger.error(f"Fallback processing also failed: {fallback_e}")
-            return [""] * len(prompts)
+            return [""] * len(work_units)
 
 
 def parse_arguments():
@@ -390,6 +410,19 @@ def parse_arguments():
         help="Specific GPU ID to use (0-indexed). If not specified, all available GPUs will be used."
     )
     
+    parser.add_argument(
+        "--company",
+        type=str,
+        default="Acme Corp",
+        help="Company name to substitute for {company} placeholder in prompts"
+    )
+    
+    parser.add_argument(
+        "--no_system_prompt",
+        action="store_true",
+        help="Only use the question text, ignore any role/system prompt"
+    )
+    
     args = parser.parse_args()
     
     # Validate mutually exclusive arguments
@@ -429,7 +462,7 @@ def load_pca_results(pca_filepath: str) -> Dict[str, Any]:
 
 
 def load_questions(questions_file: str) -> List[Dict[str, Any]]:
-    """Load questions from JSONL file with id and semantic_category fields."""
+    """Load questions from JSONL file."""
     print(f"Loading questions from {questions_file}")
     
     if not os.path.exists(questions_file):
@@ -441,16 +474,7 @@ def load_questions(questions_file: str) -> List[Dict[str, Any]]:
             try:
                 question_obj = json.loads(line.strip())
                 
-                # Validate required fields
-                if 'id' not in question_obj:
-                    print(f"Warning: Missing 'id' field on line {line_num}")
-                    continue
-                    
-                if 'semantic_category' not in question_obj:
-                    print(f"Warning: Missing 'semantic_category' field on line {line_num}")
-                    continue
-                
-                # Extract question text (try multiple possible field names)
+                # Only validate presence of question field
                 question_text = None
                 for field in ['question', 'text', 'prompt']:
                     if field in question_obj:
@@ -461,11 +485,9 @@ def load_questions(questions_file: str) -> List[Dict[str, Any]]:
                     print(f"Warning: No question text found on line {line_num}")
                     continue
                 
-                questions.append({
-                    'id': question_obj['id'],
-                    'semantic_category': question_obj['semantic_category'],
-                    'text': question_text
-                })
+                # Store the original object with the identified text field
+                question_obj['_question_text'] = question_text
+                questions.append(question_obj)
                 
             except json.JSONDecodeError as e:
                 print(f"Warning: Skipping invalid JSON on line {line_num}: {e}")
@@ -475,7 +497,7 @@ def load_questions(questions_file: str) -> List[Dict[str, Any]]:
 
 
 def load_roles(roles_file: str) -> List[Dict[str, Any]]:
-    """Load roles from JSONL file with id and type fields."""
+    """Load roles from JSONL file."""
     print(f"Loading roles from {roles_file}")
     
     if not os.path.exists(roles_file):
@@ -487,16 +509,7 @@ def load_roles(roles_file: str) -> List[Dict[str, Any]]:
             try:
                 role_obj = json.loads(line.strip())
                 
-                # Validate required fields
-                if 'id' not in role_obj:
-                    print(f"Warning: Missing 'id' field on line {line_num}")
-                    continue
-                    
-                if 'type' not in role_obj:
-                    print(f"Warning: Missing 'type' field on line {line_num}")
-                    continue
-                
-                # Extract role text
+                # Only validate presence of role field
                 role_text = None
                 for field in ['role', 'text', 'prompt']:
                     if field in role_obj:
@@ -507,11 +520,9 @@ def load_roles(roles_file: str) -> List[Dict[str, Any]]:
                     print(f"Warning: No role text found on line {line_num}")
                     continue
                 
-                roles.append({
-                    'id': role_obj['id'],
-                    'type': role_obj['type'],
-                    'text': role_text
-                })
+                # Store the original object with the identified text field
+                role_obj['_role_text'] = role_text
+                roles.append(role_obj)
                 
             except json.JSONDecodeError as e:
                 print(f"Warning: Skipping invalid JSON on line {line_num}: {e}")
@@ -521,74 +532,72 @@ def load_roles(roles_file: str) -> List[Dict[str, Any]]:
 
 
 def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
-    """Load prompts from combined JSONL file with role, prompt_id, id, prompt, question fields."""
+    """Load prompts from combined JSONL file."""
     print(f"Loading prompts from {prompts_file}")
     
     if not os.path.exists(prompts_file):
         raise FileNotFoundError(f"Prompts file not found: {prompts_file}")
     
     prompts = []
-    unique_roles = set()
     
     with open(prompts_file, 'r') as f:
         for line_num, line in enumerate(f, 1):
             try:
                 prompt_obj = json.loads(line.strip())
                 
-                # Validate required fields
-                required_fields = ['role', 'prompt_id', 'id', 'prompt', 'question']
-                for field in required_fields:
-                    if field not in prompt_obj:
-                        print(f"Warning: Missing '{field}' field on line {line_num}")
-                        continue
+                # Only validate presence of prompt and question fields
+                if 'prompt' not in prompt_obj or 'question' not in prompt_obj:
+                    print(f"Warning: Missing 'prompt' or 'question' field on line {line_num}")
+                    continue
                 
-                # Track unique roles for alphabetical ordering
-                unique_roles.add(prompt_obj['role'])
+                # Create combined prompt text
+                combined_prompt = (f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']).strip()
+                prompt_obj['_combined_prompt'] = combined_prompt
                 
                 prompts.append(prompt_obj)
                 
             except json.JSONDecodeError as e:
                 print(f"Warning: Skipping invalid JSON on line {line_num}: {e}")
     
-    # Create alphabetical ordering for role_id
-    sorted_roles = sorted(unique_roles)
-    role_to_id = {role: idx for idx, role in enumerate(sorted_roles)}
-    
-    # Process prompts with proper mappings
-    processed_prompts = []
-    for prompt_obj in prompts:
-        role = prompt_obj['role']
-        
-        processed_prompt = {
-            'role_id': role_to_id[role],
-            'role_label': 'role' if role != 'default' else 'default',
-            'id': prompt_obj['id'],
-            'question_label': role,
-            'combined_prompt': (f"{prompt_obj['prompt']} {prompt_obj['question']}".strip() if prompt_obj['prompt'] else prompt_obj['question']).strip()
-        }
-        
-        processed_prompts.append(processed_prompt)
-    
-    print(f"Loaded {len(processed_prompts)} prompts from {len(sorted_roles)} unique roles: {sorted_roles}")
-    return processed_prompts
+    print(f"Loaded {len(prompts)} prompts")
+    return prompts
 
 
-def create_work_units(prompts_data, magnitudes, is_combined_format=False):
+def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", is_combined_format=False, no_system_prompt=False):
     """Create work units from prompts and magnitudes."""
     work_units = []
     
     if is_combined_format:
-        # prompts_data contains pre-processed combined prompts
+        # prompts_data contains combined prompts
         for prompt_data in prompts_data:
             for magnitude in magnitudes:
-                work_unit = {
-                    'role_id': prompt_data['role_id'],
-                    'role_label': prompt_data['role_label'],
-                    'id': prompt_data['id'],
-                    'question_label': prompt_data['question_label'],
-                    'prompt': prompt_data['combined_prompt'].strip(),
-                    'magnitude': magnitude
-                }
+                work_unit = prompt_data.copy()  # Copy all original fields
+                
+                # Format company name in prompts
+                system_prompt_text = prompt_data.get('prompt', '').format(company=company_name)
+                user_message = prompt_data.get('question', '').format(company=company_name)
+                
+                if no_system_prompt:
+                    # In no-system-prompt mode, only use the question text
+                    formatted_combined = user_message
+                    system_prompt = ''
+                else:
+                    # Normal mode: combine system prompt and question
+                    formatted_combined = f"{system_prompt_text} {user_message}".strip() if system_prompt_text else user_message
+                    system_prompt = system_prompt_text
+                
+                # Keep separate fields for system/user message handling
+                work_unit['_system_prompt'] = system_prompt
+                work_unit['_user_message'] = user_message
+                
+                # Create formatted combined prompt
+                work_unit['prompt'] = formatted_combined
+                work_unit['magnitude'] = magnitude
+                
+                # Clean up temporary fields
+                if '_combined_prompt' in work_unit:
+                    del work_unit['_combined_prompt']
+                    
                 work_units.append(work_unit)
     else:
         # prompts_data contains [questions, roles]
@@ -596,14 +605,40 @@ def create_work_units(prompts_data, magnitudes, is_combined_format=False):
         for role in roles:
             for question in questions:
                 for magnitude in magnitudes:
-                    work_unit = {
-                        'role_id': role['id'],
-                        'role_label': role['type'],
-                        'id': question['id'],
-                        'question_label': question['semantic_category'],
-                        'prompt': (f"{role['text']} {question['text']}".strip() if role['text'] else question['text']).strip(),
-                        'magnitude': magnitude
-                    }
+                    work_unit = {}
+                    # Copy all fields from both role and question
+                    work_unit.update(role)
+                    work_unit.update(question)
+                    
+                    # Format company name in prompts
+                    role_text = role['_role_text'].format(company=company_name)
+                    question_text = question['_question_text'].format(company=company_name)
+                    
+                    if no_system_prompt:
+                        # In no-system-prompt mode, only use the question text
+                        formatted_combined = question_text
+                        system_prompt = ''
+                        user_message = question_text
+                    else:
+                        # Normal mode: combine role and question
+                        formatted_combined = f"{role_text} {question_text}".strip() if role_text else question_text
+                        system_prompt = role_text
+                        user_message = question_text
+                    
+                    # Keep separate fields for system/user message handling
+                    work_unit['_system_prompt'] = system_prompt
+                    work_unit['_user_message'] = user_message
+                    
+                    # Create formatted combined prompt
+                    work_unit['prompt'] = formatted_combined
+                    work_unit['magnitude'] = magnitude
+                    
+                    # Clean up temporary fields
+                    if '_role_text' in work_unit:
+                        del work_unit['_role_text']
+                    if '_question_text' in work_unit:
+                        del work_unit['_question_text']
+                        
                     work_units.append(work_unit)
     
     return work_units
@@ -621,7 +656,8 @@ def worker_process(
     max_new_tokens: int,
     temperature: float,
     max_length: int,
-    total_batches: int
+    total_batches: int,
+    no_system_prompt: bool = False
 ):
     """
     Optimized worker process that pulls work batches from queue and processes them with batch efficiency.
@@ -699,30 +735,27 @@ def worker_process(
                             positions="all"
                         ) as steerer:
                             
-                            # Extract prompts from work units
-                            batch_prompts = [wu['prompt'] for wu in magnitude_work_units]
-                            
-                            # Generate responses for the batch
+                            # Generate responses for the batch using work units
                             batch_responses = generate_batched_responses(
-                                model, tokenizer, batch_prompts,
+                                model, tokenizer, magnitude_work_units,
                                 max_new_tokens=max_new_tokens,
                                 temperature=temperature,
-                                max_length=max_length
+                                max_length=max_length,
+                                no_system_prompt=no_system_prompt
                             )
                             
                             # Prepare row data for batch (skip empty responses)
                             batch_row_data = []
                             for work_unit, response in zip(magnitude_work_units, batch_responses):
                                 if response.strip():  # Only save non-empty responses
-                                    row_data = {
-                                        'id': work_unit['id'],
-                                        'role_id': work_unit['role_id'],
-                                        'role_label': work_unit['role_label'],
-                                        'question_label': work_unit['question_label'],
-                                        'prompt': work_unit['prompt'],
-                                        'response': response,
-                                        'magnitude': work_unit['magnitude']
-                                    }
+                                    row_data = work_unit.copy()  # Copy all original fields
+                                    row_data['response'] = response
+                                    # magnitude is already in work_unit
+                                    
+                                    # Remove underscore fields from output
+                                    fields_to_remove = [k for k in row_data.keys() if k.startswith('_')]
+                                    for field in fields_to_remove:
+                                        del row_data[field]
                                     batch_row_data.append(row_data)
                                 else:
                                     logger.warning(f"Skipping empty response for role_id={work_unit['role_id']}, id={work_unit['id']}, magnitude={work_unit['magnitude']}")
@@ -839,16 +872,15 @@ def main():
         # Apply test mode filtering
         if args.test_mode:
             if len(combined_prompts) > 0:
-                # In test mode, keep only first unique id
-                first_question_id = combined_prompts[0]['id']
-                combined_prompts = [p for p in combined_prompts if p['id'] == first_question_id]
-                print(f"TEST MODE: Using only id {first_question_id} ({len(combined_prompts)} prompts)")
+                # In test mode, keep only first 10 prompts
+                combined_prompts = combined_prompts[:10]
+                print(f"TEST MODE: Using only first 10 prompts ({len(combined_prompts)} prompts)")
             else:
                 print("Warning: No prompts available for test mode")
         
         prompts_data = combined_prompts
-        n_unique_roles = len(set(p['role_id'] for p in combined_prompts))
-        n_unique_questions = len(set(p['id'] for p in combined_prompts))
+        n_unique_roles = len(set(p.get('role', '') for p in combined_prompts))
+        n_unique_questions = len(set(p.get('id', p.get('question_id', '')) for p in combined_prompts))
         
     else:
         # Load separate questions and roles files
@@ -859,8 +891,8 @@ def main():
         # Apply test mode filtering
         if args.test_mode:
             if len(questions) > 0:
-                questions = questions[:1]  # Keep only first question
-                print("TEST MODE: Using only the first question")
+                questions = questions[:10]  # Keep only first 10 questions
+                print(f"TEST MODE: Using only first 10 questions ({len(questions)} questions)")
             else:
                 print("Warning: No questions available for test mode")
         
@@ -874,7 +906,7 @@ def main():
         raise ValueError(f"Component index {args.component} out of range [0, {n_components-1}]")
     
     # Create work units
-    work_units = create_work_units(prompts_data, args.magnitudes, is_combined_format)
+    work_units = create_work_units(prompts_data, args.magnitudes, args.company, is_combined_format, args.no_system_prompt)
     
     mode_str = "TEST MODE - " if args.test_mode else ""
     format_str = "combined prompts" if is_combined_format else f"{n_unique_questions} questions and {n_unique_roles} roles"
@@ -951,7 +983,8 @@ def main():
                 args.max_new_tokens,
                 args.temperature,
                 args.max_length,
-                len(work_batches)
+                len(work_batches),
+                args.no_system_prompt
             )
         )
         p.start()
