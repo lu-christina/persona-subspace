@@ -672,7 +672,7 @@ def plot_3d_pca(pca_transformed, variance_explained, trait_labels, assistant_pro
 
 def plot_pc(pca_results, trait_labels, pc_component, layer=None, 
            assistant_activation=None, assistant_projection=None,
-           title="PCA on Trait Vectors", subtitle=""):
+           title="PCA on Trait Vectors", subtitle="", scaled=True):
     """
     Create a combined plot with cosine similarity (left) and normalized projection (right).
     Shows histograms directly on the plots at y=1 level.
@@ -694,7 +694,10 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     # Extract the specified PC component for cosine similarity
     pc_direction = pca_results['pca'].components_[pc_component]
     vectors = torch.stack(pca_results['vectors']['pos_neg_50'])[:, layer, :].float().numpy()
-    scaled_vectors = pca_results['scaler'].transform(vectors)
+    if scaled:
+        scaled_vectors = pca_results['scaler'].transform(vectors)
+    else:
+        scaled_vectors = vectors
     pc_direction_norm = pc_direction / np.linalg.norm(pc_direction)
     vectors_norm = scaled_vectors / np.linalg.norm(scaled_vectors, axis=1, keepdims=True)
     cosine_sims = vectors_norm @ pc_direction_norm.T
@@ -703,7 +706,10 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     assistant_cosine_sim = None
     if assistant_activation is not None and layer is not None:
         assistant_layer_activation = assistant_activation[layer, :].float().numpy().reshape(1, -1)
-        asst_scaled = pca_results['scaler'].transform(assistant_layer_activation)
+        if scaled:
+            asst_scaled = pca_results['scaler'].transform(assistant_layer_activation)
+        else:
+            asst_scaled = assistant_layer_activation
         asst_scaled_norm = asst_scaled / np.linalg.norm(asst_scaled)
         assistant_cosine_sim = asst_scaled_norm @ pc_direction.T
         assistant_cosine_sim = assistant_cosine_sim[0]

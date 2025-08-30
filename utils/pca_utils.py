@@ -3,11 +3,14 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import torch
 
-def compute_pca(activation_list, layer):
+def compute_pca(activation_list, layer, scaler=True):
     layer_activations = activation_list[:, layer, :]
     
-    scaler = StandardScaler()
-    scaled_layer_activations = scaler.fit_transform(layer_activations)
+    if scaler:
+        scaler = StandardScaler()
+        scaled_layer_activations = scaler.fit_transform(layer_activations)
+    else:
+        scaled_layer_activations = layer_activations
 
     pca = PCA()
     pca_transformed = pca.fit_transform(scaled_layer_activations)
@@ -43,7 +46,7 @@ def compute_pca(activation_list, layer):
     print(f"Dimensions for 90% variance: {dims_90_pca}")
     print(f"Dimensions for 95% variance: {dims_95_pca}")
 
-    return pca_transformed, variance_explained, n_components, pca, scaler 
+    return pca_transformed, variance_explained, n_components, pca, scaler if scaler else None
 
 def compute_pca_torch(activation_list, layer):
     """
