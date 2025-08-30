@@ -38,6 +38,7 @@ sys.path.append('.')
 sys.path.append('..')
 
 from utils.probing_utils import load_model
+from transformers import AutoTokenizer
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -287,6 +288,7 @@ class OptimizedTraitActivationExtractor:
         start_index: int = 0,
         prompt_indices: Optional[List[int]] = None,
         append_mode: bool = False,
+        chat_model_name: Optional[str] = None,
     ):
         """
         Initialize the optimized trait activation extractor.
@@ -301,8 +303,10 @@ class OptimizedTraitActivationExtractor:
             start_index: Index to start processing responses from
             prompt_indices: List of prompt indices to process (None for all)
             append_mode: Whether to append to existing activation files
+            chat_model_name: Optional HuggingFace model identifier for tokenizer (chat formatting)
         """
         self.model_name = model_name
+        self.chat_model_name = chat_model_name
         self.responses_dir = Path(responses_dir)
         self.output_dir = Path(output_dir)
         self.layers = layers
@@ -327,8 +331,20 @@ class OptimizedTraitActivationExtractor:
     def load_model(self, device=None):
         """Load model and tokenizer."""
         if self.model is None:
-            logger.info(f"Loading model: {self.model_name}")
-            self.model, self.tokenizer = load_model(self.model_name, device=device)
+            if self.chat_model_name is not None:
+                # Load tokenizer from chat model, model from activation model
+                logger.info(f"Loading model from: {self.model_name}")
+                logger.info(f"Loading tokenizer from: {self.chat_model_name}")
+                self.model, _ = load_model(self.model_name, device=device)
+                self.tokenizer = AutoTokenizer.from_pretrained(self.chat_model_name)
+                # Set padding token if not set
+                if self.tokenizer.pad_token is None:
+                    self.tokenizer.pad_token = self.tokenizer.eos_token
+                self.tokenizer.padding_side = "right"
+            else:
+                # Load both from same model (backward compatible)
+                logger.info(f"Loading model: {self.model_name}")
+                self.model, self.tokenizer = load_model(self.model_name, device=device)
             logger.info("Model loaded successfully")
     
     def close_model(self):
@@ -622,7 +638,8 @@ def process_traits_on_gpu_optimized(gpu_id, trait_names, args, prompt_indices=No
             max_length=args.max_length,
             start_index=args.start_index,
             prompt_indices=prompt_indices,
-            append_mode=args.append_mode
+            append_mode=args.append_mode,
+            chat_model_name=args.chat_model
         )
         
         # Load model on this specific GPU
@@ -770,6 +787,8 @@ Examples:
     # Model configuration
     parser.add_argument('--model-name', type=str, default='google/gemma-2-27b-it',
                        help='HuggingFace model name')
+    parser.add_argument('--chat-model', type=str, default=None,
+                       help='Optional HuggingFace model name for tokenizer (chat formatting)')
     parser.add_argument('--responses-dir', type=str, default='/workspace/traits/responses',
                        help='Directory containing trait response JSONL files')
     parser.add_argument('--output-dir', type=str, default='/workspace/traits/response_activations',
@@ -845,7 +864,8 @@ Examples:
                 max_length=args.max_length,
                 start_index=args.start_index,
                 prompt_indices=prompt_indices,
-                append_mode=args.append_mode
+                append_mode=args.append_mode,
+                chat_model_name=args.chat_model
             )
             
             # Process all traits
