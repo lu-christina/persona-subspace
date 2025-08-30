@@ -7,8 +7,6 @@ This script steers prompts with a PC:
 - Parallelized across all available GPU
 - Won't repeat work on restart
 
-Output: JSONL with id, role_id, role_label, question_label, prompt, response, magnitude
-
 uv run steering.py \
     --pca_filepath /workspace/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
     --questions_file /root/git/persona-subspace/evals/data/questions/harmbench.jsonl \
@@ -25,6 +23,13 @@ uv run steering.py \
     --pca_filepath /workspace/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
     --prompts_file /root/git/persona-subspace/evals/data/default_20.jsonl \
     --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/default_20.jsonl
+
+uv run 1_steering.py \
+    --pca_filepath /workspace/gemma-2-27b/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
+    --prompts_file /root/git/persona-subspace/evals/data/jailbreak/jailbreak_1100.jsonl \
+    --magnitudes -3000.0 -1000.0 \
+    --output_jsonl /root/git/persona-subspace/evals/results/gemma-2-27b/jailbreak/jailbreak_1100.jsonl \
+    --batch_size 32
 
 """
 
@@ -758,7 +763,7 @@ def worker_process(
                                         del row_data[field]
                                     batch_row_data.append(row_data)
                                 else:
-                                    logger.warning(f"Skipping empty response for role_id={work_unit['role_id']}, id={work_unit['id']}, magnitude={work_unit['magnitude']}")
+                                    logger.warning(f"Skipping empty response for id={work_unit['id']}, magnitude={work_unit['magnitude']}")
                             
                             # Write batch to JSONL
                             if batch_row_data:  # Only write if there's data to write

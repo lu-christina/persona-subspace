@@ -5,9 +5,8 @@ Script to sample persona_jailbreak.jsonl to create jailbreak_sample.jsonl
 Samples entries with:
 - role_id 0-4 (from {harm_id}_{role_id} format)
 - prompt_id = 0 (first prompt for each harm/role combination)
-- Each row is duplicated
 
-Expected output: 44 harms × 5 roles × 5 questions × 1 duplicate = 1,100 entries
+Expected output: 44 harms × 5 roles × 5 questions = 1,100 entries
 """
 
 import json
@@ -15,8 +14,8 @@ import sys
 from pathlib import Path
 
 def main():
-    input_file = Path("persona_jailbreak.jsonl")
-    output_file = Path("jailbreak_sample.jsonl")
+    input_file = Path("jailbreak_4400.jsonl")
+    output_file = Path("jailbreak_1100.jsonl")
     
     if not input_file.exists():
         print(f"Error: {input_file} not found")
@@ -53,9 +52,7 @@ def main():
                 
                 # Include only role_id 0-4 and prompt_id 0
                 if role_id in range(5) and prompt_id == 0:
-                    # Duplicate the entry as requested
                     sampled_entries.append(entry)
-                    sampled_entries.append(entry.copy())
                     filtered_entries += 1
                     
             except json.JSONDecodeError as e:
@@ -64,7 +61,7 @@ def main():
     
     print(f"Total entries read: {total_entries}")
     print(f"Entries matching criteria: {filtered_entries}")
-    print(f"Duplicated entries to write: {len(sampled_entries)}")
+    print(f"Entries to write: {len(sampled_entries)}")
     
     # Write sampled data
     print(f"Writing to {output_file}...")
@@ -75,7 +72,7 @@ def main():
     print(f"Successfully created {output_file} with {len(sampled_entries)} entries")
     
     # Validation
-    expected_entries = 44 * 5 * 5 * 2  # 44 harms × 5 roles × 5 questions × 2 duplicates
+    expected_entries = 44 * 5 * 5  # 44 harms × 5 roles × 5 questions
     if len(sampled_entries) == expected_entries:
         print(f"✓ Sample size matches expected: {expected_entries} entries")
     else:
