@@ -1012,9 +1012,9 @@ def plot_3d_pca(pca_results, role_labels, type, assistant_projection=None,
     return fig_3d
 
 
-def plot_pc(pca_results, role_labels, pc_component, layer=None, dir=None,
+def plot_pc(pca_results, role_labels, pc_component, layer=None,
            assistant_activation=None, assistant_projection=None,
-           title="PCA Analysis", subtitle=""):
+           title="PCA Analysis", subtitle="", scaled=True):
     """
     Create a combined plot with cosine similarity (top) and normalized projection (bottom).
     Shows histograms directly on the plots at y=1 level. Auto-detects role types.
@@ -1024,7 +1024,6 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None, dir=None,
     - role_labels: List of labels for each data point
     - pc_component: Which PC component to use (0-indexed, so PC1 = 0)
     - layer: Layer number (used for assistant_activation if provided)
-    - dir: Directory parameter (unused, kept for compatibility)
     - assistant_activation: Optional assistant activation for cosine similarity comparison
     - assistant_projection: Optional assistant projection for projection comparison
     - title: Main title for the plot
@@ -1040,7 +1039,10 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None, dir=None,
     # Extract the specified PC component for cosine similarity
     pc_direction = pca_results['pca'].components_[pc_component]
     vectors = torch.stack(role_info['vectors'])[:, layer, :].float().numpy()
-    scaled_vectors = pca_results['scaler'].transform(vectors)
+    if scaled:
+        scaled_vectors = pca_results['scaler'].transform(vectors)
+    else:
+        scaled_vectors = vectors
     pc_direction_norm = pc_direction / np.linalg.norm(pc_direction)
     vectors_norm = scaled_vectors / np.linalg.norm(scaled_vectors, axis=1, keepdims=True)
     cosine_sims = vectors_norm @ pc_direction_norm.T
@@ -1049,7 +1051,10 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None, dir=None,
     assistant_cosine_sim = None
     if assistant_activation is not None and layer is not None:
         assistant_layer_activation = assistant_activation[layer, :].float().numpy().reshape(1, -1)
-        asst_scaled = pca_results['scaler'].transform(assistant_layer_activation)
+        if scaled:
+            asst_scaled = pca_results['scaler'].transform(assistant_layer_activation)
+        else:
+            asst_scaled = assistant_layer_activation
         asst_scaled_norm = asst_scaled / np.linalg.norm(asst_scaled)
         assistant_cosine_sim = asst_scaled_norm @ pc_direction.T
         assistant_cosine_sim = assistant_cosine_sim[0]
