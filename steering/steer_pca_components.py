@@ -12,8 +12,12 @@ import json
 import os
 import sys
 import multiprocessing as mp
+import threading
+import fcntl
+import time
 from pathlib import Path
 from typing import List, Dict, Any
+from collections import defaultdict
 
 import torch
 
@@ -66,7 +70,7 @@ def parse_arguments():
         "--magnitudes",
         type=float,
         nargs="+",
-        default=[-4000.0, -3000.0, -2000.0, -1500.0, 0.0, 1500.0, 2000.0, 3000.0, 4000.0],
+        default=[-1000.0, 0.0, 1000.0],
         help="List of steering magnitudes"
     )
     
@@ -99,6 +103,13 @@ def parse_arguments():
     )
     
     parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=16,
+        help="Batch size for processing questions"
+    )
+    
+    parser.add_argument(
         "--question_range",
         type=int,
         nargs=2,
@@ -106,11 +117,6 @@ def parse_arguments():
         help="Range of question indices to use (0-indexed, inclusive start, exclusive end)"
     )
     
-    parser.add_argument(
-        "--roles_file",
-        type=str,
-        help="Optional path to roles JSONL file with 'role' fields"
-    )
     
     return parser.parse_args()
 
@@ -140,7 +146,7 @@ def load_pca_results(pca_filepath: str) -> Dict[str, Any]:
     return pca_results
 
 
-def load_questions_from_directory(questions_dir: str, test_questions: int = 0, question_range: List[int] = None) -> List[str]:
+def load_questions_from_directory(questions_dir: str, test_questions: int = 0, question_range: List[int] = None) -> List[Dict]:
     """Load questions from all JSONL files in a directory with deduplication."""
     print(f"Loading questions from directory {questions_dir}")
     
@@ -158,7 +164,7 @@ def load_questions_from_directory(questions_dir: str, test_questions: int = 0, q
     print(f"Found {len(jsonl_files)} JSONL files: {jsonl_files}")
     
     # Load questions from all files with deduplication
-    seen_questions = set()
+    seen_pairs = set()
     questions = []
     duplicates_removed = 0
     
@@ -170,13 +176,40 @@ def load_questions_from_directory(questions_dir: str, test_questions: int = 0, q
             for line_num, line in enumerate(f, 1):
                 try:
                     question_obj = json.loads(line.strip())
-                    if 'question' in question_obj:
-                        question_text = question_obj['question']
-                        if question_text not in seen_questions:
-                            seen_questions.add(question_text)
-                            questions.append(question_text)
-                        else:
-                            duplicates_removed += 1
+                    
+                    # Extract prompt and question fields, with fallbacks
+                    prompt = question_obj.get('prompt', '')
+                    question = question_obj.get('question', '')
+                    
+                    if not question:
+                        print(f"    Warning: No question field found on line {line_num}")
+                        continue
+                    
+                    # Create tuple for deduplication based on both fields
+                    dedup_key = (prompt, question)
+                    
+                    if dedup_key not in seen_pairs:
+                        seen_pairs.add(dedup_key)
+                        
+                        # Create combined field
+                        combined = f"{prompt} {question}" if prompt else question
+                        
+                        # Create structured entry
+                        entry = {
+                            'prompt': prompt,
+                            'question': question,
+                            'combined': combined
+                        }
+                        
+                        # Preserve any other fields from original data
+                        for key, value in question_obj.items():
+                            if key not in ['prompt', 'question']:
+                                entry[key] = value
+                        
+                        questions.append(entry)
+                    else:
+                        duplicates_removed += 1
+                        
                 except json.JSONDecodeError as e:
                     print(f"    Warning: Skipping invalid JSON on line {line_num}: {e}")
     
@@ -200,22 +233,58 @@ def load_questions_from_directory(questions_dir: str, test_questions: int = 0, q
     return questions
 
 
-def load_questions(questions_filepath: str, test_questions: int = 0, question_range: List[int] = None) -> List[str]:
-    """Load questions from JSONL file."""
+def load_questions(questions_filepath: str, test_questions: int = 0, question_range: List[int] = None) -> List[Dict]:
+    """Load questions from JSONL file, preserving role and question fields."""
     print(f"Loading questions from {questions_filepath}")
     
     if not os.path.exists(questions_filepath):
         raise FileNotFoundError(f"Questions file not found: {questions_filepath}")
     
     questions = []
+    seen_pairs = set()
+    duplicates_removed = 0
+    
     with open(questions_filepath, 'r') as f:
-        for line in f:
+        for line_num, line in enumerate(f, 1):
             try:
                 question_obj = json.loads(line.strip())
-                if 'question' in question_obj:
-                    questions.append(question_obj['question'])
+                
+                # Extract prompt and question fields, with fallbacks
+                prompt = question_obj.get('prompt', '')
+                question = question_obj.get('question', '')
+                
+                if not question:
+                    print(f"Warning: No question field found on line {line_num}")
+                    continue
+                
+                # Create tuple for deduplication based on both fields
+                dedup_key = (prompt, question)
+                
+                if dedup_key not in seen_pairs:
+                    seen_pairs.add(dedup_key)
+                    
+                    # Create structured entry
+                    entry = {
+                        'prompt': prompt,
+                        'question': question,
+                        'combined': f"{prompt} {question}".strip() if prompt else question
+                    }
+                    
+                    # Preserve any other fields from original data
+                    for key, value in question_obj.items():
+                        if key not in ['prompt', 'question']:
+                            entry[key] = value
+                    
+                    questions.append(entry)
+                else:
+                    duplicates_removed += 1
+                
             except json.JSONDecodeError as e:
-                print(f"Warning: Skipping invalid JSON line: {e}")
+                print(f"Warning: Skipping invalid JSON on line {line_num}: {e}")
+    
+    print(f"Loaded {len(questions)} unique questions")
+    if duplicates_removed > 0:
+        print(f"Removed {duplicates_removed} duplicate questions")
     
     if question_range is not None:
         start_idx, end_idx = question_range
@@ -232,52 +301,258 @@ def load_questions(questions_filepath: str, test_questions: int = 0, question_ra
     return questions
 
 
-def load_roles(roles_filepath: str) -> List[str]:
-    """Load roles from JSONL file."""
-    print(f"Loading roles from {roles_filepath}")
+
+def generate_batched_responses(
+    model, 
+    tokenizer, 
+    questions, 
+    max_new_tokens: int = 1024,
+    temperature: float = 0.7,
+    max_length: int = 2048
+) -> List[str]:
+    """
+    Generate responses for a batch of questions efficiently using real batch inference.
+    Questions can be strings or dicts with 'role', 'question', 'combined' keys.
+    """
+    try:
+        if not questions:
+            return []
+        
+        # Determine if this is a Gemma model (no system prompt support)
+        is_gemma = 'gemma' in model.config.name_or_path.lower() if hasattr(model.config, 'name_or_path') else False
+        
+        # Format prompts for chat
+        formatted_prompts = []
+        for question_item in questions:
+            # Handle both string and dict formats
+            if isinstance(question_item, str):
+                prompt = ''
+                question = question_item
+                combined = question_item
+            else:
+                prompt = question_item.get('prompt', '')
+                question = question_item.get('question', '')
+                combined = question_item.get('combined', question)
+            
+            if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
+                if is_gemma or not prompt:
+                    # Gemma model or no prompt: use concatenated format in user message
+                    messages = [{"role": "user", "content": combined}]
+                else:
+                    # Other models with prompt: use system prompt + user message
+                    messages = [
+                        {"role": "system", "content": prompt},
+                        {"role": "user", "content": question}
+                    ]
+                
+                formatted_prompt = tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
+                )
+                formatted_prompts.append(formatted_prompt)
+            else:
+                # Fallback: use combined format
+                formatted_prompts.append(combined)
+        
+        # Set padding side to left for decoder-only models
+        original_padding_side = tokenizer.padding_side
+        tokenizer.padding_side = "left"
+        
+        # Tokenize all prompts at once
+        batch_inputs = tokenizer(
+            formatted_prompts,
+            padding=True,
+            truncation=True,
+            max_length=max_length,
+            return_tensors="pt"
+        ).to(model.device)
+        
+        # Restore original padding side
+        tokenizer.padding_side = original_padding_side
+        
+        # Set up generation parameters
+        generation_config = {
+            'max_new_tokens': max_new_tokens,
+            'temperature': temperature,
+            'do_sample': True if temperature > 0 else False,
+            'pad_token_id': tokenizer.pad_token_id or tokenizer.eos_token_id,
+            'eos_token_id': tokenizer.eos_token_id,
+            'use_cache': True
+        }
+        
+        # Generate responses for entire batch at once
+        with torch.no_grad():
+            batch_outputs = model.generate(
+                input_ids=batch_inputs.input_ids,
+                attention_mask=batch_inputs.attention_mask,
+                **generation_config
+            )
+        
+        # Decode responses
+        batch_responses = []
+        input_lengths = batch_inputs.input_ids.shape[1]
+        
+        for i, output in enumerate(batch_outputs):
+            # Extract only the generated part (after input)
+            generated_tokens = output[input_lengths:]
+            response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+            batch_responses.append(response.strip())
+        
+        return batch_responses
+        
+    except Exception as e:
+        print(f"Error processing batch: {e}")
+        # Fallback to sequential processing
+        print("Falling back to sequential processing")
+        try:
+            batch_responses = []
+            for question in questions:
+                response = generate_text(
+                    model, tokenizer, question,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    chat_format=True
+                )
+                batch_responses.append(response)
+            return batch_responses
+        except Exception as fallback_e:
+            print(f"Fallback processing also failed: {fallback_e}")
+            return [""] * len(questions)
+
+
+class ThreadSafeJSONWriter:
+    """Thread-safe JSON file writer with file locking."""
     
-    if not os.path.exists(roles_filepath):
-        raise FileNotFoundError(f"Roles file not found: {roles_filepath}")
+    def __init__(self):
+        self._locks = {}
+        self._global_lock = threading.Lock()
     
-    roles = []
-    with open(roles_filepath, 'r') as f:
-        for line in f:
+    def _get_file_lock(self, filepath: str) -> threading.Lock:
+        """Get or create a lock for a specific file."""
+        with self._global_lock:
+            if filepath not in self._locks:
+                self._locks[filepath] = threading.Lock()
+            return self._locks[filepath]
+    
+    def write_json(self, filepath: str, data: dict, max_retries: int = 3) -> bool:
+        """Write JSON data to file with thread safety and file locking."""
+        file_lock = self._get_file_lock(filepath)
+        
+        for attempt in range(max_retries):
             try:
-                role_obj = json.loads(line.strip())
-                if 'role' in role_obj:
-                    roles.append(role_obj['role'])
-            except json.JSONDecodeError as e:
-                print(f"Warning: Skipping invalid JSON line: {e}")
+                with file_lock:
+                    with open(filepath, 'w') as f:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock
+                        json.dump(data, f, indent=2)
+                return True
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    print(f"Failed to write JSON after {max_retries} attempts: {e}")
+                    return False
+                time.sleep(0.1)  # Brief delay before retry
+        return False
     
-    print(f"Loaded {len(roles)} roles")
-    return roles
+    def load_json(self, filepath: str) -> dict:
+        """Load JSON data from file with thread safety."""
+        if not os.path.exists(filepath):
+            return {}
+        
+        file_lock = self._get_file_lock(filepath)
+        
+        try:
+            with file_lock:
+                with open(filepath, 'r') as f:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock
+                    return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load JSON from {filepath}: {e}")
+            return {}
+    
+    def atomic_update_json(self, filepath: str, update_func, max_retries: int = 3) -> bool:
+        """Atomically read, modify, and write JSON data with exclusive locking."""
+        file_lock = self._get_file_lock(filepath)
+        
+        for attempt in range(max_retries):
+            try:
+                with file_lock:
+                    # Read current state
+                    current_data = {}
+                    if os.path.exists(filepath):
+                        try:
+                            with open(filepath, 'r') as f:
+                                fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock for read too
+                                current_data = json.load(f)
+                        except Exception as e:
+                            print(f"Warning: Could not read existing data: {e}")
+                            current_data = {}
+                    
+                    # Apply update function
+                    updated_data = update_func(current_data)
+                    
+                    # Write updated data
+                    with open(filepath, 'w') as f:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock
+                        json.dump(updated_data, f, indent=2)
+                
+                return True
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    print(f"Failed atomic update after {max_retries} attempts: {e}")
+                    return False
+                time.sleep(0.1)  # Brief delay before retry
+        return False
+
+
+# Global JSON writer instance
+json_writer = ThreadSafeJSONWriter()
+
+
+def create_work_units(components: List[int], questions: List[str], magnitudes: List[float], batch_size: int):
+    """Create work units for queue-based processing."""
+    work_units = []
+    
+    # Group questions into batches
+    question_batches = []
+    for i in range(0, len(questions), batch_size):
+        batch = questions[i:i + batch_size]
+        question_batches.append(batch)
+    
+    # Create work units as (component, magnitude, question_batch) combinations
+    for component in components:
+        for magnitude in magnitudes:
+            for question_batch in question_batches:
+                work_units.append({
+                    'component': component,
+                    'magnitude': magnitude,
+                    'questions': question_batch
+                })
+    
+    print(f"Created {len(work_units)} work units from {len(components)} components, {len(magnitudes)} magnitudes, {len(question_batches)} question batches")
+    return work_units
 
 
 def worker_process(
     gpu_id: int,
-    assigned_components: List[int], 
+    work_queue: mp.Queue,
     pca_filepath: str,
-    questions: List[str],
-    magnitudes: List[float],
     layer: int,
     model_name: str,
-    output_dir: str
+    output_dir: str,
+    total_work_units: int
 ):
     """
-    Worker process that handles steering for assigned PC components on a single GPU.
+    Worker process that pulls work units from queue and processes them on a single GPU.
     
     Args:
         gpu_id: CUDA device ID to use
-        assigned_components: List of PC component indices to process
+        work_queue: Queue containing work units to process
         pca_filepath: Path to PCA results file
-        questions: List of question strings
-        magnitudes: List of steering magnitudes
         layer: Layer index for steering
         model_name: Model name to load
         output_dir: Output directory for results
+        total_work_units: Total number of work units for progress tracking
     """
     try:
-        print(f"Worker GPU {gpu_id}: Starting with components {assigned_components}")
+        print(f"Worker GPU {gpu_id}: Starting work queue consumer")
         
         # Load model on assigned GPU
         device = f"cuda:{gpu_id}"
@@ -287,36 +562,38 @@ def worker_process(
         # Load PCA results
         pca_results = torch.load(pca_filepath, weights_only=False)
         
-        # Process each assigned component
-        for pc_idx in assigned_components:
-            print(f"Worker GPU {gpu_id}: Processing PC{pc_idx+1}")
-            
-            output_file = os.path.join(output_dir, f"pc{pc_idx+1}.json")
-            
-            # Load existing results if file exists
-            steered_results = {}
-            if os.path.exists(output_file):
+        processed_work_units = 0
+        
+        # Process work units from queue
+        while True:
+            try:
+                # Get work unit from queue with timeout
                 try:
-                    with open(output_file, 'r') as f:
-                        steered_results = json.load(f)
-                    print(f"Worker GPU {gpu_id}: Loaded existing results for PC{pc_idx+1}")
-                except Exception as e:
-                    print(f"Worker GPU {gpu_id}: Warning - couldn't load existing results: {e}")
-                    steered_results = {}
-            
-            # Get steering vector and ensure correct device/dtype
-            steering_vector = torch.from_numpy(pca_results['pca'].components_[pc_idx])
-            steering_vector = steering_vector.to(device=device, dtype=model.dtype)
-            
-            print(f"Worker GPU {gpu_id}: Steering vector shape: {steering_vector.shape}")
-            
-            # Process each magnitude
-            total_combinations = len(magnitudes) * len(questions)
-            completed = 0
-            
-            for magnitude in magnitudes:
-                print(f"Worker GPU {gpu_id}: Processing magnitude {magnitude}")
+                    work_unit = work_queue.get(timeout=10)  # 10 second timeout
+                except:
+                    # Queue is empty or timeout reached
+                    print(f"Worker GPU {gpu_id}: No more work available, exiting")
+                    break
                 
+                if work_unit is None:  # Sentinel value to indicate end
+                    print(f"Worker GPU {gpu_id}: Received end signal, exiting")
+                    work_queue.put(None)  # Re-add sentinel for other workers
+                    break
+                
+                pc_idx = work_unit['component']
+                magnitude = work_unit['magnitude']
+                questions_batch = work_unit['questions']
+                
+                processed_work_units += 1
+                print(f"Worker GPU {gpu_id}: Processing PC{pc_idx+1}, magnitude {magnitude}, {len(questions_batch)} questions ({processed_work_units}/{total_work_units})")
+                
+                output_file = os.path.join(output_dir, f"pc{pc_idx+1}.json")
+                
+                # Get steering vector and ensure correct device/dtype
+                steering_vector = torch.from_numpy(pca_results['pca'].components_[pc_idx])
+                steering_vector = steering_vector.to(device=device, dtype=model.dtype)
+                
+                # Generate responses first (outside of file lock)
                 try:
                     with ActivationSteering(
                         model=model,
@@ -326,34 +603,68 @@ def worker_process(
                         intervention_type="addition",
                         positions="all"
                     ) as steerer:
-                        for question in questions:
-                            # Initialize structure if needed
-                            if question not in steered_results:
-                                steered_results[question] = {}
-                            if magnitude not in steered_results[question]:
-                                steered_results[question][magnitude] = []
-                            
-                            # Generate response (always append to existing list)
-                            response = generate_text(model, tokenizer, question, chat_format=True)
-                            steered_results[question][magnitude].append(response)
-                            
-                            completed += 1
-                            if completed % 5 == 0:
-                                print(f"Worker GPU {gpu_id}: Progress {completed}/{total_combinations}")
-                
+                        # Generate responses in batch for all questions
+                        batch_responses = generate_batched_responses(
+                            model, tokenizer, questions_batch
+                        )
+                        
                 except Exception as e:
-                    print(f"Worker GPU {gpu_id}: Error with magnitude {magnitude}: {e}")
+                    print(f"Worker GPU {gpu_id}: Error generating responses: {e}")
                     continue
-            
-            # Save results
-            try:
-                with open(output_file, 'w') as f:
-                    json.dump(steered_results, f, indent=2)
-                print(f"Worker GPU {gpu_id}: Saved results to {output_file}")
+                
+                # Atomically update file with new responses
+                def update_file_data(current_data):
+                    """Update function for atomic file operation."""
+                    # Filter questions that haven't been processed yet for this magnitude
+                    questions_to_add = []
+                    responses_to_add = []
+                    question_items_to_add = []
+                    
+                    for question_item, response in zip(questions_batch, batch_responses):
+                        # Create deduplication key from prompt and question fields
+                        if isinstance(question_item, dict):
+                            prompt = question_item.get('prompt', '')
+                            question = question_item.get('question', '')
+                            question_key = f"{prompt}|||{question}"  # Use separator to avoid collisions
+                        else:
+                            prompt = ''
+                            question = question_item
+                            question_key = f"|||{question}"
+                        
+                        if question_key not in current_data:
+                            current_data[question_key] = {
+                                'prompt': question_item.get('prompt', '') if isinstance(question_item, dict) else '',
+                                'question': question_item.get('question', question_item) if isinstance(question_item, dict) else question_item,
+                                'magnitudes': {}
+                            }
+                        
+                        if magnitude not in current_data[question_key]['magnitudes']:
+                            current_data[question_key]['magnitudes'][magnitude] = []
+                            questions_to_add.append(question_key)
+                            responses_to_add.append(response)
+                            question_items_to_add.append(question_item)
+                        # If already processed, skip this question
+                    
+                    # Add new responses
+                    for question_key, response in zip(questions_to_add, responses_to_add):
+                        current_data[question_key]['magnitudes'][magnitude].append(response)
+                    
+                    if questions_to_add:
+                        print(f"Worker GPU {gpu_id}: Added {len(questions_to_add)} new responses for PC{pc_idx+1}, magnitude {magnitude}")
+                    else:
+                        print(f"Worker GPU {gpu_id}: All questions already processed for PC{pc_idx+1}, magnitude {magnitude}")
+                    
+                    return current_data
+                
+                # Perform atomic update
+                if not json_writer.atomic_update_json(output_file, update_file_data):
+                    print(f"Worker GPU {gpu_id}: Error updating results file {output_file}")
+                    
             except Exception as e:
-                print(f"Worker GPU {gpu_id}: Error saving results: {e}")
+                print(f"Worker GPU {gpu_id}: Error processing work unit: {e}")
+                continue
         
-        print(f"Worker GPU {gpu_id}: Completed all assigned components")
+        print(f"Worker GPU {gpu_id}: Completed {processed_work_units} work units")
         
     except Exception as e:
         print(f"Worker GPU {gpu_id}: Fatal error: {e}")
@@ -380,27 +691,23 @@ def main():
     else:
         questions = load_questions_from_directory(args.questions_dir, args.test_questions, args.question_range)
     
-    # Load roles if provided and generate role+question combinations
-    if args.roles_file:
-        roles = load_roles(args.roles_file)
-        print(f"Generating {len(roles)} × {len(questions)} = {len(roles) * len(questions)} role+question combinations")
-        
-        # Generate all role+question combinations
-        combined_prompts = []
-        for role in roles:
-            for question in questions:
-                combined_prompts.append(f"{role} {question}")
-        
-        questions = combined_prompts
-        print(f"Using {len(questions)} combined prompts")
-    else:
-        print(f"Using {len(questions)} questions without roles")
+    # Questions are now loaded with role and question fields already structured
+    print(f"Using {len(questions)} questions")
     
     # Validate component indices
     n_components = pca_results['pca'].components_.shape[0]
     for comp in args.components:
         if comp < 0 or comp >= n_components:
             raise ValueError(f"Component index {comp} out of range [0, {n_components-1}]")
+    
+    # Create work units
+    work_units = create_work_units(args.components, questions, args.magnitudes, args.batch_size)
+    
+    if not work_units:
+        print("No work units to process")
+        return
+    
+    print(f"Total work units: {len(work_units)}")
     
     # Check GPU availability
     if not torch.cuda.is_available():
@@ -409,41 +716,36 @@ def main():
     n_gpus = torch.cuda.device_count()
     print(f"Found {n_gpus} GPUs available")
     
-    # Distribute components across GPUs
-    component_assignments = [[] for _ in range(n_gpus)]
-    for i, comp in enumerate(args.components):
-        gpu_id = i % n_gpus
-        component_assignments[gpu_id].append(comp)
+    # Create work queue
+    work_queue = mp.Queue()
     
-    print("\nGPU assignments:")
-    for gpu_id, components in enumerate(component_assignments):
-        if components:
-            pc_names = [f"PC{c+1}" for c in components]
-            print(f"  GPU {gpu_id}: {pc_names}")
+    # Populate work queue
+    for work_unit in work_units:
+        work_queue.put(work_unit)
+    
+    # Add sentinel values for workers
+    for _ in range(n_gpus):
+        work_queue.put(None)
     
     # Launch worker processes
     processes = []
-    for gpu_id, components in enumerate(component_assignments):
-        if not components:  # Skip GPUs with no assigned components
-            continue
-            
+    for gpu_id in range(n_gpus):
         p = mp.Process(
             target=worker_process,
             args=(
                 gpu_id,
-                components,
+                work_queue,
                 args.pca_filepath,
-                questions,
-                args.magnitudes,
                 args.layer,
                 args.model_name,
-                args.output_dir
+                args.output_dir,
+                len(work_units)
             )
         )
         p.start()
         processes.append(p)
     
-    print(f"\nLaunched {len(processes)} worker processes")
+    print(f"\nLaunched {len(processes)} worker processes for {len(work_units)} work units")
     
     # Wait for all processes to complete
     for i, p in enumerate(processes):
@@ -455,6 +757,18 @@ def main():
     
     print("\nAll workers completed!")
     print(f"Results saved to: {args.output_dir}")
+    
+    # Print summary of component files created
+    component_files = []
+    for comp in args.components:
+        output_file = os.path.join(args.output_dir, f"pc{comp+1}.json")
+        if os.path.exists(output_file):
+            component_files.append(output_file)
+    
+    if component_files:
+        print(f"Component files created: {len(component_files)}")
+        for f in component_files:
+            print(f"  {f}")
 
 
 if __name__ == "__main__":
