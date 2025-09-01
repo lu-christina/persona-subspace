@@ -625,11 +625,11 @@ def worker_process(
                         if isinstance(question_item, dict):
                             prompt = question_item.get('prompt', '')
                             question = question_item.get('question', '')
-                            question_key = f"{prompt}|||{question}"  # Use separator to avoid collisions
+                            question_key = f"{prompt} {question}".strip()
                         else:
                             prompt = ''
                             question = question_item
-                            question_key = f"|||{question}"
+                            question_key = question
                         
                         if question_key not in current_data:
                             current_data[question_key] = {
