@@ -32,8 +32,8 @@ logging.getLogger("openai").setLevel(logging.WARNING)
 logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 # Constants
-DEFAULT_JUDGE_PROMPT_FILE = Path(__file__).parent / "data" / "jailbreak" / "judge.json"
-DEFAULT_JUDGE_MODEL = "anthropic/claude-3.5-sonnet"
+DEFAULT_JUDGE_PROMPT_FILE = Path(__file__).parent / "jailbreak" / "judge.json"
+DEFAULT_JUDGE_MODEL = "deepseek/deepseek-chat"
 
 
 class RateLimiter:
@@ -92,7 +92,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=300,
+        default=400,
         help="Batch size for API requests (default: 300)"
     )
     parser.add_argument(

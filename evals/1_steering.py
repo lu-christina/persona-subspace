@@ -29,14 +29,14 @@ uv run 1_steering.py \
     --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
     --magnitudes -4000.0 -3000.0 -2000.0 -1000.0 \
     --output_jsonl /root/git/persona-subspace/evals/jailbreak/gemma-2-27b/steered/jailbreak_1100.jsonl \
-    --batch_size 16 --company Google
+    --batch_size 2 --company Google --max_length 8192
 
 uv run 1_steering.py \
     --pca_filepath /workspace/gemma-2-27b/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
     --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
     --magnitudes -4000.0 -3000.0 -2000.0 -1000.0 \
     --output_jsonl /root/git/persona-subspace/evals/jailbreak/gemma-2-27b/steered/default_1100.jsonl \
-    --batch_size 16 --company Google --no_system_prompt
+    --batch_size 32 --company Google --no_system_prompt
 
 """
 
