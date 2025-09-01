@@ -26,10 +26,17 @@ uv run steering.py \
 
 uv run 1_steering.py \
     --pca_filepath /workspace/gemma-2-27b/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
-    --prompts_file /root/git/persona-subspace/evals/data/jailbreak/jailbreak_1100.jsonl \
-    --magnitudes -3000.0 -1000.0 \
-    --output_jsonl /root/git/persona-subspace/evals/results/gemma-2-27b/jailbreak/jailbreak_1100.jsonl \
-    --batch_size 32
+    --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
+    --magnitudes -4000.0 -3000.0 -2000.0 -1000.0 \
+    --output_jsonl /root/git/persona-subspace/evals/jailbreak/gemma-2-27b/steered/jailbreak_1100.jsonl \
+    --batch_size 16 --company Google
+
+uv run 1_steering.py \
+    --pca_filepath /workspace/gemma-2-27b/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
+    --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
+    --magnitudes -4000.0 -3000.0 -2000.0 -1000.0 \
+    --output_jsonl /root/git/persona-subspace/evals/jailbreak/gemma-2-27b/steered/default_1100.jsonl \
+    --batch_size 16 --company Google --no_system_prompt
 
 """
 
@@ -393,7 +400,7 @@ def parse_arguments():
     parser.add_argument(
         "--max_length",
         type=int,
-        default=1024,
+        default=2048,
         help="Maximum sequence length"
     )
     
@@ -661,7 +668,6 @@ def worker_process(
     max_new_tokens: int,
     temperature: float,
     max_length: int,
-    total_batches: int,
     no_system_prompt: bool = False
 ):
     """
@@ -719,7 +725,7 @@ def worker_process(
                     work_queue.put(None)  # Re-add sentinel for other workers
                     break
                 
-                logger.info(f"Processing batch {processed_batches + 1}/{total_batches} ({len(work_batch)} work units)")
+                logger.info(f"Processing batch {processed_batches + 1} ({len(work_batch)} work units)")
                 
                 # Group work units by magnitude for efficient processing
                 work_by_magnitude = defaultdict(list)
@@ -792,7 +798,7 @@ def worker_process(
                     'batch_count': 1
                 })
                 
-                logger.info(f"Completed batch {processed_batches}/{total_batches}, total work units: {processed_work_units}")
+                logger.info(f"Completed batch {processed_batches}, total work units processed by this worker: {processed_work_units}")
                 
                 # Periodic garbage collection
                 if processed_batches % 2 == 0:
@@ -988,7 +994,6 @@ def main():
                 args.max_new_tokens,
                 args.temperature,
                 args.max_length,
-                len(work_batches),
                 args.no_system_prompt
             )
         )
