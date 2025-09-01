@@ -16,7 +16,7 @@ def load_model(model_name, device=None):
     # Set padding token if not set
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "right"
+    tokenizer.padding_side = "left"
     
     # Use specific device or auto device mapping
     if device is not None:
@@ -34,21 +34,21 @@ def load_model(model_name, device=None):
     model.eval()
     return model, tokenizer
 
-def format_as_chat(tokenizer, prompt):
+def format_as_chat(tokenizer, prompt, **chat_kwargs):
     """Format prompt as a chat message with proper template"""
     messages = [{"role": "user", "content": prompt}]
     formatted_prompt = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
+        messages, tokenize=False, add_generation_prompt=True, **chat_kwargs
     )
 
     return formatted_prompt
 
 
-def format_as_chat_swapped(tokenizer, prompt):
+def format_as_chat_swapped(tokenizer, prompt, **chat_kwargs):
     """Format prompt as a chat message with proper template"""
     messages = [{"role": "user", "content": "Hello."}, {"role": "model", "content": prompt}]
     formatted_prompt = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
+        messages, tokenize=False, add_generation_prompt=True, **chat_kwargs
     )
     parts = formatted_prompt.rsplit('model', 1)
     if len(parts) == 2:
@@ -80,11 +80,13 @@ def find_newline_position(input_ids, tokenizer, device):
     return len(input_ids) - 1
 
 
-def extract_full_activations(model, tokenizer, conversation, layer=None, chat_format=True):
+def extract_full_activations(model, tokenizer, conversation, layer=None, chat_format=True, **chat_kwargs):
     """Extract full activations for a conversation
     
     Args:
         layer: int for single layer or list of ints for multiple layers or None for all layers
+        chat_format: whether to apply chat template
+        **chat_kwargs: additional arguments for apply_chat_template
     
     Returns:
         If layer is int: torch.Tensor (backward compatibility) in shape (num_tokens, hidden_size)
@@ -103,7 +105,7 @@ def extract_full_activations(model, tokenizer, conversation, layer=None, chat_fo
     
     if chat_format:
         formatted_prompt = tokenizer.apply_chat_template(
-            conversation, tokenize=False, add_generation_prompt=False
+            conversation, tokenize=False, add_generation_prompt=False, **chat_kwargs
         )
     else:
         formatted_prompt = conversation
@@ -147,11 +149,13 @@ def extract_full_activations(model, tokenizer, conversation, layer=None, chat_fo
         return activations
 
 
-def extract_activation_at_newline(model, tokenizer, prompt, layer=15, swap=False):
+def extract_activation_at_newline(model, tokenizer, prompt, layer=15, swap=False, **chat_kwargs):
     """Extract activation at the newline token
     
     Args:
         layer: int for single layer or list of ints for multiple layers
+        swap: whether to use swapped chat format
+        **chat_kwargs: additional arguments for apply_chat_template
     
     Returns:
         If layer is int: torch.Tensor (backward compatibility)
@@ -167,9 +171,9 @@ def extract_activation_at_newline(model, tokenizer, prompt, layer=15, swap=False
     
     # Format as chat
     if swap:
-        formatted_prompt = format_as_chat_swapped(tokenizer, prompt)
+        formatted_prompt = format_as_chat_swapped(tokenizer, prompt, **chat_kwargs)
     else:
-        formatted_prompt = format_as_chat(tokenizer, prompt)
+        formatted_prompt = format_as_chat(tokenizer, prompt, **chat_kwargs)
     
     # Tokenize
     tokens = tokenizer(formatted_prompt, return_tensors="pt", add_special_tokens=False)
@@ -215,11 +219,13 @@ def extract_activation_at_newline(model, tokenizer, prompt, layer=15, swap=False
     else:
         return activations
 
-def extract_activations_for_prompts(model, tokenizer, prompts, layer=15, swap=False):
+def extract_activations_for_prompts(model, tokenizer, prompts, layer=15, swap=False, **chat_kwargs):
     """Extract activations for a list of prompts
     
     Args:
         layer: int for single layer or list of ints for multiple layers
+        swap: whether to use swapped chat format
+        **chat_kwargs: additional arguments for apply_chat_template
         
     Returns:
         If layer is int: torch.Tensor of shape (num_prompts, hidden_size)
@@ -233,7 +239,7 @@ def extract_activations_for_prompts(model, tokenizer, prompts, layer=15, swap=Fa
         activations = []
         for prompt in prompts:
             try:
-                activation = extract_activation_at_newline(model, tokenizer, prompt, layer, swap=swap)
+                activation = extract_activation_at_newline(model, tokenizer, prompt, layer, swap=swap, **chat_kwargs)
                 activations.append(activation)
                 print(f"✓ Extracted activation for: {prompt[:50]}...")
             except Exception as e:
@@ -247,7 +253,7 @@ def extract_activations_for_prompts(model, tokenizer, prompts, layer=15, swap=Fa
         
         for prompt in prompts:
             try:
-                activation_dict = extract_activation_at_newline(model, tokenizer, prompt, layer, swap=swap)
+                activation_dict = extract_activation_at_newline(model, tokenizer, prompt, layer, swap=swap, **chat_kwargs)
                 for layer_idx in layer:
                     layer_activations[layer_idx].append(activation_dict[layer_idx])
                 print(f"✓ Extracted activations for: {prompt[:50]}...")
@@ -426,14 +432,14 @@ def sample_next_token(model, tokenizer, input_ids, suppress_eos=True):
         
         return next_token_id, updated_input_ids
 
-def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7, do_sample=True, chat_format=True, swap=False):
+def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7, do_sample=True, chat_format=True, swap=False, **chat_kwargs):
     """Generate text from a prompt with the model"""
     # Format as chat
     if chat_format:
         if swap:
-            formatted_prompt = format_as_chat_swapped(tokenizer, prompt)
+            formatted_prompt = format_as_chat_swapped(tokenizer, prompt, **chat_kwargs)
         else:
-            formatted_prompt = format_as_chat(tokenizer, prompt)
+            formatted_prompt = format_as_chat(tokenizer, prompt, **chat_kwargs)
     else:
         formatted_prompt = prompt
     
@@ -455,19 +461,235 @@ def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7,
     generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=False)
     return generated_text.strip()
     
-def get_response_indices(conversation, tokenizer, per_turn=False):
+def is_qwen_model(model_name_or_tokenizer):
+    """Check if this is a Qwen model based on model name or tokenizer."""
+    if isinstance(model_name_or_tokenizer, str):
+        return 'qwen' in model_name_or_tokenizer.lower()
+    else:
+        # Check tokenizer name_or_path attribute
+        tokenizer_name = getattr(model_name_or_tokenizer, 'name_or_path', '').lower()
+        return 'qwen' in tokenizer_name
+
+def is_gemma_model(model_name_or_tokenizer):
+    """Check if this is a Gemma model based on model name or tokenizer."""
+    if isinstance(model_name_or_tokenizer, str):
+        return 'gemma' in model_name_or_tokenizer.lower()
+    else:
+        # Check tokenizer name_or_path attribute
+        tokenizer_name = getattr(model_name_or_tokenizer, 'name_or_path', '').lower()
+        return 'gemma' in tokenizer_name
+
+def is_llama_model(model_name_or_tokenizer):
+    """Check if this is a Llama model based on model name or tokenizer."""
+    if isinstance(model_name_or_tokenizer, str):
+        model_lower = model_name_or_tokenizer.lower()
+        return 'llama' in model_lower or 'meta-llama' in model_lower
+    else:
+        # Check tokenizer name_or_path attribute
+        tokenizer_name = getattr(model_name_or_tokenizer, 'name_or_path', '').lower()
+        return 'llama' in tokenizer_name or 'meta-llama' in tokenizer_name
+
+def get_response_indices_qwen(conversation, tokenizer, per_turn=False, **chat_kwargs):
     """
-    Get every token index of the model's response.
+    Qwen-specific implementation for extracting response token indices.
     
-    Args:
-        conversation: List of dict with 'role' and 'content' keys
-        tokenizer: Tokenizer to apply chat template and tokenize
-        per_turn: Bool, if True return list of lists (one per assistant turn), 
-                 if False return single flat list (default, backward compatible)
+    Qwen uses <|im_start|>assistant and <|im_end|> tokens, and may include
+    thinking tokens that need to be filtered out when thinking is disabled.
+    """
+    if per_turn:
+        all_turn_indices = []
+    else:
+        response_indices = []
     
-    Returns:
-        response_indices: list of token positions where the model is responding (per_turn=False)
-                         or list of lists of token positions per turn (per_turn=True)
+    # Check if thinking is enabled
+    enable_thinking = chat_kwargs.get('enable_thinking', False)
+    
+    # Get the full formatted conversation
+    full_formatted = tokenizer.apply_chat_template(
+        conversation, tokenize=False, add_generation_prompt=False, **chat_kwargs
+    )
+    full_tokens = tokenizer(full_formatted, add_special_tokens=False)
+    all_token_ids = full_tokens['input_ids']
+    
+    # Get special token IDs for Qwen
+    try:
+        im_start_id = tokenizer.convert_tokens_to_ids('<|im_start|>')
+        im_end_id = tokenizer.convert_tokens_to_ids('<|im_end|>')
+        assistant_token_id = tokenizer.convert_tokens_to_ids('assistant')
+        
+        # Thinking tokens (may not exist in all Qwen variants)
+        try:
+            think_start_id = tokenizer.convert_tokens_to_ids('<think>')
+            think_end_id = tokenizer.convert_tokens_to_ids('</think>')
+        except (KeyError, ValueError):
+            think_start_id = None
+            think_end_id = None
+            
+    except (KeyError, ValueError):
+        # Fallback if special tokens not found
+        return get_response_indices_simple(conversation, tokenizer, per_turn, **chat_kwargs)
+    
+    # Find assistant response sections
+    i = 0
+    while i < len(all_token_ids):
+        # Look for <|im_start|>assistant pattern
+        if (i + 1 < len(all_token_ids) and 
+            all_token_ids[i] == im_start_id and 
+            all_token_ids[i + 1] == assistant_token_id):
+            
+            # Found start of assistant response, skip the <|im_start|>assistant tokens
+            response_start = i + 2
+            
+            # Find the corresponding <|im_end|>
+            response_end = None
+            for j in range(response_start, len(all_token_ids)):
+                if all_token_ids[j] == im_end_id:
+                    response_end = j  # Don't include the <|im_end|> token
+                    break
+            
+            if response_end is not None:
+                # Extract tokens in this range
+                raw_turn_indices = list(range(response_start, response_end))
+                
+                # Filter out thinking tokens if thinking disabled
+                if not enable_thinking and think_start_id is not None and think_end_id is not None:
+                    filtered_indices = []
+                    skip_until_think_end = False
+                    
+                    for idx in raw_turn_indices:
+                        token_id = all_token_ids[idx]
+                        
+                        # Check if we hit a <think> token
+                        if token_id == think_start_id:
+                            skip_until_think_end = True
+                            continue
+                        
+                        # Check if we hit a </think> token
+                        if token_id == think_end_id:
+                            skip_until_think_end = False
+                            continue
+                        
+                        # Skip tokens that are inside thinking blocks
+                        if skip_until_think_end:
+                            continue
+                        
+                        # Include all tokens that are not inside thinking blocks
+                        filtered_indices.append(idx)
+                    
+                    # Clean up extracted text by removing extra whitespace/newlines at boundaries
+                    # but preserve internal spaces
+                    if filtered_indices:
+                        # Get the text to check for leading/trailing cleanup
+                        extracted_token_ids = [all_token_ids[i] for i in filtered_indices]
+                        extracted_text = tokenizer.decode(extracted_token_ids)
+                        
+                        # If text starts/ends with excessive whitespace, find better boundaries
+                        if extracted_text.strip() != extracted_text:
+                            # Remove leading whitespace-only tokens
+                            while (filtered_indices and 
+                                   tokenizer.decode([all_token_ids[filtered_indices[0]]]).strip() == ''):
+                                filtered_indices.pop(0)
+                            
+                            # Remove trailing whitespace-only tokens
+                            while (filtered_indices and 
+                                   tokenizer.decode([all_token_ids[filtered_indices[-1]]]).strip() == ''):
+                                filtered_indices.pop()
+                    
+                    turn_indices = filtered_indices
+                else:
+                    turn_indices = raw_turn_indices
+                
+                if per_turn:
+                    all_turn_indices.append(turn_indices)
+                else:
+                    response_indices.extend(turn_indices)
+                
+                i = response_end + 1
+            else:
+                # No matching <|im_end|> found, skip this token
+                i += 1
+        else:
+            i += 1
+    
+    return all_turn_indices if per_turn else response_indices
+
+def get_response_indices_llama(conversation, tokenizer, per_turn=False, **chat_kwargs):
+    """
+    Llama-specific implementation for extracting response token indices.
+    
+    Llama uses <|start_header_id|>assistant<|end_header_id|> and <|eot_id|> tokens.
+    """
+    if per_turn:
+        all_turn_indices = []
+    else:
+        response_indices = []
+    
+    # Get the full formatted conversation
+    full_formatted = tokenizer.apply_chat_template(
+        conversation, tokenize=False, add_generation_prompt=False, **chat_kwargs
+    )
+    full_tokens = tokenizer(full_formatted, add_special_tokens=False)
+    all_token_ids = full_tokens['input_ids']
+    
+    # Get special token IDs for Llama
+    try:
+        start_header_id = tokenizer.convert_tokens_to_ids('<|start_header_id|>')
+        end_header_id = tokenizer.convert_tokens_to_ids('<|end_header_id|>')
+        eot_id = tokenizer.convert_tokens_to_ids('<|eot_id|>')
+        assistant_token_id = tokenizer.convert_tokens_to_ids('assistant')
+    except (KeyError, ValueError):
+        # Fallback if special tokens not found
+        return get_response_indices_simple(conversation, tokenizer, per_turn, **chat_kwargs)
+    
+    # Find assistant response sections
+    i = 0
+    while i < len(all_token_ids):
+        # Look for <|start_header_id|>assistant<|end_header_id|> pattern
+        if (i + 2 < len(all_token_ids) and 
+            all_token_ids[i] == start_header_id and 
+            all_token_ids[i + 1] == assistant_token_id and 
+            all_token_ids[i + 2] == end_header_id):
+            
+            # Found start of assistant response, skip the header tokens and any following newlines
+            response_start = i + 3
+            
+            # Skip any immediate newline tokens after the header
+            while (response_start < len(all_token_ids) and 
+                   tokenizer.decode([all_token_ids[response_start]]).strip() == ''):
+                response_start += 1
+            
+            # Find the corresponding <|eot_id|>
+            response_end = None
+            for j in range(response_start, len(all_token_ids)):
+                if all_token_ids[j] == eot_id:
+                    response_end = j  # Don't include the <|eot_id|> token
+                    break
+            
+            if response_end is not None:
+                # Remove trailing whitespace tokens before <|eot_id|>
+                while (response_end > response_start and 
+                       tokenizer.decode([all_token_ids[response_end - 1]]).strip() == ''):
+                    response_end -= 1
+                
+                turn_indices = list(range(response_start, response_end))
+                
+                if per_turn:
+                    all_turn_indices.append(turn_indices)
+                else:
+                    response_indices.extend(turn_indices)
+                
+                i = response_end + 1
+            else:
+                # No matching <|eot_id|> found, skip this token
+                i += 1
+        else:
+            i += 1
+    
+    return all_turn_indices if per_turn else response_indices
+
+def get_response_indices_gemma(conversation, tokenizer, per_turn=False, **chat_kwargs):
+    """
+    Gemma-specific implementation using the original offset mapping approach.
     """
     if per_turn:
         all_turn_indices = []
@@ -488,7 +710,7 @@ def get_response_indices(conversation, tokenizer, per_turn=False):
         # Format and tokenize both versions
         if conversation_before:
             before_formatted = tokenizer.apply_chat_template(
-                conversation_before, tokenize=False, add_generation_prompt=True
+                conversation_before, tokenize=False, add_generation_prompt=True, **chat_kwargs
             )
             before_tokens = tokenizer(before_formatted, add_special_tokens=False)
             before_length = len(before_tokens['input_ids'])
@@ -496,7 +718,7 @@ def get_response_indices(conversation, tokenizer, per_turn=False):
             before_length = 0
             
         including_formatted = tokenizer.apply_chat_template(
-            conversation_including, tokenize=False, add_generation_prompt=False
+            conversation_including, tokenize=False, add_generation_prompt=False, **chat_kwargs
         )
         including_tokens = tokenizer(including_formatted, add_special_tokens=False)
         including_length = len(including_tokens['input_ids'])
@@ -536,18 +758,105 @@ def get_response_indices(conversation, tokenizer, per_turn=False):
     
     return all_turn_indices if per_turn else response_indices
 
-def mean_response_activation(activations, conversation, tokenizer):
+def get_response_indices_simple(conversation, tokenizer, per_turn=False, **chat_kwargs):
+    """
+    Simple fallback implementation using range-based approach.
+    """
+    if per_turn:
+        all_turn_indices = []
+    else:
+        response_indices = []
+    
+    # Process conversation incrementally to find assistant response boundaries
+    for i, turn in enumerate(conversation):
+        if turn['role'] != 'assistant':
+            continue
+            
+        # Get conversation up to but not including this assistant turn
+        conversation_before = conversation[:i]
+        
+        # Get conversation up to and including this assistant turn  
+        conversation_including = conversation[:i+1]
+        
+        # Format and tokenize both versions
+        if conversation_before:
+            before_formatted = tokenizer.apply_chat_template(
+                conversation_before, tokenize=False, add_generation_prompt=True, **chat_kwargs
+            )
+            before_tokens = tokenizer(before_formatted, add_special_tokens=False)
+            before_length = len(before_tokens['input_ids'])
+        else:
+            before_length = 0
+            
+        including_formatted = tokenizer.apply_chat_template(
+            conversation_including, tokenize=False, add_generation_prompt=False, **chat_kwargs
+        )
+        including_tokens = tokenizer(including_formatted, add_special_tokens=False)
+        including_length = len(including_tokens['input_ids'])
+        
+        # The assistant response tokens are between before_length and including_length
+        assistant_start = before_length
+        assistant_end = including_length
+        
+        turn_indices = list(range(assistant_start, assistant_end))
+        
+        # Store indices based on per_turn flag
+        if per_turn:
+            all_turn_indices.append(turn_indices)
+        else:
+            response_indices.extend(turn_indices)
+    
+    return all_turn_indices if per_turn else response_indices
+
+def get_response_indices(conversation, tokenizer, model_name=None, per_turn=False, **chat_kwargs):
+    """
+    Get every token index of the model's response.
+    
+    Args:
+        conversation: List of dict with 'role' and 'content' keys
+        tokenizer: Tokenizer to apply chat template and tokenize
+        model_name: Model name to determine which extraction method to use
+        per_turn: Bool, if True return list of lists (one per assistant turn), 
+                 if False return single flat list (default, backward compatible)
+        **chat_kwargs: additional arguments for apply_chat_template
+    
+    Returns:
+        response_indices: list of token positions where the model is responding (per_turn=False)
+                         or list of lists of token positions per turn (per_turn=True)
+    """
+    # Determine model type
+    if model_name and is_qwen_model(model_name):
+        return get_response_indices_qwen(conversation, tokenizer, per_turn, **chat_kwargs)
+    elif model_name and (is_gemma_model(model_name) or is_llama_model(model_name)):
+        # Gemma and Llama can use the same offset mapping approach
+        return get_response_indices_gemma(conversation, tokenizer, per_turn, **chat_kwargs)
+    elif model_name is None:
+        # Try to detect from tokenizer
+        if is_qwen_model(tokenizer):
+            return get_response_indices_qwen(conversation, tokenizer, per_turn, **chat_kwargs)
+        elif is_gemma_model(tokenizer) or is_llama_model(tokenizer):
+            # Gemma and Llama can use the same approach
+            return get_response_indices_gemma(conversation, tokenizer, per_turn, **chat_kwargs)
+        else:
+           raise ValueError(f"Unsupported model: {model_name}. Supported models: Qwen, Gemma, Llama. "
+                        f"For other models, pass model_name=None to use fallback method.")
+    else:
+        # Unsupported model
+        raise ValueError(f"Unsupported model: {model_name}. Supported models: Qwen, Gemma, Llama. "
+                        f"For other models, pass model_name=None to use fallback method.")
+
+def mean_response_activation(activations, conversation, tokenizer, model_name=None, **chat_kwargs):
     """
     Get the mean activation of the model's response to the user's message.
     """
     # get the token positions of model responses
-    response_indices = get_response_indices(conversation, tokenizer)
+    response_indices = get_response_indices(conversation, tokenizer, model_name, **chat_kwargs)
 
     # get the mean activation of the model's response to the user's message
     mean_activation = activations[:, response_indices, :].mean(dim=1)
     return mean_activation
 
-def mean_response_activation_per_turn(activations, conversation, tokenizer):
+def mean_response_activation_per_turn(activations, conversation, tokenizer, model_name=None, **chat_kwargs):
     """
     Get the mean activation for each of the model's response turns.
     
@@ -555,12 +864,14 @@ def mean_response_activation_per_turn(activations, conversation, tokenizer):
         activations: Tensor with shape (layers, tokens, features)
         conversation: List of dict with 'role' and 'content' keys
         tokenizer: Tokenizer to apply chat template and tokenize
+        model_name: Model name to determine which extraction method to use
+        **chat_kwargs: additional arguments for apply_chat_template
     
     Returns:
         List[torch.Tensor]: List of mean activations, one per assistant turn
     """
     # Get token positions for each assistant turn
-    response_indices_per_turn = get_response_indices(conversation, tokenizer, per_turn=True)
+    response_indices_per_turn = get_response_indices(conversation, tokenizer, model_name, per_turn=True, **chat_kwargs)
     
     # Calculate mean activation for each turn
     mean_activations_per_turn = []

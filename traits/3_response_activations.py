@@ -37,7 +37,7 @@ from tqdm import tqdm
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model
+from utils.probing_utils import load_model, get_response_indices
 from transformers import AutoTokenizer
 
 # Set up logging
@@ -45,13 +45,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def get_response_indices_batch(conversations, tokenizer):
+def get_response_indices_batch(conversations, tokenizer, model_name=None, **chat_kwargs):
     """
-    Get response token indices for a batch of conversations.
+    Get response token indices for a batch of conversations using the utils function.
     
     Args:
         conversations: List of conversation lists
         tokenizer: Tokenizer to apply chat template and tokenize
+        model_name: Model name to determine which extraction method to use
+        **chat_kwargs: additional arguments for apply_chat_template
     
     Returns:
         List of response_indices for each conversation
@@ -59,48 +61,14 @@ def get_response_indices_batch(conversations, tokenizer):
     batch_response_indices = []
     
     for conversation in conversations:
-        response_indices = []
-        
-        # Process conversation incrementally to find assistant response boundaries
-        for i, turn in enumerate(conversation):
-            if turn['role'] != 'assistant':
-                continue
-                
-            # Get conversation up to but not including this assistant turn
-            conversation_before = conversation[:i]
-            
-            # Get conversation up to and including this assistant turn  
-            conversation_including = conversation[:i+1]
-            
-            # Format and tokenize both versions
-            if conversation_before:
-                before_formatted = tokenizer.apply_chat_template(
-                    conversation_before, tokenize=False, add_generation_prompt=True
-                )
-                before_tokens = tokenizer(before_formatted, add_special_tokens=False)
-                before_length = len(before_tokens['input_ids'])
-            else:
-                before_length = 0
-                
-            including_formatted = tokenizer.apply_chat_template(
-                conversation_including, tokenize=False, add_generation_prompt=False
-            )
-            including_tokens = tokenizer(including_formatted, add_special_tokens=False)
-            including_length = len(including_tokens['input_ids'])
-            
-            # The assistant response tokens are between before_length and including_length
-            assistant_start = before_length
-            assistant_end = including_length
-            
-            # Add these indices to our response list
-            response_indices.extend(range(assistant_start, assistant_end))
-        
+        # Use the improved utils function for each conversation
+        response_indices = get_response_indices(conversation, tokenizer, model_name, **chat_kwargs)
         batch_response_indices.append(response_indices)
     
     return batch_response_indices
 
 
-def extract_batched_activations(model, tokenizer, conversations, layers=None, batch_size=16, max_length=1024):
+def extract_batched_activations(model, tokenizer, conversations, layers=None, batch_size=16, max_length=1024, model_name=None, **chat_kwargs):
     """
     Extract activations for a batch of conversations with memory-efficient processing.
     
@@ -111,6 +79,7 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
         layers: List of layer indices to extract (None for all layers)
         batch_size: Maximum batch size
         max_length: Maximum sequence length
+        **chat_kwargs: additional arguments for apply_chat_template
     
     Returns:
         List of activation tensors, one per conversation
@@ -137,7 +106,7 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
             formatted_prompts = []
             for conversation in batch_conversations:
                 formatted_prompt = tokenizer.apply_chat_template(
-                    conversation, tokenize=False, add_generation_prompt=False
+                    conversation, tokenize=False, add_generation_prompt=False, **chat_kwargs
                 )
                 formatted_prompts.append(formatted_prompt)
             
@@ -155,7 +124,7 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
             attention_mask = batch_tokens["attention_mask"].to(model.device)
             
             # Get response indices for this batch
-            batch_response_indices = get_response_indices_batch(batch_conversations, tokenizer)
+            batch_response_indices = get_response_indices_batch(batch_conversations, tokenizer, model_name, **chat_kwargs)
             
             # Extract activations with hooks - fixed for batch processing
             batch_activations = []
@@ -289,6 +258,7 @@ class OptimizedTraitActivationExtractor:
         prompt_indices: Optional[List[int]] = None,
         append_mode: bool = False,
         chat_model_name: Optional[str] = None,
+        thinking: bool = True,
     ):
         """
         Initialize the optimized trait activation extractor.
@@ -304,6 +274,7 @@ class OptimizedTraitActivationExtractor:
             prompt_indices: List of prompt indices to process (None for all)
             append_mode: Whether to append to existing activation files
             chat_model_name: Optional HuggingFace model identifier for tokenizer (chat formatting)
+            thinking: Enable thinking mode for chat templates
         """
         self.model_name = model_name
         self.chat_model_name = chat_model_name
@@ -315,6 +286,14 @@ class OptimizedTraitActivationExtractor:
         self.start_index = start_index
         self.prompt_indices = prompt_indices
         self.append_mode = append_mode
+        
+        # Chat template configuration - only include enable_thinking for models that support it
+        self.chat_kwargs = {}
+        if thinking is not None and model_name:
+            # Only Qwen models support enable_thinking parameter
+            if 'qwen' in model_name.lower():
+                self.chat_kwargs['enable_thinking'] = thinking
+            # Llama and Gemma models don't support enable_thinking parameter, so don't pass it
         
         # Model and tokenizer (loaded once)
         self.model = None
@@ -431,13 +410,16 @@ class OptimizedTraitActivationExtractor:
         
         # Extract activations in batches with progress tracking
         print(f"Processing {len(conversations)} conversations for trait '{trait_name}':")
+        chat_kwargs = getattr(self, 'chat_kwargs', {})
         activations_list = extract_batched_activations(
             model=self.model,
             tokenizer=self.tokenizer,
             conversations=conversations,
             layers=self.layers,
             batch_size=self.batch_size,
-            max_length=self.max_length
+            max_length=self.max_length,
+            model_name=self.model_name,
+            **chat_kwargs
         )
         
         # Create activation dictionary
@@ -639,7 +621,8 @@ def process_traits_on_gpu_optimized(gpu_id, trait_names, args, prompt_indices=No
             start_index=args.start_index,
             prompt_indices=prompt_indices,
             append_mode=args.append_mode,
-            chat_model_name=args.chat_model
+            chat_model_name=args.chat_model,
+            thinking=args.thinking
         )
         
         # Load model on this specific GPU
@@ -824,6 +807,13 @@ Examples:
     parser.add_argument('--gpu-ids', type=str, default=None,
                        help='Comma-separated list of GPU IDs to use')
     
+    parser.add_argument(
+        "--thinking",
+        type=lambda x: x.lower() in ['true', '1', 'yes'],
+        default=True,
+        help="Enable thinking mode for chat templates (default: True). Set to False for Qwen models."
+    )
+    
     args = parser.parse_args()
     
     # Set logging level
@@ -865,7 +855,8 @@ Examples:
                 start_index=args.start_index,
                 prompt_indices=prompt_indices,
                 append_mode=args.append_mode,
-                chat_model_name=args.chat_model
+                chat_model_name=args.chat_model,
+                thinking=args.thinking
             )
             
             # Process all traits

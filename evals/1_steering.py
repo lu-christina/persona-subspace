@@ -207,7 +207,8 @@ def generate_batched_responses(
     max_new_tokens: int = 1024,
     temperature: float = 0.7,
     max_length: int = 2048,
-    no_system_prompt: bool = False
+    no_system_prompt: bool = False,
+    thinking: bool = True
 ) -> List[str]:
     """
     Generate responses for a batch of work units efficiently using real batch inference.
@@ -239,7 +240,7 @@ def generate_batched_responses(
                     ]
                 
                 formatted_prompt = tokenizer.apply_chat_template(
-                    messages, tokenize=False, add_generation_prompt=True
+                    messages, tokenize=False, add_generation_prompt=True, enable_thinking=thinking
                 )
                 formatted_prompts.append(formatted_prompt)
             else:
@@ -433,6 +434,13 @@ def parse_arguments():
         "--no_system_prompt",
         action="store_true",
         help="Only use the question text, ignore any role/system prompt"
+    )
+    
+    parser.add_argument(
+        "--thinking",
+        type=lambda x: x.lower() in ['true', '1', 'yes'],
+        default=True,
+        help="Enable thinking mode for chat templates (default: True). Set to False for Qwen models."
     )
     
     args = parser.parse_args()
@@ -668,7 +676,8 @@ def worker_process(
     max_new_tokens: int,
     temperature: float,
     max_length: int,
-    no_system_prompt: bool = False
+    no_system_prompt: bool = False,
+    thinking: bool = True
 ):
     """
     Optimized worker process that pulls work batches from queue and processes them with batch efficiency.
@@ -752,7 +761,8 @@ def worker_process(
                                 max_new_tokens=max_new_tokens,
                                 temperature=temperature,
                                 max_length=max_length,
-                                no_system_prompt=no_system_prompt
+                                no_system_prompt=no_system_prompt,
+                                thinking=thinking
                             )
                             
                             # Prepare row data for batch (skip empty responses)
@@ -994,7 +1004,8 @@ def main():
                 args.max_new_tokens,
                 args.temperature,
                 args.max_length,
-                args.no_system_prompt
+                args.no_system_prompt,
+                args.thinking
             )
         )
         p.start()
