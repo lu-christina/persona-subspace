@@ -129,6 +129,13 @@ def parse_arguments():
     )
     
     parser.add_argument(
+        "--name",
+        type=str,
+        default="Alex",
+        help="Name to substitute for {name} placeholder in prompts"
+    )
+    
+    parser.add_argument(
         "--no_system_prompt",
         action="store_true",
         help="Only use the question text, ignore any role/system prompt"
@@ -249,16 +256,16 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
     return prompts
 
 
-def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[str], company_name: str = "Acme Corp", no_system_prompt: bool = False) -> List[Dict[str, Any]]:
+def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[str], company_name: str = "Acme Corp", name_value: str = "Alex", no_system_prompt: bool = False) -> List[Dict[str, Any]]:
     """Generate all role-question combination prompts, filtering out existing ones."""
     prompts_data = []
     skipped_count = 0
     
     for role in roles:
         for question in questions:
-            # Format company name in role and question text
-            role_text = role['_role_text'].format(company=company_name)
-            question_text = question['_question_text'].format(company=company_name)
+            # Format company name and name in role and question text
+            role_text = role['_role_text'].format(company=company_name, name=name_value)
+            question_text = question['_question_text'].format(company=company_name, name=name_value)
             
             if no_system_prompt:
                 # In no-system-prompt mode, only use the question text
@@ -390,9 +397,9 @@ def main():
         
         # Set up separate fields for system/user messages and format company
         for p in prompts_data:
-            # Format company name in prompts
-            system_prompt_text = p.get('prompt', '').format(company=args.company)
-            user_message = p.get('question', '').format(company=args.company)
+            # Format company name and name in prompts
+            system_prompt_text = p.get('prompt', '').format(company=args.company, name=args.name)
+            user_message = p.get('question', '').format(company=args.company, name=args.name)
             
             if args.no_system_prompt:
                 # In no-system-prompt mode, only use the question text
@@ -436,7 +443,7 @@ def main():
         
         # Generate all prompts
         print(f"Generating prompts for {len(questions)} questions and {len(roles)} roles")
-        prompts_data = generate_all_prompts(roles, questions, existing_results, args.company, args.no_system_prompt)
+        prompts_data = generate_all_prompts(roles, questions, existing_results, args.company, args.name, args.no_system_prompt)
         print(f"Generated {len(prompts_data)} total prompts")
     
     # Check if we have any new prompts to process after filtering

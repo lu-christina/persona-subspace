@@ -431,6 +431,13 @@ def parse_arguments():
     )
     
     parser.add_argument(
+        "--name",
+        type=str,
+        default="Alex",
+        help="Name to substitute for {name} placeholder in prompts"
+    )
+    
+    parser.add_argument(
         "--no_system_prompt",
         action="store_true",
         help="Only use the question text, ignore any role/system prompt"
@@ -583,7 +590,7 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
     return prompts
 
 
-def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", is_combined_format=False, no_system_prompt=False):
+def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", name_value="Alex", is_combined_format=False, no_system_prompt=False):
     """Create work units from prompts and magnitudes."""
     work_units = []
     
@@ -593,9 +600,9 @@ def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", is_com
             for magnitude in magnitudes:
                 work_unit = prompt_data.copy()  # Copy all original fields
                 
-                # Format company name in prompts
-                system_prompt_text = prompt_data.get('prompt', '').format(company=company_name)
-                user_message = prompt_data.get('question', '').format(company=company_name)
+                # Format company name and name in prompts
+                system_prompt_text = prompt_data.get('prompt', '').format(company=company_name, name=name_value)
+                user_message = prompt_data.get('question', '').format(company=company_name, name=name_value)
                 
                 if no_system_prompt:
                     # In no-system-prompt mode, only use the question text
@@ -630,9 +637,9 @@ def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", is_com
                     work_unit.update(role)
                     work_unit.update(question)
                     
-                    # Format company name in prompts
-                    role_text = role['_role_text'].format(company=company_name)
-                    question_text = question['_question_text'].format(company=company_name)
+                    # Format company name and name in prompts
+                    role_text = role['_role_text'].format(company=company_name, name=name_value)
+                    question_text = question['_question_text'].format(company=company_name, name=name_value)
                     
                     if no_system_prompt:
                         # In no-system-prompt mode, only use the question text
@@ -927,7 +934,7 @@ def main():
         raise ValueError(f"Component index {args.component} out of range [0, {n_components-1}]")
     
     # Create work units
-    work_units = create_work_units(prompts_data, args.magnitudes, args.company, is_combined_format, args.no_system_prompt)
+    work_units = create_work_units(prompts_data, args.magnitudes, args.company, args.name, is_combined_format, args.no_system_prompt)
     
     mode_str = "TEST MODE - " if args.test_mode else ""
     format_str = "combined prompts" if is_combined_format else f"{n_unique_questions} questions and {n_unique_roles} roles"
