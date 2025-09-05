@@ -75,8 +75,9 @@ logger = logging.getLogger(__name__)
 class JSONLHandler:
     """Thread-safe JSONL handler with file locking for concurrent access."""
     
-    def __init__(self, jsonl_path: str):
+    def __init__(self, jsonl_path: str, samples_per_prompt: int = 1):
         self.jsonl_path = jsonl_path
+        self.samples_per_prompt = samples_per_prompt
         self._lock = threading.Lock()
     
     def read_existing_combinations(self) -> set:
@@ -91,8 +92,14 @@ class JSONLHandler:
                 for line in f:
                     try:
                         data = json.loads(line.strip())
-                        # Create unique key from prompt text and magnitude
-                        key = (data['prompt'].strip(), float(data['magnitude']))
+                        # Create unique key from prompt text, magnitude, and sample_id
+                        if self.samples_per_prompt > 1:
+                            # When multiple samples per prompt, use (prompt, magnitude, sample_id) as key
+                            sample_id = data.get('sample_id', 0)
+                            key = (data['prompt'].strip(), float(data['magnitude']), sample_id)
+                        else:
+                            # Backwards compatibility: just use (prompt, magnitude) for single samples
+                            key = (data['prompt'].strip(), float(data['magnitude']))
                         existing.add(key)
                     except (json.JSONDecodeError, KeyError):
                         continue
@@ -138,7 +145,12 @@ class WorkQueueManager:
         # Filter out existing combinations
         filtered_work_units = []
         for work_unit in work_units:
-            combination_key = (work_unit['prompt'].strip(), work_unit['magnitude'])
+            # Create combination key that matches JSONLHandler logic
+            if 'sample_id' in work_unit:
+                combination_key = (work_unit['prompt'].strip(), work_unit['magnitude'], work_unit['sample_id'])
+            else:
+                combination_key = (work_unit['prompt'].strip(), work_unit['magnitude'])
+                
             if combination_key not in existing_combinations:
                 filtered_work_units.append(work_unit)
         
@@ -450,6 +462,13 @@ def parse_arguments():
         help="Enable thinking mode for chat templates (default: True). Set to False for Qwen models."
     )
     
+    parser.add_argument(
+        "--samples_per_prompt",
+        type=int,
+        default=1,
+        help="Number of samples to generate for each unique prompt x magnitude combination"
+    )
+    
     args = parser.parse_args()
     
     # Validate mutually exclusive arguments
@@ -590,7 +609,7 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
     return prompts
 
 
-def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", name_value="Alex", is_combined_format=False, no_system_prompt=False):
+def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", name_value="Alex", is_combined_format=False, no_system_prompt=False, samples_per_prompt=1):
     """Create work units from prompts and magnitudes."""
     work_units = []
     
@@ -598,59 +617,22 @@ def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", name_v
         # prompts_data contains combined prompts
         for prompt_data in prompts_data:
             for magnitude in magnitudes:
-                work_unit = prompt_data.copy()  # Copy all original fields
-                
-                # Format company name and name in prompts
-                system_prompt_text = prompt_data.get('prompt', '').format(company=company_name, name=name_value)
-                user_message = prompt_data.get('question', '').format(company=company_name, name=name_value)
-                
-                if no_system_prompt:
-                    # In no-system-prompt mode, only use the question text
-                    formatted_combined = user_message
-                    system_prompt = ''
-                else:
-                    # Normal mode: combine system prompt and question
-                    formatted_combined = f"{system_prompt_text} {user_message}".strip() if system_prompt_text else user_message
-                    system_prompt = system_prompt_text
-                
-                # Keep separate fields for system/user message handling
-                work_unit['_system_prompt'] = system_prompt
-                work_unit['_user_message'] = user_message
-                
-                # Create formatted combined prompt
-                work_unit['prompt'] = formatted_combined
-                work_unit['magnitude'] = magnitude
-                
-                # Clean up temporary fields
-                if '_combined_prompt' in work_unit:
-                    del work_unit['_combined_prompt']
-                    
-                work_units.append(work_unit)
-    else:
-        # prompts_data contains [questions, roles]
-        questions, roles = prompts_data
-        for role in roles:
-            for question in questions:
-                for magnitude in magnitudes:
-                    work_unit = {}
-                    # Copy all fields from both role and question
-                    work_unit.update(role)
-                    work_unit.update(question)
+                # Generate multiple samples for this prompt x magnitude combination
+                for sample_id in range(samples_per_prompt):
+                    work_unit = prompt_data.copy()  # Copy all original fields
                     
                     # Format company name and name in prompts
-                    role_text = role['_role_text'].format(company=company_name, name=name_value)
-                    question_text = question['_question_text'].format(company=company_name, name=name_value)
+                    system_prompt_text = prompt_data.get('prompt', '').format(company=company_name, name=name_value)
+                    user_message = prompt_data.get('question', '').format(company=company_name, name=name_value)
                     
                     if no_system_prompt:
                         # In no-system-prompt mode, only use the question text
-                        formatted_combined = question_text
+                        formatted_combined = user_message
                         system_prompt = ''
-                        user_message = question_text
                     else:
-                        # Normal mode: combine role and question
-                        formatted_combined = f"{role_text} {question_text}".strip() if role_text else question_text
-                        system_prompt = role_text
-                        user_message = question_text
+                        # Normal mode: combine system prompt and question
+                        formatted_combined = f"{system_prompt_text} {user_message}".strip() if system_prompt_text else user_message
+                        system_prompt = system_prompt_text
                     
                     # Keep separate fields for system/user message handling
                     work_unit['_system_prompt'] = system_prompt
@@ -660,13 +642,62 @@ def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", name_v
                     work_unit['prompt'] = formatted_combined
                     work_unit['magnitude'] = magnitude
                     
+                    # Add sample_id if multiple samples per prompt
+                    if samples_per_prompt > 1:
+                        work_unit['sample_id'] = sample_id
+                    
                     # Clean up temporary fields
-                    if '_role_text' in work_unit:
-                        del work_unit['_role_text']
-                    if '_question_text' in work_unit:
-                        del work_unit['_question_text']
+                    if '_combined_prompt' in work_unit:
+                        del work_unit['_combined_prompt']
                         
                     work_units.append(work_unit)
+    else:
+        # prompts_data contains [questions, roles]
+        questions, roles = prompts_data
+        for role in roles:
+            for question in questions:
+                for magnitude in magnitudes:
+                    # Generate multiple samples for this prompt x magnitude combination
+                    for sample_id in range(samples_per_prompt):
+                        work_unit = {}
+                        # Copy all fields from both role and question
+                        work_unit.update(role)
+                        work_unit.update(question)
+                        
+                        # Format company name and name in prompts
+                        role_text = role['_role_text'].format(company=company_name, name=name_value)
+                        question_text = question['_question_text'].format(company=company_name, name=name_value)
+                        
+                        if no_system_prompt:
+                            # In no-system-prompt mode, only use the question text
+                            formatted_combined = question_text
+                            system_prompt = ''
+                            user_message = question_text
+                        else:
+                            # Normal mode: combine role and question
+                            formatted_combined = f"{role_text} {question_text}".strip() if role_text else question_text
+                            system_prompt = role_text
+                            user_message = question_text
+                        
+                        # Keep separate fields for system/user message handling
+                        work_unit['_system_prompt'] = system_prompt
+                        work_unit['_user_message'] = user_message
+                        
+                        # Create formatted combined prompt
+                        work_unit['prompt'] = formatted_combined
+                        work_unit['magnitude'] = magnitude
+                        
+                        # Add sample_id if multiple samples per prompt
+                        if samples_per_prompt > 1:
+                            work_unit['sample_id'] = sample_id
+                        
+                        # Clean up temporary fields
+                        if '_role_text' in work_unit:
+                            del work_unit['_role_text']
+                        if '_question_text' in work_unit:
+                            del work_unit['_question_text']
+                            
+                        work_units.append(work_unit)
     
     return work_units
 
@@ -684,7 +715,8 @@ def worker_process(
     temperature: float,
     max_length: int,
     no_system_prompt: bool = False,
-    thinking: bool = True
+    thinking: bool = True,
+    samples_per_prompt: int = 1
 ):
     """
     Optimized worker process that pulls work batches from queue and processes them with batch efficiency.
@@ -717,7 +749,7 @@ def worker_process(
         logger.info(f"Using PC{component+1}, steering vector shape: {steering_vector.shape}")
         
         # Initialize JSONL handler
-        jsonl_handler = JSONLHandler(output_jsonl)
+        jsonl_handler = JSONLHandler(output_jsonl, samples_per_prompt)
         
         # Clear GPU cache before starting
         torch.cuda.empty_cache()
@@ -934,7 +966,7 @@ def main():
         raise ValueError(f"Component index {args.component} out of range [0, {n_components-1}]")
     
     # Create work units
-    work_units = create_work_units(prompts_data, args.magnitudes, args.company, args.name, is_combined_format, args.no_system_prompt)
+    work_units = create_work_units(prompts_data, args.magnitudes, args.company, args.name, is_combined_format, args.no_system_prompt, args.samples_per_prompt)
     
     mode_str = "TEST MODE - " if args.test_mode else ""
     format_str = "combined prompts" if is_combined_format else f"{n_unique_questions} questions and {n_unique_roles} roles"
@@ -943,7 +975,7 @@ def main():
     print(f"Batch size: {args.batch_size}")
     
     # Get existing combinations to filter work units
-    jsonl_handler = JSONLHandler(args.output_jsonl)
+    jsonl_handler = JSONLHandler(args.output_jsonl, args.samples_per_prompt)
     existing_combinations = jsonl_handler.read_existing_combinations()
     
     # Try to load previous queue state
@@ -1012,7 +1044,8 @@ def main():
                 args.temperature,
                 args.max_length,
                 args.no_system_prompt,
-                args.thinking
+                args.thinking,
+                args.samples_per_prompt
             )
         )
         p.start()
