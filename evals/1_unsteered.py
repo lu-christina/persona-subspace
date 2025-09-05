@@ -33,7 +33,7 @@ sys.path.append(str(project_root / 'utils'))
 from utils.inference_utils import load_vllm_model, batch_conversation_chat, close_vllm_model
 
 
-def read_existing_results(output_jsonl: str) -> Set[str]:
+def read_existing_results(output_jsonl: str, samples_per_prompt: int = 1) -> Set[str]:
     """Read existing results to avoid duplicates."""
     existing = set()
     if not os.path.exists(output_jsonl):
@@ -44,8 +44,14 @@ def read_existing_results(output_jsonl: str) -> Set[str]:
             for line in f:
                 try:
                     data = json.loads(line.strip())
-                    # Create unique key from prompt content
-                    key = data['prompt']
+                    # Create unique key from prompt content and sample_id
+                    if samples_per_prompt > 1:
+                        # When multiple samples per prompt, use prompt + sample_id as key
+                        sample_id = data.get('sample_id', 0)
+                        key = f"{data['prompt']}__sample_{sample_id}"
+                    else:
+                        # Backwards compatibility: just use prompt for single samples
+                        key = data['prompt']
                     existing.add(key)
                 except (json.JSONDecodeError, KeyError):
                     continue
@@ -139,6 +145,13 @@ def parse_arguments():
         "--no_system_prompt",
         action="store_true",
         help="Only use the question text, ignore any role/system prompt"
+    )
+    
+    parser.add_argument(
+        "--samples_per_prompt",
+        type=int,
+        default=1,
+        help="Number of samples to generate for each unique id x magnitude combination"
     )
     
     args = parser.parse_args()
@@ -256,7 +269,7 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
     return prompts
 
 
-def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[str], company_name: str = "Acme Corp", name_value: str = "Alex", no_system_prompt: bool = False) -> List[Dict[str, Any]]:
+def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, Any]], existing_results: Set[str], company_name: str = "Acme Corp", name_value: str = "Alex", no_system_prompt: bool = False, samples_per_prompt: int = 1) -> List[Dict[str, Any]]:
     """Generate all role-question combination prompts, filtering out existing ones."""
     prompts_data = []
     skipped_count = 0
@@ -278,26 +291,38 @@ def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, 
                 system_prompt = role_text
                 user_message = question_text
             
-            # Check if this prompt already exists
-            if prompt in existing_results:
-                skipped_count += 1
-                continue
-            
-            # Combine all fields from both role and question
-            prompt_data = {}
-            prompt_data.update(role)
-            prompt_data.update(question)
-            prompt_data['prompt'] = prompt  # Formatted version for output
-            prompt_data['_system_prompt'] = system_prompt
-            prompt_data['_user_message'] = user_message
-            
-            # Clean up temporary fields
-            if '_role_text' in prompt_data:
-                del prompt_data['_role_text']
-            if '_question_text' in prompt_data:
-                del prompt_data['_question_text']
-            
-            prompts_data.append(prompt_data)
+            # Generate multiple samples for this prompt
+            for sample_id in range(samples_per_prompt):
+                # Create unique key for this sample
+                if samples_per_prompt > 1:
+                    unique_key = f"{prompt}__sample_{sample_id}"
+                else:
+                    unique_key = prompt
+                
+                # Check if this specific sample already exists
+                if unique_key in existing_results:
+                    skipped_count += 1
+                    continue
+                
+                # Combine all fields from both role and question
+                prompt_data = {}
+                prompt_data.update(role)
+                prompt_data.update(question)
+                prompt_data['prompt'] = prompt  # Formatted version for output
+                prompt_data['_system_prompt'] = system_prompt
+                prompt_data['_user_message'] = user_message
+                
+                # Add sample_id if multiple samples per prompt
+                if samples_per_prompt > 1:
+                    prompt_data['sample_id'] = sample_id
+                
+                # Clean up temporary fields
+                if '_role_text' in prompt_data:
+                    del prompt_data['_role_text']
+                if '_question_text' in prompt_data:
+                    del prompt_data['_question_text']
+                
+                prompts_data.append(prompt_data)
     
     if skipped_count > 0:
         print(f"Filtered out {skipped_count} existing combinations")
@@ -331,7 +356,7 @@ def format_messages_for_chat(prompts_data: List[Dict[str, Any]], model_name: str
     return formatted_messages
 
 
-def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[str]):
+def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[str], samples_per_prompt: int = 1):
     """Write results to JSONL file, appending new results only."""
     print(f"Writing results to {output_jsonl}")
     
@@ -346,8 +371,15 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
     # Use append mode to add new results
     with open(output_jsonl, 'a', encoding='utf-8') as f:
         for prompt_data, response in zip(prompts_data, responses):
-            # Check if this prompt already exists
-            if prompt_data['prompt'] in existing_results:
+            # Create unique key for this sample (matching logic in read_existing_results)
+            if samples_per_prompt > 1:
+                sample_id = prompt_data.get('sample_id', 0)
+                unique_key = f"{prompt_data['prompt']}__sample_{sample_id}"
+            else:
+                unique_key = prompt_data['prompt']
+            
+            # Check if this specific sample already exists
+            if unique_key in existing_results:
                 skipped_count += 1
                 continue
                 
@@ -377,7 +409,7 @@ def main():
     print("="*60)
     
     # Check for existing results to enable restart functionality
-    existing_results = read_existing_results(args.output_jsonl)
+    existing_results = read_existing_results(args.output_jsonl, args.samples_per_prompt)
     if existing_results:
         print(f"Found {len(existing_results)} existing results, will skip duplicates")
     
@@ -395,8 +427,12 @@ def main():
             else:
                 print("Warning: No prompts available for test mode")
         
-        # Set up separate fields for system/user messages and format company
-        for p in prompts_data:
+        # Generate multiple samples for each unique prompt if needed
+        original_prompts = prompts_data.copy()
+        prompts_data = []
+        skipped_count = 0
+        
+        for p in original_prompts:
             # Format company name and name in prompts
             system_prompt_text = p.get('prompt', '').format(company=args.company, name=args.name)
             user_message = p.get('question', '').format(company=args.company, name=args.name)
@@ -410,19 +446,37 @@ def main():
                 formatted_combined = f"{system_prompt_text} {user_message}".strip() if system_prompt_text else user_message
                 system_prompt = system_prompt_text
             
-            p['prompt'] = formatted_combined  # Formatted version for output
-            p['_system_prompt'] = system_prompt
-            p['_user_message'] = user_message
-            
-            # Clean up temporary fields
-            if '_combined_prompt' in p:
-                del p['_combined_prompt']
+            # Generate multiple samples for this prompt
+            for sample_id in range(args.samples_per_prompt):
+                # Create unique key for this sample
+                if args.samples_per_prompt > 1:
+                    unique_key = f"{formatted_combined}__sample_{sample_id}"
+                else:
+                    unique_key = formatted_combined
+                
+                # Check if this specific sample already exists
+                if unique_key in existing_results:
+                    skipped_count += 1
+                    continue
+                
+                # Create new prompt data for this sample
+                prompt_data = p.copy()
+                prompt_data['prompt'] = formatted_combined  # Formatted version for output
+                prompt_data['_system_prompt'] = system_prompt
+                prompt_data['_user_message'] = user_message
+                
+                # Add sample_id if multiple samples per prompt
+                if args.samples_per_prompt > 1:
+                    prompt_data['sample_id'] = sample_id
+                
+                # Clean up temporary fields
+                if '_combined_prompt' in prompt_data:
+                    del prompt_data['_combined_prompt']
+                
+                prompts_data.append(prompt_data)
         
-        original_count = len(prompts_data)
-        prompts_data = [p for p in prompts_data if p['prompt'] not in existing_results]
-        filtered_count = original_count - len(prompts_data)
-        if filtered_count > 0:
-            print(f"Filtered out {filtered_count} existing combinations from combined prompts")
+        if skipped_count > 0:
+            print(f"Filtered out {skipped_count} existing combinations from combined prompts")
         
         n_unique_roles = len(set(p.get('role', '') for p in prompts_data))
         n_unique_questions = len(set(p.get('id', p.get('question_id', '')) for p in prompts_data))
@@ -443,7 +497,7 @@ def main():
         
         # Generate all prompts
         print(f"Generating prompts for {len(questions)} questions and {len(roles)} roles")
-        prompts_data = generate_all_prompts(roles, questions, existing_results, args.company, args.name, args.no_system_prompt)
+        prompts_data = generate_all_prompts(roles, questions, existing_results, args.company, args.name, args.no_system_prompt, args.samples_per_prompt)
         print(f"Generated {len(prompts_data)} total prompts")
     
     # Check if we have any new prompts to process after filtering
@@ -488,7 +542,7 @@ def main():
         )
         
         # Write results to JSONL
-        write_results_to_jsonl(prompts_data, responses, args.output_jsonl, existing_results)
+        write_results_to_jsonl(prompts_data, responses, args.output_jsonl, existing_results, args.samples_per_prompt)
         
         print(f"\nBaseline generation completed!")
         print(f"Results saved to: {args.output_jsonl}")
