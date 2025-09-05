@@ -92,14 +92,14 @@ class JSONLHandler:
                 for line in f:
                     try:
                         data = json.loads(line.strip())
-                        # Create unique key from prompt text, magnitude, and sample_id
+                        # Create unique key from id, magnitude, and sample_id
                         if self.samples_per_prompt > 1:
-                            # When multiple samples per prompt, use (prompt, magnitude, sample_id) as key
+                            # When multiple samples per prompt, use (id, magnitude, sample_id) as key
                             sample_id = data.get('sample_id', 0)
-                            key = (data['prompt'].strip(), float(data['magnitude']), sample_id)
+                            key = (data['id'], float(data['magnitude']), sample_id)
                         else:
-                            # Backwards compatibility: just use (prompt, magnitude) for single samples
-                            key = (data['prompt'].strip(), float(data['magnitude']))
+                            # Backwards compatibility: just use (id, magnitude) for single samples
+                            key = (data['id'], float(data['magnitude']))
                         existing.add(key)
                     except (json.JSONDecodeError, KeyError):
                         continue
@@ -147,9 +147,9 @@ class WorkQueueManager:
         for work_unit in work_units:
             # Create combination key that matches JSONLHandler logic
             if 'sample_id' in work_unit:
-                combination_key = (work_unit['prompt'].strip(), work_unit['magnitude'], work_unit['sample_id'])
+                combination_key = (work_unit['id'], work_unit['magnitude'], work_unit['sample_id'])
             else:
-                combination_key = (work_unit['prompt'].strip(), work_unit['magnitude'])
+                combination_key = (work_unit['id'], work_unit['magnitude'])
                 
             if combination_key not in existing_combinations:
                 filtered_work_units.append(work_unit)

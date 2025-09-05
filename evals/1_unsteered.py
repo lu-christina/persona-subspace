@@ -44,14 +44,14 @@ def read_existing_results(output_jsonl: str, samples_per_prompt: int = 1) -> Set
             for line in f:
                 try:
                     data = json.loads(line.strip())
-                    # Create unique key from prompt content and sample_id
+                    # Create unique key from id, magnitude, and sample_id
                     if samples_per_prompt > 1:
-                        # When multiple samples per prompt, use prompt + sample_id as key
+                        # When multiple samples per prompt, use (id, magnitude, sample_id) as key
                         sample_id = data.get('sample_id', 0)
-                        key = f"{data['prompt']}__sample_{sample_id}"
+                        key = (data['id'], data.get('magnitude', 0.0), sample_id)
                     else:
-                        # Backwards compatibility: just use prompt for single samples
-                        key = data['prompt']
+                        # Backwards compatibility: just use (id, magnitude) for single samples
+                        key = (data['id'], data.get('magnitude', 0.0))
                     existing.add(key)
                 except (json.JSONDecodeError, KeyError):
                     continue
@@ -295,9 +295,9 @@ def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, 
             for sample_id in range(samples_per_prompt):
                 # Create unique key for this sample
                 if samples_per_prompt > 1:
-                    unique_key = f"{prompt}__sample_{sample_id}"
+                    unique_key = (role.get('id', 0), 0.0, sample_id)
                 else:
-                    unique_key = prompt
+                    unique_key = (role.get('id', 0), 0.0)
                 
                 # Check if this specific sample already exists
                 if unique_key in existing_results:
@@ -374,9 +374,9 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
             # Create unique key for this sample (matching logic in read_existing_results)
             if samples_per_prompt > 1:
                 sample_id = prompt_data.get('sample_id', 0)
-                unique_key = f"{prompt_data['prompt']}__sample_{sample_id}"
+                unique_key = (prompt_data['id'], prompt_data.get('magnitude', 0.0), sample_id)
             else:
-                unique_key = prompt_data['prompt']
+                unique_key = (prompt_data['id'], prompt_data.get('magnitude', 0.0))
             
             # Check if this specific sample already exists
             if unique_key in existing_results:
@@ -450,9 +450,9 @@ def main():
             for sample_id in range(args.samples_per_prompt):
                 # Create unique key for this sample
                 if args.samples_per_prompt > 1:
-                    unique_key = f"{formatted_combined}__sample_{sample_id}"
+                    unique_key = (p['id'], 0.0, sample_id)
                 else:
-                    unique_key = formatted_combined
+                    unique_key = (p['id'], 0.0)
                 
                 # Check if this specific sample already exists
                 if unique_key in existing_results:

@@ -1,0 +1,1279 @@
+=== 2025-09-05T17:08:49+00:00 === uv run 1_steering.py --pca_filepath /workspace/qwen-3-32b/roles_traits/pca/layer32_roles_pos23_traits_pos40-100.pt --prompts_file /root/git/persona-subspace/evals/susceptibility/default_50.jsonl --magnitudes -50.0 -25.0 25.0 50.0 75.0 100.0 125.0 150.0 175.0 200.0 --output_jsonl /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/default_50.jsonl --batch_size 32 --company Alibaba --name Qwen --layer 32 --thinking=False --model Qwen/Qwen3-32B --samples_per_prompt 10
+2025-09-05 17:09:06,044 - INFO - Filtered 10000 work units to 9000 new units
+2025-09-05 17:09:06,045 - INFO - Created 290 work batches from 9000 work units
+============================================================
+Optimized Hybrid Queue-Batch GPU Parallelized Steering
+============================================================
+Loading PCA results from /workspace/qwen-3-32b/roles_traits/pca/layer32_roles_pos23_traits_pos40-100.pt
+Found PCA with 796 components
+Loading prompts from /root/git/persona-subspace/evals/susceptibility/default_50.jsonl
+Loaded 100 prompts
+Using PC1 with combined prompts
+Total work units: 10000 (10 magnitudes)
+Batch size: 32
+Processing 9000 work units in 290 batches
+Found 8 GPUs available
+Using GPUs: [0, 1, 2, 3, 4, 5, 6, 7]
+
+Launched 8 worker processes
+2025-09-05 17:09:12,441 - GPU-4 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,441 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,453 - GPU-5 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,453 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,486 - GPU-2 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,486 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,486 - GPU-1 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,486 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,488 - GPU-3 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,488 - INFO - Starting optimized work queue consumer
+Overall progress:   0%|          | 0/9000 [00:00<?, ?work_units/s]2025-09-05 17:09:12,506 - GPU-6 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,506 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,528 - GPU-7 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,528 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,535 - GPU-0 - INFO - Starting optimized work queue consumer
+2025-09-05 17:09:12,535 - INFO - Starting optimized work queue consumer
+Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:00<00:09,  1.61it/s]Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/17 [00:00<?, ?it/s]Loading checkpoint shards:  12%|█▏        | 2/17 [00:01<00:09,  1.63it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:00<00:10,  1.54it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:00<00:10,  1.52it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:00<00:11,  1.45it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:00<00:10,  1.51it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:00<00:11,  1.43it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:00<00:12,  1.27it/s]Loading checkpoint shards:   6%|▌         | 1/17 [00:00<00:12,  1.25it/s]Loading checkpoint shards:  18%|█▊        | 3/17 [00:01<00:09,  1.56it/s]Loading checkpoint shards:  12%|█▏        | 2/17 [00:01<00:09,  1.53it/s]Loading checkpoint shards:  12%|█▏        | 2/17 [00:01<00:10,  1.50it/s]Loading checkpoint shards:  12%|█▏        | 2/17 [00:01<00:10,  1.39it/s]Loading checkpoint shards:  12%|█▏        | 2/17 [00:01<00:10,  1.42it/s]Loading checkpoint shards:  12%|█▏        | 2/17 [00:01<00:10,  1.44it/s]Loading checkpoint shards:  12%|█▏        | 2/17 [00:01<00:10,  1.41it/s]Loading checkpoint shards:  12%|█▏        | 2/17 [00:01<00:10,  1.37it/s]Loading checkpoint shards:  24%|██▎       | 4/17 [00:02<00:08,  1.52it/s]Loading checkpoint shards:  18%|█▊        | 3/17 [00:01<00:09,  1.51it/s]Loading checkpoint shards:  18%|█▊        | 3/17 [00:01<00:09,  1.52it/s]Loading checkpoint shards:  18%|█▊        | 3/17 [00:02<00:09,  1.51it/s]Loading checkpoint shards:  18%|█▊        | 3/17 [00:02<00:09,  1.43it/s]Loading checkpoint shards:  18%|█▊        | 3/17 [00:02<00:09,  1.48it/s]Loading checkpoint shards:  18%|█▊        | 3/17 [00:02<00:09,  1.48it/s]Loading checkpoint shards:  18%|█▊        | 3/17 [00:02<00:09,  1.44it/s]Loading checkpoint shards:  29%|██▉       | 5/17 [00:03<00:07,  1.50it/s]Loading checkpoint shards:  24%|██▎       | 4/17 [00:02<00:08,  1.51it/s]Loading checkpoint shards:  24%|██▎       | 4/17 [00:02<00:08,  1.55it/s]Loading checkpoint shards:  24%|██▎       | 4/17 [00:02<00:08,  1.59it/s]Loading checkpoint shards:  24%|██▎       | 4/17 [00:02<00:08,  1.51it/s]Loading checkpoint shards:  24%|██▎       | 4/17 [00:02<00:09,  1.43it/s]Loading checkpoint shards:  24%|██▎       | 4/17 [00:02<00:09,  1.40it/s]Loading checkpoint shards:  24%|██▎       | 4/17 [00:02<00:08,  1.48it/s]Loading checkpoint shards:  35%|███▌      | 6/17 [00:03<00:07,  1.51it/s]Loading checkpoint shards:  29%|██▉       | 5/17 [00:03<00:07,  1.51it/s]Loading checkpoint shards:  29%|██▉       | 5/17 [00:03<00:07,  1.57it/s]Loading checkpoint shards:  29%|██▉       | 5/17 [00:03<00:07,  1.63it/s]Loading checkpoint shards:  29%|██▉       | 5/17 [00:03<00:07,  1.50it/s]Loading checkpoint shards:  29%|██▉       | 5/17 [00:03<00:08,  1.47it/s]Loading checkpoint shards:  41%|████      | 7/17 [00:04<00:06,  1.51it/s]Loading checkpoint shards:  29%|██▉       | 5/17 [00:03<00:08,  1.40it/s]Loading checkpoint shards:  29%|██▉       | 5/17 [00:03<00:08,  1.37it/s]Loading checkpoint shards:  35%|███▌      | 6/17 [00:03<00:07,  1.51it/s]Loading checkpoint shards:  35%|███▌      | 6/17 [00:03<00:06,  1.59it/s]Loading checkpoint shards:  35%|███▌      | 6/17 [00:03<00:07,  1.52it/s]Loading checkpoint shards:  35%|███▌      | 6/17 [00:04<00:07,  1.50it/s]Loading checkpoint shards:  35%|███▌      | 6/17 [00:04<00:07,  1.49it/s]Loading checkpoint shards:  47%|████▋     | 8/17 [00:05<00:05,  1.50it/s]Loading checkpoint shards:  35%|███▌      | 6/17 [00:04<00:07,  1.40it/s]Loading checkpoint shards:  35%|███▌      | 6/17 [00:04<00:07,  1.40it/s]Loading checkpoint shards:  41%|████      | 7/17 [00:04<00:06,  1.52it/s]Loading checkpoint shards:  41%|████      | 7/17 [00:04<00:06,  1.48it/s]Loading checkpoint shards:  41%|████      | 7/17 [00:04<00:06,  1.51it/s]Loading checkpoint shards:  41%|████      | 7/17 [00:04<00:06,  1.50it/s]Loading checkpoint shards:  41%|████      | 7/17 [00:04<00:06,  1.51it/s]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:05<00:05,  1.50it/s]Loading checkpoint shards:  41%|████      | 7/17 [00:04<00:07,  1.41it/s]Loading checkpoint shards:  41%|████      | 7/17 [00:04<00:07,  1.42it/s]Loading checkpoint shards:  47%|████▋     | 8/17 [00:05<00:05,  1.52it/s]Loading checkpoint shards:  47%|████▋     | 8/17 [00:05<00:06,  1.45it/s]Loading checkpoint shards:  47%|████▋     | 8/17 [00:05<00:06,  1.47it/s]Loading checkpoint shards:  47%|████▋     | 8/17 [00:05<00:06,  1.50it/s]Loading checkpoint shards:  47%|████▋     | 8/17 [00:05<00:05,  1.52it/s]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:06<00:04,  1.50it/s]Loading checkpoint shards:  47%|████▋     | 8/17 [00:05<00:06,  1.43it/s]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:05<00:05,  1.52it/s]Loading checkpoint shards:  47%|████▋     | 8/17 [00:05<00:06,  1.43it/s]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:06<00:05,  1.44it/s]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:06<00:05,  1.42it/s]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:06<00:05,  1.56it/s]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:06<00:05,  1.49it/s]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:07<00:03,  1.51it/s]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:06<00:05,  1.47it/s]Loading checkpoint shards:  53%|█████▎    | 9/17 [00:06<00:05,  1.47it/s]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:06<00:04,  1.52it/s]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:06<00:04,  1.46it/s]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:06<00:04,  1.54it/s]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:06<00:04,  1.41it/s]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:06<00:04,  1.51it/s]Loading checkpoint shards:  71%|███████   | 12/17 [00:07<00:03,  1.51it/s]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:06<00:04,  1.50it/s]Loading checkpoint shards:  59%|█████▉    | 10/17 [00:06<00:04,  1.49it/s]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:07<00:03,  1.52it/s]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:07<00:04,  1.50it/s]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:07<00:04,  1.45it/s]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:07<00:03,  1.54it/s]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:07<00:03,  1.53it/s]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:08<00:02,  1.51it/s]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:07<00:04,  1.49it/s]Loading checkpoint shards:  71%|███████   | 12/17 [00:07<00:03,  1.52it/s]Loading checkpoint shards:  65%|██████▍   | 11/17 [00:07<00:04,  1.49it/s]Loading checkpoint shards:  71%|███████   | 12/17 [00:07<00:03,  1.52it/s]Loading checkpoint shards:  71%|███████   | 12/17 [00:08<00:03,  1.52it/s]Loading checkpoint shards:  71%|███████   | 12/17 [00:08<00:03,  1.49it/s]Loading checkpoint shards:  71%|███████   | 12/17 [00:08<00:03,  1.43it/s]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:09<00:01,  1.51it/s]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:08<00:02,  1.52it/s]Loading checkpoint shards:  71%|███████   | 12/17 [00:08<00:03,  1.47it/s]Loading checkpoint shards:  71%|███████   | 12/17 [00:08<00:03,  1.47it/s]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:08<00:02,  1.54it/s]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:08<00:02,  1.52it/s]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:08<00:02,  1.43it/s]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:08<00:02,  1.47it/s]Loading checkpoint shards:  88%|████████▊ | 15/17 [00:09<00:01,  1.51it/s]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:09<00:01,  1.52it/s]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:09<00:02,  1.47it/s]Loading checkpoint shards:  76%|███████▋  | 13/17 [00:08<00:02,  1.47it/s]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:09<00:01,  1.55it/s]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:09<00:01,  1.51it/s]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:09<00:02,  1.48it/s]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:09<00:02,  1.45it/s]Loading checkpoint shards:  94%|█████████▍| 16/17 [00:10<00:00,  1.50it/s]Loading checkpoint shards:  88%|████████▊ | 15/17 [00:09<00:01,  1.51it/s]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:09<00:02,  1.46it/s]Loading checkpoint shards:  82%|████████▏ | 14/17 [00:09<00:02,  1.46it/s]Loading checkpoint shards:  88%|████████▊ | 15/17 [00:09<00:01,  1.56it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.61it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.53it/s]
+Loading checkpoint shards:  88%|████████▊ | 15/17 [00:10<00:01,  1.50it/s]2025-09-05 17:09:31,497 - GPU-3 - INFO - Model loaded on cuda:3
+2025-09-05 17:09:31,497 - INFO - Model loaded on cuda:3
+Loading checkpoint shards:  88%|████████▊ | 15/17 [00:10<00:01,  1.47it/s]Loading checkpoint shards:  88%|████████▊ | 15/17 [00:10<00:01,  1.45it/s]Loading checkpoint shards:  94%|█████████▍| 16/17 [00:10<00:00,  1.52it/s]Loading checkpoint shards:  88%|████████▊ | 15/17 [00:10<00:01,  1.46it/s]Loading checkpoint shards:  88%|████████▊ | 15/17 [00:10<00:01,  1.46it/s]Loading checkpoint shards:  94%|█████████▍| 16/17 [00:10<00:00,  1.57it/s]Loading checkpoint shards:  94%|█████████▍| 16/17 [00:10<00:00,  1.51it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.63it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.54it/s]
+Loading checkpoint shards:  94%|█████████▍| 16/17 [00:10<00:00,  1.47it/s]2025-09-05 17:09:32,223 - GPU-2 - INFO - Model loaded on cuda:2
+2025-09-05 17:09:32,223 - INFO - Model loaded on cuda:2
+Loading checkpoint shards:  94%|█████████▍| 16/17 [00:10<00:00,  1.46it/s]2025-09-05 17:09:32,228 - GPU-3 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:32,228 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:32,228 - GPU-3 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:32,228 - INFO - Processing batch 1 (32 work units)
+Loading checkpoint shards: 100%|██████████| 17/17 [00:10<00:00,  1.68it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:10<00:00,  1.55it/s]
+Loading checkpoint shards:  94%|█████████▍| 16/17 [00:11<00:00,  1.48it/s]Loading checkpoint shards:  94%|█████████▍| 16/17 [00:10<00:00,  1.48it/s]2025-09-05 17:09:32,442 - GPU-6 - INFO - Model loaded on cuda:6
+2025-09-05 17:09:32,442 - INFO - Model loaded on cuda:6
+Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.63it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.52it/s]
+2025-09-05 17:09:32,738 - GPU-7 - INFO - Model loaded on cuda:7
+2025-09-05 17:09:32,738 - INFO - Model loaded on cuda:7
+Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.57it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.49it/s]
+Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.58it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.50it/s]
+2025-09-05 17:09:32,849 - GPU-0 - INFO - Model loaded on cuda:0
+2025-09-05 17:09:32,849 - INFO - Model loaded on cuda:0
+2025-09-05 17:09:32,890 - GPU-1 - INFO - Model loaded on cuda:1
+2025-09-05 17:09:32,890 - INFO - Model loaded on cuda:1
+Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.63it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.48it/s]
+Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.61it/s]Loading checkpoint shards: 100%|██████████| 17/17 [00:11<00:00,  1.47it/s]
+2025-09-05 17:09:32,937 - GPU-2 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:32,937 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:32,937 - GPU-2 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:32,937 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:32,972 - GPU-4 - INFO - Model loaded on cuda:4
+2025-09-05 17:09:32,972 - INFO - Model loaded on cuda:4
+2025-09-05 17:09:32,976 - GPU-5 - INFO - Model loaded on cuda:5
+2025-09-05 17:09:32,976 - INFO - Model loaded on cuda:5
+2025-09-05 17:09:33,212 - GPU-6 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,212 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,213 - GPU-6 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,213 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,459 - GPU-7 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,459 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,459 - GPU-7 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,459 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,624 - GPU-0 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,624 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,624 - GPU-0 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,624 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,636 - GPU-1 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,636 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,637 - GPU-1 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,637 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,673 - GPU-5 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,673 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,673 - GPU-5 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,673 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,674 - GPU-4 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,674 - INFO - Using PC1, steering vector shape: torch.Size([5120])
+2025-09-05 17:09:33,674 - GPU-4 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:33,674 - INFO - Processing batch 1 (32 work units)
+2025-09-05 17:09:40,815 - GPU-0 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:40,815 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:40,815 - GPU-0 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:40,815 - INFO - Processing batch 2 (32 work units)
+Overall progress:   0%|          | 32/9000 [00:28<2:12:17,  1.13work_units/s]Overall progress:   0%|          | 32/9000 [00:28<2:12:17,  1.13work_units/s, completed=32, last_gpu=0, workers=8]2025-09-05 17:09:41,462 - GPU-4 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:41,462 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:41,462 - GPU-4 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:41,462 - INFO - Processing batch 2 (32 work units)
+Overall progress:   1%|          | 64/9000 [00:28<56:03,  2.66work_units/s, completed=32, last_gpu=0, workers=8]  Overall progress:   1%|          | 64/9000 [00:28<56:03,  2.66work_units/s, completed=64, last_gpu=4, workers=8]2025-09-05 17:09:41,652 - GPU-7 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:41,652 - INFO - Completed batch 1, total work units processed by this worker: 32
+Overall progress:   1%|          | 96/9000 [00:29<30:45,  4.83work_units/s, completed=64, last_gpu=4, workers=8]Overall progress:   1%|          | 96/9000 [00:29<30:45,  4.83work_units/s, completed=96, last_gpu=7, workers=8]2025-09-05 17:09:41,653 - GPU-7 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:41,653 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:42,213 - GPU-2 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:42,213 - INFO - Completed batch 1, total work units processed by this worker: 32
+Overall progress:   1%|▏         | 128/9000 [00:29<19:34,  7.56work_units/s, completed=96, last_gpu=7, workers=8]Overall progress:   1%|▏         | 128/9000 [00:29<19:34,  7.56work_units/s, completed=128, last_gpu=2, workers=8]2025-09-05 17:09:42,213 - GPU-2 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:42,213 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:42,979 - GPU-1 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:42,979 - INFO - Completed batch 1, total work units processed by this worker: 32
+Overall progress:   2%|▏         | 160/9000 [00:30<13:44, 10.73work_units/s, completed=128, last_gpu=2, workers=8]2025-09-05 17:09:42,979 - GPU-1 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:42,979 - INFO - Processing batch 2 (32 work units)
+Overall progress:   2%|▏         | 160/9000 [00:30<13:44, 10.73work_units/s, completed=160, last_gpu=1, workers=8]2025-09-05 17:09:43,866 - GPU-6 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:43,866 - INFO - Completed batch 1, total work units processed by this worker: 32
+Overall progress:   2%|▏         | 192/9000 [00:31<10:25, 14.09work_units/s, completed=160, last_gpu=1, workers=8]Overall progress:   2%|▏         | 192/9000 [00:31<10:25, 14.09work_units/s, completed=192, last_gpu=6, workers=8]2025-09-05 17:09:43,866 - GPU-6 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:43,866 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:44,486 - GPU-3 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:44,486 - INFO - Completed batch 1, total work units processed by this worker: 32
+Overall progress:   2%|▏         | 224/9000 [00:31<07:54, 18.48work_units/s, completed=192, last_gpu=6, workers=8]Overall progress:   2%|▏         | 224/9000 [00:31<07:54, 18.48work_units/s, completed=224, last_gpu=3, workers=8]2025-09-05 17:09:44,486 - GPU-3 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:44,486 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:45,381 - GPU-5 - INFO - Completed batch 1, total work units processed by this worker: 32
+2025-09-05 17:09:45,381 - INFO - Completed batch 1, total work units processed by this worker: 32
+Overall progress:   3%|▎         | 256/9000 [00:32<06:40, 21.84work_units/s, completed=224, last_gpu=3, workers=8]Overall progress:   3%|▎         | 256/9000 [00:32<06:40, 21.84work_units/s, completed=256, last_gpu=5, workers=8]2025-09-05 17:09:45,381 - GPU-5 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:45,381 - INFO - Processing batch 2 (32 work units)
+2025-09-05 17:09:48,450 - GPU-2 - INFO - Completed batch 2, total work units processed by this worker: 64
+2025-09-05 17:09:48,450 - INFO - Completed batch 2, total work units processed by this worker: 64
+Overall progress:   3%|▎         | 288/9000 [00:35<08:55, 16.27work_units/s, completed=256, last_gpu=5, workers=8]Overall progress:   3%|▎         | 288/9000 [00:35<08:55, 16.27work_units/s, completed=288, last_gpu=2, workers=8]2025-09-05 17:09:48,558 - GPU-2 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:48,558 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:49,572 - GPU-0 - INFO - Completed batch 2, total work units processed by this worker: 64
+2025-09-05 17:09:49,572 - INFO - Completed batch 2, total work units processed by this worker: 64
+Overall progress:   4%|▎         | 320/9000 [00:37<07:42, 18.76work_units/s, completed=288, last_gpu=2, workers=8]Overall progress:   4%|▎         | 320/9000 [00:37<07:42, 18.76work_units/s, completed=320, last_gpu=0, workers=8]2025-09-05 17:09:49,678 - GPU-0 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:49,678 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:50,293 - GPU-1 - INFO - Completed batch 2, total work units processed by this worker: 64
+2025-09-05 17:09:50,293 - INFO - Completed batch 2, total work units processed by this worker: 64
+Overall progress:   4%|▍         | 352/9000 [00:37<06:19, 22.79work_units/s, completed=320, last_gpu=0, workers=8]Overall progress:   4%|▍         | 352/9000 [00:37<06:19, 22.79work_units/s, completed=352, last_gpu=1, workers=8]2025-09-05 17:09:50,377 - GPU-1 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:50,377 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:51,100 - GPU-3 - INFO - Completed batch 2, total work units processed by this worker: 64
+2025-09-05 17:09:51,100 - INFO - Completed batch 2, total work units processed by this worker: 64
+Overall progress:   4%|▍         | 384/9000 [00:38<05:29, 26.17work_units/s, completed=352, last_gpu=1, workers=8]Overall progress:   4%|▍         | 384/9000 [00:38<05:29, 26.17work_units/s, completed=384, last_gpu=3, workers=8]2025-09-05 17:09:51,218 - GPU-3 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:51,218 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:51,513 - GPU-4 - INFO - Completed batch 2, total work units processed by this worker: 64
+2025-09-05 17:09:51,513 - INFO - Completed batch 2, total work units processed by this worker: 64
+Overall progress:   5%|▍         | 416/9000 [00:39<04:22, 32.74work_units/s, completed=384, last_gpu=3, workers=8]Overall progress:   5%|▍         | 416/9000 [00:39<04:22, 32.74work_units/s, completed=416, last_gpu=4, workers=8]2025-09-05 17:09:51,622 - GPU-4 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:51,622 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:51,791 - GPU-7 - INFO - Completed batch 2, total work units processed by this worker: 64
+2025-09-05 17:09:51,791 - INFO - Completed batch 2, total work units processed by this worker: 64
+Overall progress:   5%|▍         | 448/9000 [00:39<03:34, 39.90work_units/s, completed=416, last_gpu=4, workers=8]Overall progress:   5%|▍         | 448/9000 [00:39<03:34, 39.90work_units/s, completed=448, last_gpu=7, workers=8]2025-09-05 17:09:51,910 - GPU-7 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:51,910 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:52,494 - GPU-5 - INFO - Completed batch 2, total work units processed by this worker: 64
+2025-09-05 17:09:52,494 - INFO - Completed batch 2, total work units processed by this worker: 64
+Overall progress:   5%|▌         | 480/9000 [00:40<03:16, 43.46work_units/s, completed=448, last_gpu=7, workers=8]Overall progress:   5%|▌         | 480/9000 [00:40<03:16, 43.46work_units/s, completed=480, last_gpu=5, workers=8]2025-09-05 17:09:52,622 - GPU-5 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:52,622 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:54,706 - GPU-2 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:09:54,706 - INFO - Completed batch 3, total work units processed by this worker: 96
+Overall progress:   6%|▌         | 512/9000 [00:42<05:13, 27.11work_units/s, completed=480, last_gpu=5, workers=8]2025-09-05 17:09:54,706 - GPU-2 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:09:54,706 - INFO - Processing batch 4 (32 work units)
+Overall progress:   6%|▌         | 512/9000 [00:42<05:13, 27.11work_units/s, completed=512, last_gpu=2, workers=8]2025-09-05 17:09:55,264 - GPU-0 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:09:55,264 - INFO - Completed batch 3, total work units processed by this worker: 96
+Overall progress:   6%|▌         | 544/9000 [00:42<04:22, 32.21work_units/s, completed=512, last_gpu=2, workers=8]2025-09-05 17:09:55,265 - GPU-0 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:09:55,265 - INFO - Processing batch 4 (32 work units)
+Overall progress:   6%|▌         | 544/9000 [00:42<04:22, 32.21work_units/s, completed=544, last_gpu=0, workers=8]2025-09-05 17:09:55,464 - GPU-6 - INFO - Completed batch 2, total work units processed by this worker: 64
+2025-09-05 17:09:55,464 - INFO - Completed batch 2, total work units processed by this worker: 64
+Overall progress:   6%|▋         | 576/9000 [00:42<03:18, 42.39work_units/s, completed=544, last_gpu=0, workers=8]Overall progress:   6%|▋         | 576/9000 [00:42<03:18, 42.39work_units/s, completed=576, last_gpu=6, workers=8]2025-09-05 17:09:55,600 - GPU-6 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:55,600 - INFO - Processing batch 3 (32 work units)
+2025-09-05 17:09:57,122 - GPU-1 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:09:57,122 - INFO - Completed batch 3, total work units processed by this worker: 96
+Overall progress:   7%|▋         | 608/9000 [00:44<04:29, 31.19work_units/s, completed=576, last_gpu=6, workers=8]Overall progress:   7%|▋         | 608/9000 [00:44<04:29, 31.19work_units/s, completed=608, last_gpu=1, workers=8]2025-09-05 17:09:57,122 - GPU-1 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:09:57,122 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:09:57,963 - GPU-7 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:09:57,963 - INFO - Completed batch 3, total work units processed by this worker: 96
+Overall progress:   7%|▋         | 640/9000 [00:45<04:13, 32.97work_units/s, completed=608, last_gpu=1, workers=8]2025-09-05 17:09:57,963 - GPU-7 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:09:57,963 - INFO - Processing batch 4 (32 work units)
+Overall progress:   7%|▋         | 640/9000 [00:45<04:13, 32.97work_units/s, completed=640, last_gpu=7, workers=8]2025-09-05 17:09:59,514 - GPU-5 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:09:59,514 - INFO - Completed batch 3, total work units processed by this worker: 96
+Overall progress:   7%|▋         | 672/9000 [00:47<04:57, 27.95work_units/s, completed=640, last_gpu=7, workers=8]Overall progress:   7%|▋         | 672/9000 [00:47<04:57, 27.95work_units/s, completed=672, last_gpu=5, workers=8]2025-09-05 17:09:59,515 - GPU-5 - INFO - Processing batch 4 (4 work units)
+2025-09-05 17:09:59,515 - INFO - Processing batch 4 (4 work units)
+2025-09-05 17:09:59,715 - GPU-4 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:09:59,715 - INFO - Completed batch 3, total work units processed by this worker: 96
+Overall progress:   8%|▊         | 704/9000 [00:47<03:43, 37.15work_units/s, completed=672, last_gpu=5, workers=8]Overall progress:   8%|▊         | 704/9000 [00:47<03:43, 37.15work_units/s, completed=704, last_gpu=4, workers=8]2025-09-05 17:09:59,715 - GPU-4 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:09:59,715 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:10:00,516 - GPU-2 - INFO - Completed batch 4, total work units processed by this worker: 128
+2025-09-05 17:10:00,516 - INFO - Completed batch 4, total work units processed by this worker: 128
+Overall progress:   8%|▊         | 736/9000 [00:48<03:37, 37.94work_units/s, completed=704, last_gpu=4, workers=8]Overall progress:   8%|▊         | 736/9000 [00:48<03:37, 37.94work_units/s, completed=736, last_gpu=2, workers=8]2025-09-05 17:10:00,639 - GPU-2 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:00,639 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:02,009 - GPU-6 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:10:02,009 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:10:02,009 - GPU-6 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:10:02,009 - INFO - Processing batch 4 (32 work units)
+Overall progress:   9%|▊         | 768/9000 [00:49<04:27, 30.82work_units/s, completed=736, last_gpu=2, workers=8]Overall progress:   9%|▊         | 768/9000 [00:49<04:27, 30.82work_units/s, completed=768, last_gpu=6, workers=8]2025-09-05 17:10:02,818 - GPU-5 - INFO - Completed batch 4, total work units processed by this worker: 100
+2025-09-05 17:10:02,818 - INFO - Completed batch 4, total work units processed by this worker: 100
+Overall progress:   9%|▊         | 772/9000 [00:50<04:26, 30.82work_units/s, completed=772, last_gpu=5, workers=8]2025-09-05 17:10:02,933 - GPU-5 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:02,933 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:03,899 - GPU-1 - INFO - Completed batch 4, total work units processed by this worker: 128
+2025-09-05 17:10:03,899 - INFO - Completed batch 4, total work units processed by this worker: 128
+Overall progress:   9%|▉         | 804/9000 [00:51<05:19, 25.66work_units/s, completed=772, last_gpu=5, workers=8]Overall progress:   9%|▉         | 804/9000 [00:51<05:19, 25.66work_units/s, completed=804, last_gpu=1, workers=8]2025-09-05 17:10:03,925 - GPU-0 - INFO - Completed batch 4, total work units processed by this worker: 128
+2025-09-05 17:10:03,925 - INFO - Completed batch 4, total work units processed by this worker: 128
+Overall progress:   9%|▉         | 836/9000 [00:51<05:18, 25.66work_units/s, completed=836, last_gpu=0, workers=8]2025-09-05 17:10:04,051 - GPU-1 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:04,051 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:04,080 - GPU-0 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:04,080 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:04,404 - GPU-7 - INFO - Completed batch 4, total work units processed by this worker: 128
+2025-09-05 17:10:04,404 - INFO - Completed batch 4, total work units processed by this worker: 128
+Overall progress:  10%|▉         | 868/9000 [00:51<03:22, 40.14work_units/s, completed=836, last_gpu=0, workers=8]Overall progress:  10%|▉         | 868/9000 [00:51<03:22, 40.14work_units/s, completed=868, last_gpu=7, workers=8]2025-09-05 17:10:04,557 - GPU-7 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:04,557 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:07,726 - GPU-3 - INFO - Completed batch 3, total work units processed by this worker: 96
+2025-09-05 17:10:07,726 - INFO - Completed batch 3, total work units processed by this worker: 96
+Overall progress:  10%|█         | 900/9000 [00:55<05:57, 22.64work_units/s, completed=868, last_gpu=7, workers=8]2025-09-05 17:10:07,726 - GPU-3 - INFO - Processing batch 4 (32 work units)
+2025-09-05 17:10:07,726 - INFO - Processing batch 4 (32 work units)
+Overall progress:  10%|█         | 900/9000 [00:55<05:57, 22.64work_units/s, completed=900, last_gpu=3, workers=8]2025-09-05 17:10:08,249 - GPU-4 - INFO - Completed batch 4, total work units processed by this worker: 128
+2025-09-05 17:10:08,249 - INFO - Completed batch 4, total work units processed by this worker: 128
+Overall progress:  10%|█         | 932/9000 [00:55<04:58, 27.04work_units/s, completed=900, last_gpu=3, workers=8]Overall progress:  10%|█         | 932/9000 [00:55<04:58, 27.04work_units/s, completed=932, last_gpu=4, workers=8]2025-09-05 17:10:08,364 - GPU-4 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:08,364 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:10,068 - GPU-1 - INFO - Completed batch 5, total work units processed by this worker: 160
+2025-09-05 17:10:10,068 - INFO - Completed batch 5, total work units processed by this worker: 160
+2025-09-05 17:10:10,068 - GPU-1 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:10,068 - INFO - Processing batch 6 (32 work units)
+Overall progress:  11%|█         | 964/9000 [00:57<05:40, 23.62work_units/s, completed=932, last_gpu=4, workers=8]Overall progress:  11%|█         | 964/9000 [00:57<05:40, 23.62work_units/s, completed=964, last_gpu=1, workers=8]2025-09-05 17:10:12,298 - GPU-2 - INFO - Completed batch 5, total work units processed by this worker: 160
+2025-09-05 17:10:12,298 - INFO - Completed batch 5, total work units processed by this worker: 160
+Overall progress:  11%|█         | 996/9000 [00:59<06:39, 20.02work_units/s, completed=964, last_gpu=1, workers=8]2025-09-05 17:10:12,299 - GPU-2 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:12,299 - INFO - Processing batch 6 (32 work units)
+Overall progress:  11%|█         | 996/9000 [00:59<06:39, 20.02work_units/s, completed=996, last_gpu=2, workers=8]2025-09-05 17:10:12,518 - GPU-5 - INFO - Completed batch 5, total work units processed by this worker: 132
+2025-09-05 17:10:12,518 - INFO - Completed batch 5, total work units processed by this worker: 132
+Overall progress:  11%|█▏        | 1028/9000 [01:00<05:00, 26.53work_units/s, completed=996, last_gpu=2, workers=8]Overall progress:  11%|█▏        | 1028/9000 [01:00<05:00, 26.53work_units/s, completed=1028, last_gpu=5, workers=8]2025-09-05 17:10:12,518 - GPU-5 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:12,518 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:14,110 - GPU-6 - INFO - Completed batch 4, total work units processed by this worker: 128
+2025-09-05 17:10:14,110 - INFO - Completed batch 4, total work units processed by this worker: 128
+Overall progress:  12%|█▏        | 1060/9000 [01:01<05:26, 24.28work_units/s, completed=1028, last_gpu=5, workers=8]Overall progress:  12%|█▏        | 1060/9000 [01:01<05:26, 24.28work_units/s, completed=1060, last_gpu=6, workers=8]2025-09-05 17:10:14,221 - GPU-6 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:14,221 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:16,873 - GPU-7 - INFO - Completed batch 5, total work units processed by this worker: 160
+2025-09-05 17:10:16,873 - INFO - Completed batch 5, total work units processed by this worker: 160
+Overall progress:  12%|█▏        | 1092/9000 [01:04<07:10, 18.39work_units/s, completed=1060, last_gpu=6, workers=8]Overall progress:  12%|█▏        | 1092/9000 [01:04<07:10, 18.39work_units/s, completed=1092, last_gpu=7, workers=8]2025-09-05 17:10:16,874 - GPU-7 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:16,874 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:17,828 - GPU-0 - INFO - Completed batch 5, total work units processed by this worker: 160
+2025-09-05 17:10:17,828 - INFO - Completed batch 5, total work units processed by this worker: 160
+Overall progress:  12%|█▏        | 1124/9000 [01:05<06:11, 21.21work_units/s, completed=1092, last_gpu=7, workers=8]2025-09-05 17:10:17,829 - GPU-0 - INFO - Processing batch 6 (32 work units)
+Overall progress:  12%|█▏        | 1124/9000 [01:05<06:11, 21.21work_units/s, completed=1124, last_gpu=0, workers=8]2025-09-05 17:10:17,829 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:17,843 - GPU-3 - INFO - Completed batch 4, total work units processed by this worker: 128
+2025-09-05 17:10:17,843 - INFO - Completed batch 4, total work units processed by this worker: 128
+Overall progress:  13%|█▎        | 1156/9000 [01:05<06:09, 21.21work_units/s, completed=1156, last_gpu=3, workers=8]2025-09-05 17:10:17,989 - GPU-3 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:17,989 - INFO - Processing batch 5 (32 work units)
+2025-09-05 17:10:18,124 - GPU-4 - INFO - Completed batch 5, total work units processed by this worker: 160
+2025-09-05 17:10:18,124 - INFO - Completed batch 5, total work units processed by this worker: 160
+Overall progress:  13%|█▎        | 1188/9000 [01:05<03:36, 36.07work_units/s, completed=1156, last_gpu=3, workers=8]Overall progress:  13%|█▎        | 1188/9000 [01:05<03:36, 36.07work_units/s, completed=1188, last_gpu=4, workers=8]2025-09-05 17:10:18,125 - GPU-4 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:18,125 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:18,750 - GPU-5 - INFO - Completed batch 6, total work units processed by this worker: 164
+2025-09-05 17:10:18,750 - INFO - Completed batch 6, total work units processed by this worker: 164
+Overall progress:  14%|█▎        | 1220/9000 [01:06<03:26, 37.65work_units/s, completed=1188, last_gpu=4, workers=8]Overall progress:  14%|█▎        | 1220/9000 [01:06<03:26, 37.65work_units/s, completed=1220, last_gpu=5, workers=8]2025-09-05 17:10:18,861 - GPU-5 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:18,861 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:19,467 - GPU-1 - INFO - Completed batch 6, total work units processed by this worker: 192
+2025-09-05 17:10:19,467 - INFO - Completed batch 6, total work units processed by this worker: 192
+Overall progress:  14%|█▍        | 1252/9000 [01:06<03:10, 40.68work_units/s, completed=1220, last_gpu=5, workers=8]Overall progress:  14%|█▍        | 1252/9000 [01:06<03:10, 40.68work_units/s, completed=1252, last_gpu=1, workers=8]2025-09-05 17:10:19,580 - GPU-1 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:19,580 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:23,146 - GPU-2 - INFO - Completed batch 6, total work units processed by this worker: 192
+2025-09-05 17:10:23,146 - INFO - Completed batch 6, total work units processed by this worker: 192
+Overall progress:  14%|█▍        | 1284/9000 [01:10<06:18, 20.38work_units/s, completed=1252, last_gpu=1, workers=8]Overall progress:  14%|█▍        | 1284/9000 [01:10<06:18, 20.38work_units/s, completed=1284, last_gpu=2, workers=8]2025-09-05 17:10:23,256 - GPU-2 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:23,256 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:24,031 - GPU-0 - INFO - Completed batch 6, total work units processed by this worker: 192
+2025-09-05 17:10:24,031 - INFO - Completed batch 6, total work units processed by this worker: 192
+Overall progress:  15%|█▍        | 1316/9000 [01:11<05:31, 23.21work_units/s, completed=1284, last_gpu=2, workers=8]Overall progress:  15%|█▍        | 1316/9000 [01:11<05:31, 23.21work_units/s, completed=1316, last_gpu=0, workers=8]2025-09-05 17:10:24,182 - GPU-0 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:24,182 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:25,209 - GPU-4 - INFO - Completed batch 6, total work units processed by this worker: 192
+2025-09-05 17:10:25,209 - INFO - Completed batch 6, total work units processed by this worker: 192
+Overall progress:  15%|█▍        | 1348/9000 [01:12<05:16, 24.21work_units/s, completed=1316, last_gpu=0, workers=8]Overall progress:  15%|█▍        | 1348/9000 [01:12<05:16, 24.21work_units/s, completed=1348, last_gpu=4, workers=8]2025-09-05 17:10:25,351 - GPU-4 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:25,351 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:25,829 - GPU-5 - INFO - Completed batch 7, total work units processed by this worker: 196
+2025-09-05 17:10:25,829 - INFO - Completed batch 7, total work units processed by this worker: 196
+2025-09-05 17:10:25,829 - GPU-5 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:25,829 - INFO - Processing batch 8 (32 work units)
+Overall progress:  15%|█▌        | 1380/9000 [01:13<04:26, 28.59work_units/s, completed=1348, last_gpu=4, workers=8]Overall progress:  15%|█▌        | 1380/9000 [01:13<04:26, 28.59work_units/s, completed=1380, last_gpu=5, workers=8]2025-09-05 17:10:26,506 - GPU-3 - INFO - Completed batch 5, total work units processed by this worker: 160
+2025-09-05 17:10:26,506 - INFO - Completed batch 5, total work units processed by this worker: 160
+Overall progress:  16%|█▌        | 1412/9000 [01:14<03:54, 32.35work_units/s, completed=1380, last_gpu=5, workers=8]2025-09-05 17:10:26,506 - GPU-3 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:26,506 - INFO - Processing batch 6 (32 work units)
+Overall progress:  16%|█▌        | 1412/9000 [01:14<03:54, 32.35work_units/s, completed=1412, last_gpu=3, workers=8]2025-09-05 17:10:28,002 - GPU-7 - INFO - Completed batch 6, total work units processed by this worker: 192
+2025-09-05 17:10:28,002 - INFO - Completed batch 6, total work units processed by this worker: 192
+Overall progress:  16%|█▌        | 1444/9000 [01:15<04:28, 28.10work_units/s, completed=1412, last_gpu=3, workers=8]Overall progress:  16%|█▌        | 1444/9000 [01:15<04:28, 28.10work_units/s, completed=1444, last_gpu=7, workers=8]2025-09-05 17:10:28,152 - GPU-7 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:28,152 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:29,001 - GPU-6 - INFO - Completed batch 5, total work units processed by this worker: 160
+2025-09-05 17:10:29,001 - INFO - Completed batch 5, total work units processed by this worker: 160
+Overall progress:  16%|█▋        | 1476/9000 [01:16<04:18, 29.16work_units/s, completed=1444, last_gpu=7, workers=8]2025-09-05 17:10:29,002 - GPU-6 - INFO - Processing batch 6 (32 work units)
+2025-09-05 17:10:29,002 - INFO - Processing batch 6 (32 work units)
+Overall progress:  16%|█▋        | 1476/9000 [01:16<04:18, 29.16work_units/s, completed=1476, last_gpu=6, workers=8]2025-09-05 17:10:31,622 - GPU-4 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:31,622 - INFO - Completed batch 7, total work units processed by this worker: 224
+Overall progress:  17%|█▋        | 1508/9000 [01:19<06:02, 20.64work_units/s, completed=1476, last_gpu=6, workers=8]2025-09-05 17:10:31,622 - GPU-4 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:31,622 - INFO - Processing batch 8 (32 work units)
+Overall progress:  17%|█▋        | 1508/9000 [01:19<06:02, 20.64work_units/s, completed=1508, last_gpu=4, workers=8]2025-09-05 17:10:32,135 - GPU-5 - INFO - Completed batch 8, total work units processed by this worker: 228
+2025-09-05 17:10:32,135 - INFO - Completed batch 8, total work units processed by this worker: 228
+Overall progress:  17%|█▋        | 1540/9000 [01:19<04:49, 25.78work_units/s, completed=1508, last_gpu=4, workers=8]Overall progress:  17%|█▋        | 1540/9000 [01:19<04:49, 25.78work_units/s, completed=1540, last_gpu=5, workers=8]2025-09-05 17:10:32,193 - GPU-2 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:32,193 - INFO - Completed batch 7, total work units processed by this worker: 224
+Overall progress:  17%|█▋        | 1572/9000 [01:19<04:48, 25.78work_units/s, completed=1572, last_gpu=2, workers=8]2025-09-05 17:10:32,193 - GPU-2 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:32,193 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:32,276 - GPU-5 - INFO - Processing batch 9 (4 work units)
+2025-09-05 17:10:32,276 - INFO - Processing batch 9 (4 work units)
+2025-09-05 17:10:32,605 - GPU-0 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:32,605 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:32,605 - GPU-0 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:32,605 - INFO - Processing batch 8 (32 work units)
+Overall progress:  18%|█▊        | 1604/9000 [01:20<02:59, 41.11work_units/s, completed=1572, last_gpu=2, workers=8]Overall progress:  18%|█▊        | 1604/9000 [01:20<02:59, 41.11work_units/s, completed=1604, last_gpu=0, workers=8]2025-09-05 17:10:32,683 - GPU-1 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:32,683 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:32,684 - GPU-1 - INFO - Processing batch 8 (32 work units)
+Overall progress:  18%|█▊        | 1636/9000 [01:20<02:59, 41.11work_units/s, completed=1636, last_gpu=1, workers=8]2025-09-05 17:10:32,684 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:35,403 - GPU-6 - INFO - Completed batch 6, total work units processed by this worker: 192
+2025-09-05 17:10:35,403 - INFO - Completed batch 6, total work units processed by this worker: 192
+Overall progress:  19%|█▊        | 1668/9000 [01:22<03:54, 31.24work_units/s, completed=1636, last_gpu=1, workers=8]Overall progress:  19%|█▊        | 1668/9000 [01:22<03:54, 31.24work_units/s, completed=1668, last_gpu=6, workers=8]2025-09-05 17:10:35,546 - GPU-6 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:35,546 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:35,811 - GPU-7 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:35,811 - INFO - Completed batch 7, total work units processed by this worker: 224
+Overall progress:  19%|█▉        | 1700/9000 [01:23<03:22, 36.02work_units/s, completed=1668, last_gpu=6, workers=8]2025-09-05 17:10:35,811 - GPU-7 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:35,811 - INFO - Processing batch 8 (32 work units)
+Overall progress:  19%|█▉        | 1700/9000 [01:23<03:22, 36.02work_units/s, completed=1700, last_gpu=7, workers=8]2025-09-05 17:10:36,720 - GPU-3 - INFO - Completed batch 6, total work units processed by this worker: 192
+2025-09-05 17:10:36,720 - INFO - Completed batch 6, total work units processed by this worker: 192
+Overall progress:  19%|█▉        | 1732/9000 [01:24<03:22, 35.82work_units/s, completed=1700, last_gpu=7, workers=8]Overall progress:  19%|█▉        | 1732/9000 [01:24<03:22, 35.82work_units/s, completed=1732, last_gpu=3, workers=8]2025-09-05 17:10:36,742 - GPU-5 - INFO - Completed batch 9, total work units processed by this worker: 232
+2025-09-05 17:10:36,742 - INFO - Completed batch 9, total work units processed by this worker: 232
+Overall progress:  19%|█▉        | 1736/9000 [01:24<03:22, 35.82work_units/s, completed=1736, last_gpu=5, workers=8]2025-09-05 17:10:36,742 - GPU-5 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:36,742 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:36,844 - GPU-3 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:36,844 - INFO - Processing batch 7 (32 work units)
+2025-09-05 17:10:37,690 - GPU-4 - INFO - Completed batch 8, total work units processed by this worker: 256
+2025-09-05 17:10:37,690 - INFO - Completed batch 8, total work units processed by this worker: 256
+Overall progress:  20%|█▉        | 1768/9000 [01:25<03:19, 36.17work_units/s, completed=1736, last_gpu=5, workers=8]Overall progress:  20%|█▉        | 1768/9000 [01:25<03:19, 36.17work_units/s, completed=1768, last_gpu=4, workers=8]2025-09-05 17:10:37,798 - GPU-4 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:37,798 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:41,318 - GPU-1 - INFO - Completed batch 8, total work units processed by this worker: 256
+2025-09-05 17:10:41,318 - INFO - Completed batch 8, total work units processed by this worker: 256
+Overall progress:  20%|██        | 1800/9000 [01:28<06:00, 19.99work_units/s, completed=1768, last_gpu=4, workers=8]Overall progress:  20%|██        | 1800/9000 [01:28<06:00, 19.99work_units/s, completed=1800, last_gpu=1, workers=8]2025-09-05 17:10:41,457 - GPU-1 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:41,457 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:42,546 - GPU-0 - INFO - Completed batch 8, total work units processed by this worker: 256
+2025-09-05 17:10:42,546 - INFO - Completed batch 8, total work units processed by this worker: 256
+Overall progress:  20%|██        | 1832/9000 [01:30<05:35, 21.34work_units/s, completed=1800, last_gpu=1, workers=8]Overall progress:  20%|██        | 1832/9000 [01:30<05:35, 21.34work_units/s, completed=1832, last_gpu=0, workers=8]2025-09-05 17:10:42,579 - GPU-5 - INFO - Completed batch 10, total work units processed by this worker: 264
+2025-09-05 17:10:42,579 - INFO - Completed batch 10, total work units processed by this worker: 264
+Overall progress:  21%|██        | 1864/9000 [01:30<05:34, 21.34work_units/s, completed=1864, last_gpu=5, workers=8]2025-09-05 17:10:42,689 - GPU-5 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:10:42,689 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:10:42,696 - GPU-0 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:42,696 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:45,430 - GPU-3 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:45,430 - INFO - Completed batch 7, total work units processed by this worker: 224
+Overall progress:  21%|██        | 1896/9000 [01:32<05:27, 21.71work_units/s, completed=1864, last_gpu=5, workers=8]2025-09-05 17:10:45,430 - GPU-3 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:45,430 - INFO - Processing batch 8 (32 work units)
+Overall progress:  21%|██        | 1896/9000 [01:32<05:27, 21.71work_units/s, completed=1896, last_gpu=3, workers=8]2025-09-05 17:10:45,497 - GPU-2 - INFO - Completed batch 8, total work units processed by this worker: 256
+2025-09-05 17:10:45,497 - INFO - Completed batch 8, total work units processed by this worker: 256
+Overall progress:  21%|██▏       | 1928/9000 [01:33<05:25, 21.71work_units/s, completed=1928, last_gpu=2, workers=8]2025-09-05 17:10:45,646 - GPU-2 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:45,646 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:45,724 - GPU-7 - INFO - Completed batch 8, total work units processed by this worker: 256
+2025-09-05 17:10:45,724 - INFO - Completed batch 8, total work units processed by this worker: 256
+Overall progress:  22%|██▏       | 1960/9000 [01:33<03:32, 33.19work_units/s, completed=1928, last_gpu=2, workers=8]Overall progress:  22%|██▏       | 1960/9000 [01:33<03:32, 33.19work_units/s, completed=1960, last_gpu=7, workers=8]2025-09-05 17:10:45,859 - GPU-7 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:45,859 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:46,725 - GPU-4 - INFO - Completed batch 9, total work units processed by this worker: 288
+2025-09-05 17:10:46,725 - INFO - Completed batch 9, total work units processed by this worker: 288
+2025-09-05 17:10:46,725 - GPU-4 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:46,725 - INFO - Processing batch 10 (32 work units)
+Overall progress:  22%|██▏       | 1992/9000 [01:34<03:32, 32.91work_units/s, completed=1960, last_gpu=7, workers=8]Overall progress:  22%|██▏       | 1992/9000 [01:34<03:32, 32.91work_units/s, completed=1992, last_gpu=4, workers=8]2025-09-05 17:10:46,749 - GPU-6 - INFO - Completed batch 7, total work units processed by this worker: 224
+2025-09-05 17:10:46,749 - INFO - Completed batch 7, total work units processed by this worker: 224
+Overall progress:  22%|██▏       | 2024/9000 [01:34<03:31, 32.91work_units/s, completed=2024, last_gpu=6, workers=8]2025-09-05 17:10:46,750 - GPU-6 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:46,750 - INFO - Processing batch 8 (32 work units)
+2025-09-05 17:10:51,881 - GPU-0 - INFO - Completed batch 9, total work units processed by this worker: 288
+2025-09-05 17:10:51,881 - INFO - Completed batch 9, total work units processed by this worker: 288
+Overall progress:  23%|██▎       | 2056/9000 [01:39<05:43, 20.20work_units/s, completed=2024, last_gpu=6, workers=8]2025-09-05 17:10:51,882 - GPU-0 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:51,882 - INFO - Processing batch 10 (32 work units)
+Overall progress:  23%|██▎       | 2056/9000 [01:39<05:43, 20.20work_units/s, completed=2056, last_gpu=0, workers=8]2025-09-05 17:10:52,106 - GPU-1 - INFO - Completed batch 9, total work units processed by this worker: 288
+2025-09-05 17:10:52,106 - INFO - Completed batch 9, total work units processed by this worker: 288
+Overall progress:  23%|██▎       | 2088/9000 [01:39<04:39, 24.74work_units/s, completed=2056, last_gpu=0, workers=8]Overall progress:  23%|██▎       | 2088/9000 [01:39<04:39, 24.74work_units/s, completed=2088, last_gpu=1, workers=8]2025-09-05 17:10:52,107 - GPU-1 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:52,107 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:52,943 - GPU-6 - INFO - Completed batch 8, total work units processed by this worker: 256
+2025-09-05 17:10:52,943 - INFO - Completed batch 8, total work units processed by this worker: 256
+Overall progress:  24%|██▎       | 2120/9000 [01:40<04:15, 26.97work_units/s, completed=2088, last_gpu=1, workers=8]Overall progress:  24%|██▎       | 2120/9000 [01:40<04:15, 26.97work_units/s, completed=2120, last_gpu=6, workers=8]2025-09-05 17:10:53,050 - GPU-6 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:53,050 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:54,535 - GPU-3 - INFO - Completed batch 8, total work units processed by this worker: 256
+2025-09-05 17:10:54,535 - INFO - Completed batch 8, total work units processed by this worker: 256
+Overall progress:  24%|██▍       | 2152/9000 [01:42<04:35, 24.85work_units/s, completed=2120, last_gpu=6, workers=8]Overall progress:  24%|██▍       | 2152/9000 [01:42<04:35, 24.85work_units/s, completed=2152, last_gpu=3, workers=8]2025-09-05 17:10:54,664 - GPU-3 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:54,664 - INFO - Processing batch 9 (32 work units)
+2025-09-05 17:10:55,212 - GPU-5 - INFO - Completed batch 11, total work units processed by this worker: 296
+2025-09-05 17:10:55,212 - INFO - Completed batch 11, total work units processed by this worker: 296
+Overall progress:  24%|██▍       | 2184/9000 [01:42<04:00, 28.39work_units/s, completed=2152, last_gpu=3, workers=8]Overall progress:  24%|██▍       | 2184/9000 [01:42<04:00, 28.39work_units/s, completed=2184, last_gpu=5, workers=8]2025-09-05 17:10:55,213 - GPU-5 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:10:55,213 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:10:56,547 - GPU-2 - INFO - Completed batch 9, total work units processed by this worker: 288
+2025-09-05 17:10:56,547 - INFO - Completed batch 9, total work units processed by this worker: 288
+Overall progress:  25%|██▍       | 2216/9000 [01:44<04:10, 27.03work_units/s, completed=2184, last_gpu=5, workers=8]Overall progress:  25%|██▍       | 2216/9000 [01:44<04:10, 27.03work_units/s, completed=2216, last_gpu=2, workers=8]2025-09-05 17:10:56,547 - GPU-2 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:56,547 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:56,780 - GPU-4 - INFO - Completed batch 10, total work units processed by this worker: 320
+2025-09-05 17:10:56,780 - INFO - Completed batch 10, total work units processed by this worker: 320
+Overall progress:  25%|██▍       | 2248/9000 [01:44<03:13, 34.90work_units/s, completed=2216, last_gpu=2, workers=8]Overall progress:  25%|██▍       | 2248/9000 [01:44<03:13, 34.90work_units/s, completed=2248, last_gpu=4, workers=8]2025-09-05 17:10:56,864 - GPU-7 - INFO - Completed batch 9, total work units processed by this worker: 288
+2025-09-05 17:10:56,864 - INFO - Completed batch 9, total work units processed by this worker: 288
+Overall progress:  25%|██▌       | 2280/9000 [01:44<03:12, 34.90work_units/s, completed=2280, last_gpu=7, workers=8]2025-09-05 17:10:56,865 - GPU-7 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:56,865 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:10:56,889 - GPU-4 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:10:56,889 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:10:58,583 - GPU-1 - INFO - Completed batch 10, total work units processed by this worker: 320
+2025-09-05 17:10:58,583 - INFO - Completed batch 10, total work units processed by this worker: 320
+Overall progress:  26%|██▌       | 2312/9000 [01:46<03:10, 35.17work_units/s, completed=2280, last_gpu=7, workers=8]Overall progress:  26%|██▌       | 2312/9000 [01:46<03:10, 35.17work_units/s, completed=2312, last_gpu=1, workers=8]2025-09-05 17:10:58,692 - GPU-1 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:10:58,692 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:10:59,306 - GPU-0 - INFO - Completed batch 10, total work units processed by this worker: 320
+2025-09-05 17:10:59,306 - INFO - Completed batch 10, total work units processed by this worker: 320
+Overall progress:  26%|██▌       | 2344/9000 [01:46<03:06, 35.65work_units/s, completed=2312, last_gpu=1, workers=8]Overall progress:  26%|██▌       | 2344/9000 [01:46<03:06, 35.65work_units/s, completed=2344, last_gpu=0, workers=8]2025-09-05 17:10:59,442 - GPU-0 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:10:59,442 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:11:01,042 - GPU-3 - INFO - Completed batch 9, total work units processed by this worker: 288
+2025-09-05 17:11:01,042 - INFO - Completed batch 9, total work units processed by this worker: 288
+Overall progress:  26%|██▋       | 2376/9000 [01:48<03:43, 29.69work_units/s, completed=2344, last_gpu=0, workers=8]2025-09-05 17:11:01,043 - GPU-3 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:11:01,043 - INFO - Processing batch 10 (32 work units)
+Overall progress:  26%|██▋       | 2376/9000 [01:48<03:43, 29.69work_units/s, completed=2376, last_gpu=3, workers=8]2025-09-05 17:11:01,183 - GPU-6 - INFO - Completed batch 9, total work units processed by this worker: 288
+2025-09-05 17:11:01,183 - INFO - Completed batch 9, total work units processed by this worker: 288
+Overall progress:  27%|██▋       | 2408/9000 [01:48<02:50, 38.72work_units/s, completed=2376, last_gpu=3, workers=8]Overall progress:  27%|██▋       | 2408/9000 [01:48<02:50, 38.72work_units/s, completed=2408, last_gpu=6, workers=8]2025-09-05 17:11:01,183 - GPU-6 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:11:01,183 - INFO - Processing batch 10 (32 work units)
+2025-09-05 17:11:03,084 - GPU-2 - INFO - Completed batch 10, total work units processed by this worker: 320
+2025-09-05 17:11:03,084 - INFO - Completed batch 10, total work units processed by this worker: 320
+Overall progress:  27%|██▋       | 2440/9000 [01:50<03:50, 28.47work_units/s, completed=2408, last_gpu=6, workers=8]Overall progress:  27%|██▋       | 2440/9000 [01:50<03:50, 28.47work_units/s, completed=2440, last_gpu=2, workers=8]2025-09-05 17:11:03,177 - GPU-7 - INFO - Completed batch 10, total work units processed by this worker: 320
+2025-09-05 17:11:03,177 - INFO - Completed batch 10, total work units processed by this worker: 320
+Overall progress:  27%|██▋       | 2472/9000 [01:50<03:49, 28.47work_units/s, completed=2472, last_gpu=7, workers=8]2025-09-05 17:11:03,195 - GPU-2 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:11:03,195 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:11:03,310 - GPU-7 - INFO - Processing batch 11 (4 work units)
+2025-09-05 17:11:03,310 - INFO - Processing batch 11 (4 work units)
+2025-09-05 17:11:06,103 - GPU-0 - INFO - Completed batch 11, total work units processed by this worker: 352
+2025-09-05 17:11:06,103 - INFO - Completed batch 11, total work units processed by this worker: 352
+2025-09-05 17:11:06,103 - GPU-0 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:06,103 - INFO - Processing batch 12 (32 work units)
+Overall progress:  28%|██▊       | 2504/9000 [01:53<04:22, 24.72work_units/s, completed=2472, last_gpu=7, workers=8]Overall progress:  28%|██▊       | 2504/9000 [01:53<04:22, 24.72work_units/s, completed=2504, last_gpu=0, workers=8]2025-09-05 17:11:06,606 - GPU-4 - INFO - Completed batch 11, total work units processed by this worker: 352
+2025-09-05 17:11:06,606 - INFO - Completed batch 11, total work units processed by this worker: 352
+Overall progress:  28%|██▊       | 2536/9000 [01:54<03:43, 28.97work_units/s, completed=2504, last_gpu=0, workers=8]Overall progress:  28%|██▊       | 2536/9000 [01:54<03:43, 28.97work_units/s, completed=2536, last_gpu=4, workers=8]2025-09-05 17:11:06,606 - GPU-4 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:06,606 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:07,854 - GPU-7 - INFO - Completed batch 11, total work units processed by this worker: 324
+2025-09-05 17:11:07,854 - INFO - Completed batch 11, total work units processed by this worker: 324
+Overall progress:  28%|██▊       | 2540/9000 [01:55<03:42, 28.97work_units/s, completed=2540, last_gpu=7, workers=8]2025-09-05 17:11:07,855 - GPU-7 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:07,855 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:08,910 - GPU-1 - INFO - Completed batch 11, total work units processed by this worker: 352
+2025-09-05 17:11:08,910 - INFO - Completed batch 11, total work units processed by this worker: 352
+Overall progress:  29%|██▊       | 2572/9000 [01:56<04:34, 23.41work_units/s, completed=2540, last_gpu=7, workers=8]2025-09-05 17:11:08,910 - GPU-1 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:08,910 - INFO - Processing batch 12 (32 work units)
+Overall progress:  29%|██▊       | 2572/9000 [01:56<04:34, 23.41work_units/s, completed=2572, last_gpu=1, workers=8]2025-09-05 17:11:09,167 - GPU-3 - INFO - Completed batch 10, total work units processed by this worker: 320
+2025-09-05 17:11:09,167 - INFO - Completed batch 10, total work units processed by this worker: 320
+Overall progress:  29%|██▉       | 2604/9000 [01:56<03:35, 29.71work_units/s, completed=2572, last_gpu=1, workers=8]Overall progress:  29%|██▉       | 2604/9000 [01:56<03:35, 29.71work_units/s, completed=2604, last_gpu=3, workers=8]2025-09-05 17:11:09,275 - GPU-3 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:11:09,275 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:11:09,309 - GPU-6 - INFO - Completed batch 10, total work units processed by this worker: 320
+2025-09-05 17:11:09,309 - INFO - Completed batch 10, total work units processed by this worker: 320
+Overall progress:  29%|██▉       | 2636/9000 [01:56<02:43, 38.87work_units/s, completed=2604, last_gpu=3, workers=8]Overall progress:  29%|██▉       | 2636/9000 [01:56<02:43, 38.87work_units/s, completed=2636, last_gpu=6, workers=8]2025-09-05 17:11:09,431 - GPU-6 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:11:09,431 - INFO - Processing batch 11 (32 work units)
+2025-09-05 17:11:09,802 - GPU-5 - INFO - Completed batch 12, total work units processed by this worker: 328
+2025-09-05 17:11:09,802 - INFO - Completed batch 12, total work units processed by this worker: 328
+Overall progress:  30%|██▉       | 2668/9000 [01:57<02:24, 43.78work_units/s, completed=2636, last_gpu=6, workers=8]Overall progress:  30%|██▉       | 2668/9000 [01:57<02:24, 43.78work_units/s, completed=2668, last_gpu=5, workers=8]2025-09-05 17:11:09,945 - GPU-5 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:09,945 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:10,649 - GPU-2 - INFO - Completed batch 11, total work units processed by this worker: 352
+2025-09-05 17:11:10,649 - INFO - Completed batch 11, total work units processed by this worker: 352
+Overall progress:  30%|███       | 2700/9000 [01:58<02:30, 41.88work_units/s, completed=2668, last_gpu=5, workers=8]Overall progress:  30%|███       | 2700/9000 [01:58<02:30, 41.88work_units/s, completed=2700, last_gpu=2, workers=8]2025-09-05 17:11:10,649 - GPU-2 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:10,649 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:15,882 - GPU-7 - INFO - Completed batch 12, total work units processed by this worker: 356
+2025-09-05 17:11:15,882 - INFO - Completed batch 12, total work units processed by this worker: 356
+Overall progress:  30%|███       | 2732/9000 [02:03<06:43, 15.54work_units/s, completed=2700, last_gpu=2, workers=8]Overall progress:  30%|███       | 2732/9000 [02:03<06:43, 15.54work_units/s, completed=2732, last_gpu=7, workers=8]2025-09-05 17:11:16,019 - GPU-7 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:16,019 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:17,738 - GPU-2 - INFO - Completed batch 12, total work units processed by this worker: 384
+2025-09-05 17:11:17,738 - INFO - Completed batch 12, total work units processed by this worker: 384
+Overall progress:  31%|███       | 2764/9000 [02:05<06:29, 16.01work_units/s, completed=2732, last_gpu=7, workers=8]Overall progress:  31%|███       | 2764/9000 [02:05<06:29, 16.01work_units/s, completed=2764, last_gpu=2, workers=8]2025-09-05 17:11:17,788 - GPU-0 - INFO - Completed batch 12, total work units processed by this worker: 384
+2025-09-05 17:11:17,788 - INFO - Completed batch 12, total work units processed by this worker: 384
+Overall progress:  31%|███       | 2796/9000 [02:05<06:27, 16.01work_units/s, completed=2796, last_gpu=0, workers=8]2025-09-05 17:11:17,847 - GPU-2 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:17,847 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:17,875 - GPU-6 - INFO - Completed batch 11, total work units processed by this worker: 352
+2025-09-05 17:11:17,875 - INFO - Completed batch 11, total work units processed by this worker: 352
+Overall progress:  31%|███▏      | 2828/9000 [02:05<03:35, 28.58work_units/s, completed=2796, last_gpu=0, workers=8]Overall progress:  31%|███▏      | 2828/9000 [02:05<03:35, 28.58work_units/s, completed=2828, last_gpu=6, workers=8]2025-09-05 17:11:17,875 - GPU-6 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:17,875 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:17,910 - GPU-0 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:17,910 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:18,363 - GPU-4 - INFO - Completed batch 12, total work units processed by this worker: 384
+2025-09-05 17:11:18,363 - INFO - Completed batch 12, total work units processed by this worker: 384
+Overall progress:  32%|███▏      | 2860/9000 [02:05<03:05, 33.16work_units/s, completed=2828, last_gpu=6, workers=8]Overall progress:  32%|███▏      | 2860/9000 [02:05<03:05, 33.16work_units/s, completed=2860, last_gpu=4, workers=8]2025-09-05 17:11:18,519 - GPU-4 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:18,519 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:18,649 - GPU-1 - INFO - Completed batch 12, total work units processed by this worker: 384
+2025-09-05 17:11:18,649 - INFO - Completed batch 12, total work units processed by this worker: 384
+Overall progress:  32%|███▏      | 2892/9000 [02:06<02:30, 40.58work_units/s, completed=2860, last_gpu=4, workers=8]Overall progress:  32%|███▏      | 2892/9000 [02:06<02:30, 40.58work_units/s, completed=2892, last_gpu=1, workers=8]2025-09-05 17:11:18,784 - GPU-1 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:18,784 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:20,234 - GPU-3 - INFO - Completed batch 11, total work units processed by this worker: 352
+2025-09-05 17:11:20,234 - INFO - Completed batch 11, total work units processed by this worker: 352
+Overall progress:  32%|███▏      | 2924/9000 [02:07<03:10, 31.87work_units/s, completed=2892, last_gpu=1, workers=8]Overall progress:  32%|███▏      | 2924/9000 [02:07<03:10, 31.87work_units/s, completed=2924, last_gpu=3, workers=8]2025-09-05 17:11:20,234 - GPU-3 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:20,234 - INFO - Processing batch 12 (32 work units)
+2025-09-05 17:11:22,270 - GPU-5 - INFO - Completed batch 13, total work units processed by this worker: 360
+2025-09-05 17:11:22,270 - INFO - Completed batch 13, total work units processed by this worker: 360
+Overall progress:  33%|███▎      | 2956/9000 [02:09<04:03, 24.77work_units/s, completed=2924, last_gpu=3, workers=8]Overall progress:  33%|███▎      | 2956/9000 [02:09<04:03, 24.77work_units/s, completed=2956, last_gpu=5, workers=8]2025-09-05 17:11:22,270 - GPU-5 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:22,270 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:23,621 - GPU-7 - INFO - Completed batch 13, total work units processed by this worker: 388
+2025-09-05 17:11:23,621 - INFO - Completed batch 13, total work units processed by this worker: 388
+Overall progress:  33%|███▎      | 2988/9000 [02:11<04:05, 24.45work_units/s, completed=2956, last_gpu=5, workers=8]Overall progress:  33%|███▎      | 2988/9000 [02:11<04:05, 24.45work_units/s, completed=2988, last_gpu=7, workers=8]2025-09-05 17:11:23,622 - GPU-7 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:23,622 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:24,028 - GPU-0 - INFO - Completed batch 13, total work units processed by this worker: 416
+2025-09-05 17:11:24,028 - INFO - Completed batch 13, total work units processed by this worker: 416
+Overall progress:  34%|███▎      | 3020/9000 [02:11<03:15, 30.54work_units/s, completed=2988, last_gpu=7, workers=8]Overall progress:  34%|███▎      | 3020/9000 [02:11<03:15, 30.54work_units/s, completed=3020, last_gpu=0, workers=8]2025-09-05 17:11:24,028 - GPU-0 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:24,028 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:25,685 - GPU-6 - INFO - Completed batch 12, total work units processed by this worker: 384
+2025-09-05 17:11:25,685 - INFO - Completed batch 12, total work units processed by this worker: 384
+Overall progress:  34%|███▍      | 3052/9000 [02:13<03:47, 26.10work_units/s, completed=3020, last_gpu=0, workers=8]Overall progress:  34%|███▍      | 3052/9000 [02:13<03:47, 26.10work_units/s, completed=3052, last_gpu=6, workers=8]2025-09-05 17:11:25,821 - GPU-6 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:25,821 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:26,142 - GPU-2 - INFO - Completed batch 13, total work units processed by this worker: 416
+2025-09-05 17:11:26,142 - INFO - Completed batch 13, total work units processed by this worker: 416
+2025-09-05 17:11:26,142 - GPU-2 - INFO - Processing batch 14 (32 work units)
+Overall progress:  34%|███▍      | 3084/9000 [02:13<03:04, 32.02work_units/s, completed=3052, last_gpu=6, workers=8]2025-09-05 17:11:26,142 - INFO - Processing batch 14 (32 work units)
+Overall progress:  34%|███▍      | 3084/9000 [02:13<03:04, 32.02work_units/s, completed=3084, last_gpu=2, workers=8]2025-09-05 17:11:26,687 - GPU-3 - INFO - Completed batch 12, total work units processed by this worker: 384
+2025-09-05 17:11:26,687 - INFO - Completed batch 12, total work units processed by this worker: 384
+Overall progress:  35%|███▍      | 3116/9000 [02:14<02:38, 37.01work_units/s, completed=3084, last_gpu=2, workers=8]Overall progress:  35%|███▍      | 3116/9000 [02:14<02:38, 37.01work_units/s, completed=3116, last_gpu=3, workers=8]2025-09-05 17:11:26,797 - GPU-3 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:26,797 - INFO - Processing batch 13 (32 work units)
+2025-09-05 17:11:27,744 - GPU-4 - INFO - Completed batch 13, total work units processed by this worker: 416
+2025-09-05 17:11:27,744 - INFO - Completed batch 13, total work units processed by this worker: 416
+Overall progress:  35%|███▍      | 3148/9000 [02:15<02:48, 34.71work_units/s, completed=3116, last_gpu=3, workers=8]Overall progress:  35%|███▍      | 3148/9000 [02:15<02:48, 34.71work_units/s, completed=3148, last_gpu=4, workers=8]2025-09-05 17:11:27,744 - GPU-4 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:27,744 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:28,021 - GPU-1 - INFO - Completed batch 13, total work units processed by this worker: 416
+2025-09-05 17:11:28,021 - INFO - Completed batch 13, total work units processed by this worker: 416
+2025-09-05 17:11:28,021 - GPU-1 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:28,021 - INFO - Processing batch 14 (32 work units)
+Overall progress:  35%|███▌      | 3180/9000 [02:15<02:12, 43.86work_units/s, completed=3148, last_gpu=4, workers=8]Overall progress:  35%|███▌      | 3180/9000 [02:15<02:12, 43.86work_units/s, completed=3180, last_gpu=1, workers=8]2025-09-05 17:11:29,549 - GPU-5 - INFO - Completed batch 14, total work units processed by this worker: 392
+2025-09-05 17:11:29,549 - INFO - Completed batch 14, total work units processed by this worker: 392
+Overall progress:  36%|███▌      | 3212/9000 [02:17<02:55, 33.05work_units/s, completed=3180, last_gpu=1, workers=8]Overall progress:  36%|███▌      | 3212/9000 [02:17<02:55, 33.05work_units/s, completed=3212, last_gpu=5, workers=8]2025-09-05 17:11:29,679 - GPU-5 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:29,679 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:30,319 - GPU-7 - INFO - Completed batch 14, total work units processed by this worker: 420
+2025-09-05 17:11:30,319 - INFO - Completed batch 14, total work units processed by this worker: 420
+Overall progress:  36%|███▌      | 3244/9000 [02:17<02:43, 35.20work_units/s, completed=3212, last_gpu=5, workers=8]Overall progress:  36%|███▌      | 3244/9000 [02:17<02:43, 35.20work_units/s, completed=3244, last_gpu=7, workers=8]2025-09-05 17:11:30,444 - GPU-7 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:30,444 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:30,730 - GPU-0 - INFO - Completed batch 14, total work units processed by this worker: 448
+2025-09-05 17:11:30,730 - INFO - Completed batch 14, total work units processed by this worker: 448
+Overall progress:  36%|███▋      | 3276/9000 [02:18<02:15, 42.11work_units/s, completed=3244, last_gpu=7, workers=8]Overall progress:  36%|███▋      | 3276/9000 [02:18<02:15, 42.11work_units/s, completed=3276, last_gpu=0, workers=8]2025-09-05 17:11:30,884 - GPU-0 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:30,884 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:33,926 - GPU-6 - INFO - Completed batch 13, total work units processed by this worker: 416
+2025-09-05 17:11:33,926 - INFO - Completed batch 13, total work units processed by this worker: 416
+Overall progress:  37%|███▋      | 3308/9000 [02:21<04:24, 21.48work_units/s, completed=3276, last_gpu=0, workers=8]2025-09-05 17:11:33,926 - GPU-6 - INFO - Processing batch 14 (32 work units)
+2025-09-05 17:11:33,926 - INFO - Processing batch 14 (32 work units)
+Overall progress:  37%|███▋      | 3308/9000 [02:21<04:24, 21.48work_units/s, completed=3308, last_gpu=6, workers=8]2025-09-05 17:11:34,072 - GPU-4 - INFO - Completed batch 14, total work units processed by this worker: 448
+2025-09-05 17:11:34,072 - INFO - Completed batch 14, total work units processed by this worker: 448
+Overall progress:  37%|███▋      | 3340/9000 [02:21<03:12, 29.44work_units/s, completed=3308, last_gpu=6, workers=8]Overall progress:  37%|███▋      | 3340/9000 [02:21<03:12, 29.44work_units/s, completed=3340, last_gpu=4, workers=8]2025-09-05 17:11:34,182 - GPU-4 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:34,182 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:35,654 - GPU-3 - INFO - Completed batch 13, total work units processed by this worker: 416
+2025-09-05 17:11:35,654 - INFO - Completed batch 13, total work units processed by this worker: 416
+Overall progress:  37%|███▋      | 3372/9000 [02:23<03:37, 25.91work_units/s, completed=3340, last_gpu=4, workers=8]Overall progress:  37%|███▋      | 3372/9000 [02:23<03:37, 25.91work_units/s, completed=3372, last_gpu=3, workers=8]2025-09-05 17:11:35,654 - GPU-3 - INFO - Processing batch 14 (4 work units)
+2025-09-05 17:11:35,654 - INFO - Processing batch 14 (4 work units)
+2025-09-05 17:11:36,945 - GPU-2 - INFO - Completed batch 14, total work units processed by this worker: 448
+2025-09-05 17:11:36,945 - INFO - Completed batch 14, total work units processed by this worker: 448
+Overall progress:  38%|███▊      | 3404/9000 [02:24<03:38, 25.55work_units/s, completed=3372, last_gpu=3, workers=8]Overall progress:  38%|███▊      | 3404/9000 [02:24<03:38, 25.55work_units/s, completed=3404, last_gpu=2, workers=8]2025-09-05 17:11:37,077 - GPU-2 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:37,077 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:37,128 - GPU-0 - INFO - Completed batch 15, total work units processed by this worker: 480
+2025-09-05 17:11:37,128 - INFO - Completed batch 15, total work units processed by this worker: 480
+Overall progress:  38%|███▊      | 3436/9000 [02:24<02:41, 34.36work_units/s, completed=3404, last_gpu=2, workers=8]2025-09-05 17:11:37,128 - GPU-0 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:37,128 - INFO - Processing batch 16 (32 work units)
+Overall progress:  38%|███▊      | 3436/9000 [02:24<02:41, 34.36work_units/s, completed=3436, last_gpu=0, workers=8]2025-09-05 17:11:37,434 - GPU-7 - INFO - Completed batch 15, total work units processed by this worker: 452
+2025-09-05 17:11:37,434 - INFO - Completed batch 15, total work units processed by this worker: 452
+Overall progress:  39%|███▊      | 3468/9000 [02:24<02:08, 43.01work_units/s, completed=3436, last_gpu=0, workers=8]Overall progress:  39%|███▊      | 3468/9000 [02:24<02:08, 43.01work_units/s, completed=3468, last_gpu=7, workers=8]2025-09-05 17:11:37,435 - GPU-7 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:37,435 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:38,262 - GPU-3 - INFO - Completed batch 14, total work units processed by this worker: 420
+2025-09-05 17:11:38,262 - INFO - Completed batch 14, total work units processed by this worker: 420
+Overall progress:  39%|███▊      | 3472/9000 [02:25<02:08, 43.01work_units/s, completed=3472, last_gpu=3, workers=8]2025-09-05 17:11:38,384 - GPU-3 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:38,384 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:39,136 - GPU-5 - INFO - Completed batch 15, total work units processed by this worker: 424
+2025-09-05 17:11:39,136 - INFO - Completed batch 15, total work units processed by this worker: 424
+Overall progress:  39%|███▉      | 3504/9000 [02:26<02:50, 32.19work_units/s, completed=3472, last_gpu=3, workers=8]Overall progress:  39%|███▉      | 3504/9000 [02:26<02:50, 32.19work_units/s, completed=3504, last_gpu=5, workers=8]2025-09-05 17:11:39,136 - GPU-5 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:39,136 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:39,891 - GPU-6 - INFO - Completed batch 14, total work units processed by this worker: 448
+2025-09-05 17:11:39,891 - INFO - Completed batch 14, total work units processed by this worker: 448
+Overall progress:  39%|███▉      | 3536/9000 [02:27<02:37, 34.63work_units/s, completed=3504, last_gpu=5, workers=8]Overall progress:  39%|███▉      | 3536/9000 [02:27<02:37, 34.63work_units/s, completed=3536, last_gpu=6, workers=8]2025-09-05 17:11:39,998 - GPU-6 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:39,998 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:40,311 - GPU-4 - INFO - Completed batch 15, total work units processed by this worker: 480
+2025-09-05 17:11:40,311 - INFO - Completed batch 15, total work units processed by this worker: 480
+Overall progress:  40%|███▉      | 3568/9000 [02:27<02:11, 41.26work_units/s, completed=3536, last_gpu=6, workers=8]2025-09-05 17:11:40,311 - GPU-4 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:40,311 - INFO - Processing batch 16 (32 work units)
+Overall progress:  40%|███▉      | 3568/9000 [02:27<02:11, 41.26work_units/s, completed=3568, last_gpu=4, workers=8]2025-09-05 17:11:42,201 - GPU-1 - INFO - Completed batch 14, total work units processed by this worker: 448
+2025-09-05 17:11:42,201 - INFO - Completed batch 14, total work units processed by this worker: 448
+Overall progress:  40%|████      | 3600/9000 [02:29<03:06, 28.94work_units/s, completed=3568, last_gpu=4, workers=8]Overall progress:  40%|████      | 3600/9000 [02:29<03:06, 28.94work_units/s, completed=3600, last_gpu=1, workers=8]2025-09-05 17:11:42,321 - GPU-1 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:42,321 - INFO - Processing batch 15 (32 work units)
+2025-09-05 17:11:44,542 - GPU-0 - INFO - Completed batch 16, total work units processed by this worker: 512
+2025-09-05 17:11:44,542 - INFO - Completed batch 16, total work units processed by this worker: 512
+Overall progress:  40%|████      | 3632/9000 [02:32<04:07, 21.72work_units/s, completed=3600, last_gpu=1, workers=8]Overall progress:  40%|████      | 3632/9000 [02:32<04:07, 21.72work_units/s, completed=3632, last_gpu=0, workers=8]2025-09-05 17:11:44,651 - GPU-0 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:44,651 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:44,764 - GPU-2 - INFO - Completed batch 15, total work units processed by this worker: 480
+2025-09-05 17:11:44,764 - INFO - Completed batch 15, total work units processed by this worker: 480
+Overall progress:  41%|████      | 3664/9000 [02:32<03:03, 29.09work_units/s, completed=3632, last_gpu=0, workers=8]2025-09-05 17:11:44,764 - GPU-2 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:44,764 - INFO - Processing batch 16 (32 work units)
+Overall progress:  41%|████      | 3664/9000 [02:32<03:03, 29.09work_units/s, completed=3664, last_gpu=2, workers=8]2025-09-05 17:11:45,297 - GPU-5 - INFO - Completed batch 16, total work units processed by this worker: 456
+2025-09-05 17:11:45,297 - INFO - Completed batch 16, total work units processed by this worker: 456
+Overall progress:  41%|████      | 3696/9000 [02:32<02:34, 34.39work_units/s, completed=3664, last_gpu=2, workers=8]Overall progress:  41%|████      | 3696/9000 [02:32<02:34, 34.39work_units/s, completed=3696, last_gpu=5, workers=8]2025-09-05 17:11:45,412 - GPU-5 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:45,412 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:46,539 - GPU-7 - INFO - Completed batch 16, total work units processed by this worker: 484
+2025-09-05 17:11:46,539 - INFO - Completed batch 16, total work units processed by this worker: 484
+Overall progress:  41%|████▏     | 3728/9000 [02:34<02:48, 31.26work_units/s, completed=3696, last_gpu=5, workers=8]Overall progress:  41%|████▏     | 3728/9000 [02:34<02:48, 31.26work_units/s, completed=3728, last_gpu=7, workers=8]2025-09-05 17:11:46,680 - GPU-7 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:46,680 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:50,839 - GPU-6 - INFO - Completed batch 15, total work units processed by this worker: 480
+2025-09-05 17:11:50,839 - INFO - Completed batch 15, total work units processed by this worker: 480
+Overall progress:  42%|████▏     | 3760/9000 [02:38<05:28, 15.96work_units/s, completed=3728, last_gpu=7, workers=8]2025-09-05 17:11:50,839 - GPU-6 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:50,839 - INFO - Processing batch 16 (32 work units)
+Overall progress:  42%|████▏     | 3760/9000 [02:38<05:28, 15.96work_units/s, completed=3760, last_gpu=6, workers=8]2025-09-05 17:11:51,210 - GPU-3 - INFO - Completed batch 15, total work units processed by this worker: 452
+2025-09-05 17:11:51,210 - INFO - Completed batch 15, total work units processed by this worker: 452
+Overall progress:  42%|████▏     | 3792/9000 [02:38<04:06, 21.12work_units/s, completed=3760, last_gpu=6, workers=8]2025-09-05 17:11:51,210 - GPU-3 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:51,210 - INFO - Processing batch 16 (32 work units)
+Overall progress:  42%|████▏     | 3792/9000 [02:38<04:06, 21.12work_units/s, completed=3792, last_gpu=3, workers=8]2025-09-05 17:11:52,135 - GPU-2 - INFO - Completed batch 16, total work units processed by this worker: 512
+2025-09-05 17:11:52,135 - INFO - Completed batch 16, total work units processed by this worker: 512
+Overall progress:  42%|████▏     | 3824/9000 [02:39<03:36, 23.91work_units/s, completed=3792, last_gpu=3, workers=8]Overall progress:  42%|████▏     | 3824/9000 [02:39<03:36, 23.91work_units/s, completed=3824, last_gpu=2, workers=8]2025-09-05 17:11:52,259 - GPU-2 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:52,259 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:53,545 - GPU-7 - INFO - Completed batch 17, total work units processed by this worker: 516
+2025-09-05 17:11:53,545 - INFO - Completed batch 17, total work units processed by this worker: 516
+Overall progress:  43%|████▎     | 3856/9000 [02:41<03:38, 23.53work_units/s, completed=3824, last_gpu=2, workers=8]Overall progress:  43%|████▎     | 3856/9000 [02:41<03:38, 23.53work_units/s, completed=3856, last_gpu=7, workers=8]2025-09-05 17:11:53,545 - GPU-7 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:11:53,545 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:11:53,632 - GPU-1 - INFO - Completed batch 15, total work units processed by this worker: 480
+2025-09-05 17:11:53,632 - INFO - Completed batch 15, total work units processed by this worker: 480
+Overall progress:  43%|████▎     | 3888/9000 [02:41<03:37, 23.53work_units/s, completed=3888, last_gpu=1, workers=8]2025-09-05 17:11:53,632 - GPU-1 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:53,632 - INFO - Processing batch 16 (32 work units)
+2025-09-05 17:11:54,109 - GPU-0 - INFO - Completed batch 17, total work units processed by this worker: 544
+2025-09-05 17:11:54,109 - INFO - Completed batch 17, total work units processed by this worker: 544
+Overall progress:  44%|████▎     | 3920/9000 [02:41<02:16, 37.10work_units/s, completed=3888, last_gpu=1, workers=8]Overall progress:  44%|████▎     | 3920/9000 [02:41<02:16, 37.10work_units/s, completed=3920, last_gpu=0, workers=8]2025-09-05 17:11:54,110 - GPU-0 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:11:54,110 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:11:57,736 - GPU-3 - INFO - Completed batch 16, total work units processed by this worker: 484
+2025-09-05 17:11:57,736 - INFO - Completed batch 16, total work units processed by this worker: 484
+Overall progress:  44%|████▍     | 3952/9000 [02:45<04:04, 20.68work_units/s, completed=3920, last_gpu=0, workers=8]Overall progress:  44%|████▍     | 3952/9000 [02:45<04:04, 20.68work_units/s, completed=3952, last_gpu=3, workers=8]2025-09-05 17:11:57,883 - GPU-3 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:57,883 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:58,049 - GPU-1 - INFO - Completed batch 16, total work units processed by this worker: 512
+2025-09-05 17:11:58,049 - INFO - Completed batch 16, total work units processed by this worker: 512
+Overall progress:  44%|████▍     | 3984/9000 [02:45<03:12, 26.12work_units/s, completed=3952, last_gpu=3, workers=8]Overall progress:  44%|████▍     | 3984/9000 [02:45<03:12, 26.12work_units/s, completed=3984, last_gpu=1, workers=8]2025-09-05 17:11:58,153 - GPU-1 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:58,153 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:59,491 - GPU-4 - INFO - Completed batch 16, total work units processed by this worker: 512
+2025-09-05 17:11:59,491 - INFO - Completed batch 16, total work units processed by this worker: 512
+Overall progress:  45%|████▍     | 4016/9000 [02:47<03:19, 24.92work_units/s, completed=3984, last_gpu=1, workers=8]Overall progress:  45%|████▍     | 4016/9000 [02:47<03:19, 24.92work_units/s, completed=4016, last_gpu=4, workers=8]2025-09-05 17:11:59,601 - GPU-4 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:59,601 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:11:59,726 - GPU-5 - INFO - Completed batch 17, total work units processed by this worker: 488
+2025-09-05 17:11:59,726 - INFO - Completed batch 17, total work units processed by this worker: 488
+Overall progress:  45%|████▍     | 4048/9000 [02:47<02:33, 32.31work_units/s, completed=4016, last_gpu=4, workers=8]Overall progress:  45%|████▍     | 4048/9000 [02:47<02:33, 32.31work_units/s, completed=4048, last_gpu=5, workers=8]2025-09-05 17:11:59,727 - GPU-5 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:11:59,727 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:12:00,241 - GPU-7 - INFO - Completed batch 18, total work units processed by this worker: 548
+2025-09-05 17:12:00,241 - INFO - Completed batch 18, total work units processed by this worker: 548
+Overall progress:  45%|████▌     | 4080/9000 [02:47<02:17, 35.73work_units/s, completed=4048, last_gpu=5, workers=8]Overall progress:  45%|████▌     | 4080/9000 [02:47<02:17, 35.73work_units/s, completed=4080, last_gpu=7, workers=8]2025-09-05 17:12:00,385 - GPU-7 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:00,385 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:02,002 - GPU-0 - INFO - Completed batch 18, total work units processed by this worker: 576
+2025-09-05 17:12:02,002 - INFO - Completed batch 18, total work units processed by this worker: 576
+Overall progress:  46%|████▌     | 4112/9000 [02:49<02:48, 28.97work_units/s, completed=4080, last_gpu=7, workers=8]Overall progress:  46%|████▌     | 4112/9000 [02:49<02:48, 28.97work_units/s, completed=4112, last_gpu=0, workers=8]2025-09-05 17:12:02,146 - GPU-0 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:02,146 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:02,887 - GPU-6 - INFO - Completed batch 16, total work units processed by this worker: 512
+2025-09-05 17:12:02,887 - INFO - Completed batch 16, total work units processed by this worker: 512
+Overall progress:  46%|████▌     | 4144/9000 [02:50<02:37, 30.76work_units/s, completed=4112, last_gpu=0, workers=8]Overall progress:  46%|████▌     | 4144/9000 [02:50<02:37, 30.76work_units/s, completed=4144, last_gpu=6, workers=8]2025-09-05 17:12:02,998 - GPU-6 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:12:02,998 - INFO - Processing batch 17 (32 work units)
+2025-09-05 17:12:05,607 - GPU-5 - INFO - Completed batch 18, total work units processed by this worker: 520
+2025-09-05 17:12:05,607 - INFO - Completed batch 18, total work units processed by this worker: 520
+Overall progress:  46%|████▋     | 4176/9000 [02:53<03:51, 20.84work_units/s, completed=4144, last_gpu=6, workers=8]Overall progress:  46%|████▋     | 4176/9000 [02:53<03:51, 20.84work_units/s, completed=4176, last_gpu=5, workers=8]2025-09-05 17:12:05,721 - GPU-5 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:05,721 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:06,122 - GPU-4 - INFO - Completed batch 17, total work units processed by this worker: 544
+2025-09-05 17:12:06,122 - INFO - Completed batch 17, total work units processed by this worker: 544
+Overall progress:  47%|████▋     | 4208/9000 [02:53<03:04, 25.95work_units/s, completed=4176, last_gpu=5, workers=8]Overall progress:  47%|████▋     | 4208/9000 [02:53<03:04, 25.95work_units/s, completed=4208, last_gpu=4, workers=8]2025-09-05 17:12:06,122 - GPU-4 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:12:06,122 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:12:06,308 - GPU-3 - INFO - Completed batch 17, total work units processed by this worker: 516
+2025-09-05 17:12:06,308 - INFO - Completed batch 17, total work units processed by this worker: 516
+Overall progress:  47%|████▋     | 4240/9000 [02:53<02:17, 34.71work_units/s, completed=4208, last_gpu=4, workers=8]Overall progress:  47%|████▋     | 4240/9000 [02:53<02:17, 34.71work_units/s, completed=4240, last_gpu=3, workers=8]2025-09-05 17:12:06,309 - GPU-3 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:12:06,309 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:12:06,703 - GPU-7 - INFO - Completed batch 19, total work units processed by this worker: 580
+2025-09-05 17:12:06,703 - INFO - Completed batch 19, total work units processed by this worker: 580
+Overall progress:  47%|████▋     | 4272/9000 [02:54<01:52, 41.86work_units/s, completed=4240, last_gpu=3, workers=8]2025-09-05 17:12:06,703 - GPU-7 - INFO - Processing batch 20 (4 work units)
+Overall progress:  47%|████▋     | 4272/9000 [02:54<01:52, 41.86work_units/s, completed=4272, last_gpu=7, workers=8]2025-09-05 17:12:06,703 - INFO - Processing batch 20 (4 work units)
+2025-09-05 17:12:08,575 - GPU-1 - INFO - Completed batch 17, total work units processed by this worker: 544
+2025-09-05 17:12:08,575 - INFO - Completed batch 17, total work units processed by this worker: 544
+2025-09-05 17:12:08,575 - GPU-1 - INFO - Processing batch 18 (32 work units)
+Overall progress:  48%|████▊     | 4304/9000 [02:56<02:40, 29.22work_units/s, completed=4272, last_gpu=7, workers=8]2025-09-05 17:12:08,575 - INFO - Processing batch 18 (32 work units)
+Overall progress:  48%|████▊     | 4304/9000 [02:56<02:40, 29.22work_units/s, completed=4304, last_gpu=1, workers=8]2025-09-05 17:12:10,008 - GPU-6 - INFO - Completed batch 17, total work units processed by this worker: 544
+2025-09-05 17:12:10,008 - INFO - Completed batch 17, total work units processed by this worker: 544
+2025-09-05 17:12:10,008 - GPU-6 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:12:10,008 - INFO - Processing batch 18 (32 work units)
+Overall progress:  48%|████▊     | 4336/9000 [02:57<02:54, 26.75work_units/s, completed=4304, last_gpu=1, workers=8]Overall progress:  48%|████▊     | 4336/9000 [02:57<02:54, 26.75work_units/s, completed=4336, last_gpu=6, workers=8]2025-09-05 17:12:10,887 - GPU-2 - INFO - Completed batch 17, total work units processed by this worker: 544
+2025-09-05 17:12:10,887 - INFO - Completed batch 17, total work units processed by this worker: 544
+Overall progress:  49%|████▊     | 4368/9000 [02:58<02:39, 29.05work_units/s, completed=4336, last_gpu=6, workers=8]2025-09-05 17:12:10,887 - GPU-2 - INFO - Processing batch 18 (32 work units)
+Overall progress:  49%|████▊     | 4368/9000 [02:58<02:39, 29.05work_units/s, completed=4368, last_gpu=2, workers=8]2025-09-05 17:12:10,887 - INFO - Processing batch 18 (32 work units)
+2025-09-05 17:12:11,823 - GPU-7 - INFO - Completed batch 20, total work units processed by this worker: 584
+2025-09-05 17:12:11,823 - INFO - Completed batch 20, total work units processed by this worker: 584
+Overall progress:  49%|████▊     | 4372/9000 [02:59<02:39, 29.05work_units/s, completed=4372, last_gpu=7, workers=8]2025-09-05 17:12:11,947 - GPU-7 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:11,947 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:11,972 - GPU-0 - INFO - Completed batch 19, total work units processed by this worker: 608
+2025-09-05 17:12:11,972 - INFO - Completed batch 19, total work units processed by this worker: 608
+Overall progress:  49%|████▉     | 4404/9000 [02:59<02:31, 30.28work_units/s, completed=4372, last_gpu=7, workers=8]2025-09-05 17:12:11,972 - GPU-0 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:11,972 - INFO - Processing batch 20 (32 work units)
+Overall progress:  49%|████▉     | 4404/9000 [02:59<02:31, 30.28work_units/s, completed=4404, last_gpu=0, workers=8]2025-09-05 17:12:12,025 - GPU-5 - INFO - Completed batch 19, total work units processed by this worker: 552
+2025-09-05 17:12:12,025 - INFO - Completed batch 19, total work units processed by this worker: 552
+Overall progress:  49%|████▉     | 4436/9000 [02:59<02:30, 30.28work_units/s, completed=4436, last_gpu=5, workers=8]2025-09-05 17:12:12,025 - GPU-5 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:12,025 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:12,360 - GPU-4 - INFO - Completed batch 18, total work units processed by this worker: 576
+2025-09-05 17:12:12,360 - INFO - Completed batch 18, total work units processed by this worker: 576
+Overall progress:  50%|████▉     | 4468/9000 [02:59<01:34, 47.99work_units/s, completed=4436, last_gpu=5, workers=8]Overall progress:  50%|████▉     | 4468/9000 [02:59<01:34, 47.99work_units/s, completed=4468, last_gpu=4, workers=8]2025-09-05 17:12:12,467 - GPU-4 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:12,467 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:13,094 - GPU-3 - INFO - Completed batch 18, total work units processed by this worker: 548
+2025-09-05 17:12:13,094 - INFO - Completed batch 18, total work units processed by this worker: 548
+Overall progress:  50%|█████     | 4500/9000 [03:00<01:36, 46.83work_units/s, completed=4468, last_gpu=4, workers=8]Overall progress:  50%|█████     | 4500/9000 [03:00<01:36, 46.83work_units/s, completed=4500, last_gpu=3, workers=8]2025-09-05 17:12:13,238 - GPU-3 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:13,238 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:16,658 - GPU-6 - INFO - Completed batch 18, total work units processed by this worker: 576
+2025-09-05 17:12:16,658 - INFO - Completed batch 18, total work units processed by this worker: 576
+Overall progress:  50%|█████     | 4532/9000 [03:04<03:19, 22.41work_units/s, completed=4500, last_gpu=3, workers=8]Overall progress:  50%|█████     | 4532/9000 [03:04<03:19, 22.41work_units/s, completed=4532, last_gpu=6, workers=8]2025-09-05 17:12:16,753 - GPU-6 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:16,753 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:17,393 - GPU-2 - INFO - Completed batch 18, total work units processed by this worker: 576
+2025-09-05 17:12:17,393 - INFO - Completed batch 18, total work units processed by this worker: 576
+Overall progress:  51%|█████     | 4564/9000 [03:04<02:52, 25.78work_units/s, completed=4532, last_gpu=6, workers=8]Overall progress:  51%|█████     | 4564/9000 [03:04<02:52, 25.78work_units/s, completed=4564, last_gpu=2, workers=8]2025-09-05 17:12:17,505 - GPU-2 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:17,505 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:17,781 - GPU-0 - INFO - Completed batch 20, total work units processed by this worker: 640
+2025-09-05 17:12:17,781 - INFO - Completed batch 20, total work units processed by this worker: 640
+Overall progress:  51%|█████     | 4596/9000 [03:05<02:18, 31.88work_units/s, completed=4564, last_gpu=2, workers=8]Overall progress:  51%|█████     | 4596/9000 [03:05<02:18, 31.88work_units/s, completed=4596, last_gpu=0, workers=8]2025-09-05 17:12:17,891 - GPU-0 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:17,891 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:18,632 - GPU-3 - INFO - Completed batch 19, total work units processed by this worker: 580
+2025-09-05 17:12:18,632 - INFO - Completed batch 19, total work units processed by this worker: 580
+Overall progress:  51%|█████▏    | 4628/9000 [03:06<02:11, 33.33work_units/s, completed=4596, last_gpu=0, workers=8]2025-09-05 17:12:18,632 - GPU-3 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:18,632 - INFO - Processing batch 20 (32 work units)
+Overall progress:  51%|█████▏    | 4628/9000 [03:06<02:11, 33.33work_units/s, completed=4628, last_gpu=3, workers=8]2025-09-05 17:12:18,987 - GPU-1 - INFO - Completed batch 18, total work units processed by this worker: 576
+2025-09-05 17:12:18,987 - INFO - Completed batch 18, total work units processed by this worker: 576
+Overall progress:  52%|█████▏    | 4660/9000 [03:06<01:46, 40.73work_units/s, completed=4628, last_gpu=3, workers=8]Overall progress:  52%|█████▏    | 4660/9000 [03:06<01:46, 40.73work_units/s, completed=4660, last_gpu=1, workers=8]2025-09-05 17:12:19,097 - GPU-1 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:19,097 - INFO - Processing batch 19 (32 work units)
+2025-09-05 17:12:20,859 - GPU-4 - INFO - Completed batch 19, total work units processed by this worker: 608
+2025-09-05 17:12:20,859 - INFO - Completed batch 19, total work units processed by this worker: 608
+2025-09-05 17:12:20,859 - GPU-4 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:20,859 - INFO - Processing batch 20 (32 work units)
+Overall progress:  52%|█████▏    | 4692/9000 [03:08<02:28, 29.02work_units/s, completed=4660, last_gpu=1, workers=8]Overall progress:  52%|█████▏    | 4692/9000 [03:08<02:28, 29.02work_units/s, completed=4692, last_gpu=4, workers=8]2025-09-05 17:12:22,939 - GPU-5 - INFO - Completed batch 20, total work units processed by this worker: 584
+2025-09-05 17:12:22,939 - INFO - Completed batch 20, total work units processed by this worker: 584
+Overall progress:  52%|█████▏    | 4724/9000 [03:10<03:05, 23.01work_units/s, completed=4692, last_gpu=4, workers=8]Overall progress:  52%|█████▏    | 4724/9000 [03:10<03:05, 23.01work_units/s, completed=4724, last_gpu=5, workers=8]2025-09-05 17:12:23,061 - GPU-5 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:23,061 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:23,825 - GPU-3 - INFO - Completed batch 20, total work units processed by this worker: 612
+2025-09-05 17:12:23,825 - INFO - Completed batch 20, total work units processed by this worker: 612
+Overall progress:  53%|█████▎    | 4756/9000 [03:11<02:44, 25.78work_units/s, completed=4724, last_gpu=5, workers=8]Overall progress:  53%|█████▎    | 4756/9000 [03:11<02:44, 25.78work_units/s, completed=4756, last_gpu=3, workers=8]2025-09-05 17:12:23,963 - GPU-3 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:23,963 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:24,312 - GPU-2 - INFO - Completed batch 19, total work units processed by this worker: 608
+2025-09-05 17:12:24,312 - INFO - Completed batch 19, total work units processed by this worker: 608
+Overall progress:  53%|█████▎    | 4788/9000 [03:11<02:13, 31.47work_units/s, completed=4756, last_gpu=3, workers=8]2025-09-05 17:12:24,312 - GPU-2 - INFO - Processing batch 20 (32 work units)
+Overall progress:  53%|█████▎    | 4788/9000 [03:11<02:13, 31.47work_units/s, completed=4788, last_gpu=2, workers=8]2025-09-05 17:12:24,312 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:28,274 - GPU-0 - INFO - Completed batch 21, total work units processed by this worker: 672
+2025-09-05 17:12:28,274 - INFO - Completed batch 21, total work units processed by this worker: 672
+Overall progress:  54%|█████▎    | 4820/9000 [03:15<04:07, 16.89work_units/s, completed=4788, last_gpu=2, workers=8]2025-09-05 17:12:28,274 - GPU-0 - INFO - Processing batch 22 (32 work units)
+Overall progress:  54%|█████▎    | 4820/9000 [03:15<04:07, 16.89work_units/s, completed=4820, last_gpu=0, workers=8]2025-09-05 17:12:28,274 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:28,290 - GPU-4 - INFO - Completed batch 20, total work units processed by this worker: 640
+2025-09-05 17:12:28,290 - INFO - Completed batch 20, total work units processed by this worker: 640
+Overall progress:  54%|█████▍    | 4852/9000 [03:15<04:05, 16.89work_units/s, completed=4852, last_gpu=4, workers=8]2025-09-05 17:12:28,425 - GPU-4 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:28,425 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:28,502 - GPU-6 - INFO - Completed batch 19, total work units processed by this worker: 608
+2025-09-05 17:12:28,502 - INFO - Completed batch 19, total work units processed by this worker: 608
+Overall progress:  54%|█████▍    | 4884/9000 [03:16<02:18, 29.75work_units/s, completed=4852, last_gpu=4, workers=8]Overall progress:  54%|█████▍    | 4884/9000 [03:16<02:18, 29.75work_units/s, completed=4884, last_gpu=6, workers=8]2025-09-05 17:12:28,502 - GPU-6 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:28,502 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:28,873 - GPU-7 - INFO - Completed batch 21, total work units processed by this worker: 616
+2025-09-05 17:12:28,873 - INFO - Completed batch 21, total work units processed by this worker: 616
+Overall progress:  55%|█████▍    | 4916/9000 [03:16<01:55, 35.50work_units/s, completed=4884, last_gpu=6, workers=8]Overall progress:  55%|█████▍    | 4916/9000 [03:16<01:55, 35.50work_units/s, completed=4916, last_gpu=7, workers=8]2025-09-05 17:12:28,873 - GPU-7 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:28,873 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:29,238 - GPU-3 - INFO - Completed batch 21, total work units processed by this worker: 644
+2025-09-05 17:12:29,238 - INFO - Completed batch 21, total work units processed by this worker: 644
+Overall progress:  55%|█████▍    | 4948/9000 [03:16<01:36, 42.03work_units/s, completed=4916, last_gpu=7, workers=8]Overall progress:  55%|█████▍    | 4948/9000 [03:16<01:36, 42.03work_units/s, completed=4948, last_gpu=3, workers=8]2025-09-05 17:12:29,238 - GPU-3 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:29,238 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:31,268 - GPU-1 - INFO - Completed batch 19, total work units processed by this worker: 608
+2025-09-05 17:12:31,268 - INFO - Completed batch 19, total work units processed by this worker: 608
+Overall progress:  55%|█████▌    | 4980/9000 [03:18<02:18, 28.93work_units/s, completed=4948, last_gpu=3, workers=8]2025-09-05 17:12:31,268 - GPU-1 - INFO - Processing batch 20 (32 work units)
+2025-09-05 17:12:31,268 - INFO - Processing batch 20 (32 work units)
+Overall progress:  55%|█████▌    | 4980/9000 [03:18<02:18, 28.93work_units/s, completed=4980, last_gpu=1, workers=8]2025-09-05 17:12:31,329 - GPU-2 - INFO - Completed batch 20, total work units processed by this worker: 640
+2025-09-05 17:12:31,329 - INFO - Completed batch 20, total work units processed by this worker: 640
+Overall progress:  56%|█████▌    | 5012/9000 [03:18<02:17, 28.93work_units/s, completed=5012, last_gpu=2, workers=8]2025-09-05 17:12:31,438 - GPU-2 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:31,438 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:34,810 - GPU-7 - INFO - Completed batch 22, total work units processed by this worker: 648
+2025-09-05 17:12:34,810 - INFO - Completed batch 22, total work units processed by this worker: 648
+Overall progress:  56%|█████▌    | 5044/9000 [03:22<02:52, 22.91work_units/s, completed=5012, last_gpu=2, workers=8]Overall progress:  56%|█████▌    | 5044/9000 [03:22<02:52, 22.91work_units/s, completed=5044, last_gpu=7, workers=8]2025-09-05 17:12:34,952 - GPU-7 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:34,952 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:35,235 - GPU-5 - INFO - Completed batch 21, total work units processed by this worker: 616
+2025-09-05 17:12:35,235 - INFO - Completed batch 21, total work units processed by this worker: 616
+Overall progress:  56%|█████▋    | 5076/9000 [03:22<02:22, 27.46work_units/s, completed=5044, last_gpu=7, workers=8]2025-09-05 17:12:35,235 - GPU-5 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:35,235 - INFO - Processing batch 22 (32 work units)
+Overall progress:  56%|█████▋    | 5076/9000 [03:22<02:22, 27.46work_units/s, completed=5076, last_gpu=5, workers=8]2025-09-05 17:12:35,508 - GPU-0 - INFO - Completed batch 22, total work units processed by this worker: 704
+2025-09-05 17:12:35,508 - INFO - Completed batch 22, total work units processed by this worker: 704
+Overall progress:  57%|█████▋    | 5108/9000 [03:23<01:54, 34.07work_units/s, completed=5076, last_gpu=5, workers=8]Overall progress:  57%|█████▋    | 5108/9000 [03:23<01:54, 34.07work_units/s, completed=5108, last_gpu=0, workers=8]2025-09-05 17:12:35,656 - GPU-0 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:35,656 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:35,727 - GPU-6 - INFO - Completed batch 20, total work units processed by this worker: 640
+2025-09-05 17:12:35,727 - INFO - Completed batch 20, total work units processed by this worker: 640
+Overall progress:  57%|█████▋    | 5140/9000 [03:23<01:30, 42.80work_units/s, completed=5108, last_gpu=0, workers=8]Overall progress:  57%|█████▋    | 5140/9000 [03:23<01:30, 42.80work_units/s, completed=5140, last_gpu=6, workers=8]2025-09-05 17:12:35,857 - GPU-6 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:35,857 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:36,704 - GPU-4 - INFO - Completed batch 21, total work units processed by this worker: 672
+2025-09-05 17:12:36,704 - INFO - Completed batch 21, total work units processed by this worker: 672
+Overall progress:  57%|█████▋    | 5172/9000 [03:24<01:36, 39.47work_units/s, completed=5140, last_gpu=6, workers=8]2025-09-05 17:12:36,704 - GPU-4 - INFO - Processing batch 22 (4 work units)
+2025-09-05 17:12:36,704 - INFO - Processing batch 22 (4 work units)
+Overall progress:  57%|█████▋    | 5172/9000 [03:24<01:36, 39.47work_units/s, completed=5172, last_gpu=4, workers=8]2025-09-05 17:12:37,031 - GPU-3 - INFO - Completed batch 22, total work units processed by this worker: 676
+2025-09-05 17:12:37,031 - INFO - Completed batch 22, total work units processed by this worker: 676
+Overall progress:  58%|█████▊    | 5204/9000 [03:24<01:19, 47.48work_units/s, completed=5172, last_gpu=4, workers=8]Overall progress:  58%|█████▊    | 5204/9000 [03:24<01:19, 47.48work_units/s, completed=5204, last_gpu=3, workers=8]2025-09-05 17:12:37,147 - GPU-3 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:37,147 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:37,269 - GPU-2 - INFO - Completed batch 21, total work units processed by this worker: 672
+2025-09-05 17:12:37,269 - INFO - Completed batch 21, total work units processed by this worker: 672
+Overall progress:  58%|█████▊    | 5236/9000 [03:24<01:04, 58.30work_units/s, completed=5204, last_gpu=3, workers=8]2025-09-05 17:12:37,269 - GPU-2 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:37,269 - INFO - Processing batch 22 (32 work units)
+Overall progress:  58%|█████▊    | 5236/9000 [03:24<01:04, 58.30work_units/s, completed=5236, last_gpu=2, workers=8]2025-09-05 17:12:38,920 - GPU-1 - INFO - Completed batch 20, total work units processed by this worker: 640
+2025-09-05 17:12:38,920 - INFO - Completed batch 20, total work units processed by this worker: 640
+Overall progress:  59%|█████▊    | 5268/9000 [03:26<01:41, 36.79work_units/s, completed=5236, last_gpu=2, workers=8]Overall progress:  59%|█████▊    | 5268/9000 [03:26<01:41, 36.79work_units/s, completed=5268, last_gpu=1, workers=8]2025-09-05 17:12:39,057 - GPU-1 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:39,057 - INFO - Processing batch 21 (32 work units)
+2025-09-05 17:12:39,340 - GPU-7 - INFO - Completed batch 23, total work units processed by this worker: 680
+2025-09-05 17:12:39,340 - INFO - Completed batch 23, total work units processed by this worker: 680
+Overall progress:  59%|█████▉    | 5300/9000 [03:26<01:25, 43.39work_units/s, completed=5268, last_gpu=1, workers=8]2025-09-05 17:12:39,340 - GPU-7 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:39,340 - INFO - Processing batch 24 (32 work units)
+Overall progress:  59%|█████▉    | 5300/9000 [03:26<01:25, 43.39work_units/s, completed=5300, last_gpu=7, workers=8]2025-09-05 17:12:40,638 - GPU-5 - INFO - Completed batch 22, total work units processed by this worker: 648
+2025-09-05 17:12:40,638 - INFO - Completed batch 22, total work units processed by this worker: 648
+Overall progress:  59%|█████▉    | 5332/9000 [03:28<01:43, 35.43work_units/s, completed=5300, last_gpu=7, workers=8]Overall progress:  59%|█████▉    | 5332/9000 [03:28<01:43, 35.43work_units/s, completed=5332, last_gpu=5, workers=8]2025-09-05 17:12:40,718 - GPU-4 - INFO - Completed batch 22, total work units processed by this worker: 676
+2025-09-05 17:12:40,718 - INFO - Completed batch 22, total work units processed by this worker: 676
+Overall progress:  59%|█████▉    | 5336/9000 [03:28<01:43, 35.43work_units/s, completed=5336, last_gpu=4, workers=8]2025-09-05 17:12:40,749 - GPU-5 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:40,749 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:40,833 - GPU-4 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:40,833 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:41,817 - GPU-6 - INFO - Completed batch 21, total work units processed by this worker: 672
+2025-09-05 17:12:41,817 - INFO - Completed batch 21, total work units processed by this worker: 672
+2025-09-05 17:12:41,817 - GPU-6 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:41,817 - INFO - Processing batch 22 (32 work units)
+Overall progress:  60%|█████▉    | 5368/9000 [03:29<01:47, 33.69work_units/s, completed=5336, last_gpu=4, workers=8]Overall progress:  60%|█████▉    | 5368/9000 [03:29<01:47, 33.69work_units/s, completed=5368, last_gpu=6, workers=8]2025-09-05 17:12:42,101 - GPU-0 - INFO - Completed batch 23, total work units processed by this worker: 736
+2025-09-05 17:12:42,101 - INFO - Completed batch 23, total work units processed by this worker: 736
+Overall progress:  60%|██████    | 5400/9000 [03:29<01:25, 42.29work_units/s, completed=5368, last_gpu=6, workers=8]Overall progress:  60%|██████    | 5400/9000 [03:29<01:25, 42.29work_units/s, completed=5400, last_gpu=0, workers=8]2025-09-05 17:12:42,101 - GPU-0 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:42,101 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:42,565 - GPU-2 - INFO - Completed batch 22, total work units processed by this worker: 704
+2025-09-05 17:12:42,565 - INFO - Completed batch 22, total work units processed by this worker: 704
+Overall progress:  60%|██████    | 5432/9000 [03:30<01:14, 47.70work_units/s, completed=5400, last_gpu=0, workers=8]Overall progress:  60%|██████    | 5432/9000 [03:30<01:14, 47.70work_units/s, completed=5432, last_gpu=2, workers=8]2025-09-05 17:12:42,696 - GPU-2 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:42,696 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:44,546 - GPU-5 - INFO - Completed batch 23, total work units processed by this worker: 680
+2025-09-05 17:12:44,546 - INFO - Completed batch 23, total work units processed by this worker: 680
+Overall progress:  61%|██████    | 5464/9000 [03:32<01:56, 30.26work_units/s, completed=5432, last_gpu=2, workers=8]2025-09-05 17:12:44,546 - GPU-5 - INFO - Processing batch 24 (32 work units)
+Overall progress:  61%|██████    | 5464/9000 [03:32<01:56, 30.26work_units/s, completed=5464, last_gpu=5, workers=8]2025-09-05 17:12:44,546 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:44,917 - GPU-1 - INFO - Completed batch 21, total work units processed by this worker: 672
+2025-09-05 17:12:44,917 - INFO - Completed batch 21, total work units processed by this worker: 672
+Overall progress:  61%|██████    | 5496/9000 [03:32<01:33, 37.48work_units/s, completed=5464, last_gpu=5, workers=8]2025-09-05 17:12:44,917 - GPU-1 - INFO - Processing batch 22 (32 work units)
+2025-09-05 17:12:44,917 - INFO - Processing batch 22 (32 work units)
+Overall progress:  61%|██████    | 5496/9000 [03:32<01:33, 37.48work_units/s, completed=5496, last_gpu=1, workers=8]2025-09-05 17:12:45,116 - GPU-3 - INFO - Completed batch 23, total work units processed by this worker: 708
+2025-09-05 17:12:45,116 - INFO - Completed batch 23, total work units processed by this worker: 708
+Overall progress:  61%|██████▏   | 5528/9000 [03:32<01:11, 48.56work_units/s, completed=5496, last_gpu=1, workers=8]Overall progress:  61%|██████▏   | 5528/9000 [03:32<01:11, 48.56work_units/s, completed=5528, last_gpu=3, workers=8]2025-09-05 17:12:45,116 - GPU-3 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:45,116 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:45,172 - GPU-7 - INFO - Completed batch 24, total work units processed by this worker: 712
+2025-09-05 17:12:45,172 - INFO - Completed batch 24, total work units processed by this worker: 712
+Overall progress:  62%|██████▏   | 5560/9000 [03:32<00:55, 62.06work_units/s, completed=5528, last_gpu=3, workers=8]Overall progress:  62%|██████▏   | 5560/9000 [03:32<00:55, 62.06work_units/s, completed=5560, last_gpu=7, workers=8]2025-09-05 17:12:45,294 - GPU-7 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:45,294 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:46,899 - GPU-4 - INFO - Completed batch 23, total work units processed by this worker: 708
+2025-09-05 17:12:46,899 - INFO - Completed batch 23, total work units processed by this worker: 708
+Overall progress:  62%|██████▏   | 5592/9000 [03:34<01:29, 38.04work_units/s, completed=5560, last_gpu=7, workers=8]Overall progress:  62%|██████▏   | 5592/9000 [03:34<01:29, 38.04work_units/s, completed=5592, last_gpu=4, workers=8]2025-09-05 17:12:46,900 - GPU-4 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:46,900 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:47,803 - GPU-2 - INFO - Completed batch 23, total work units processed by this worker: 736
+2025-09-05 17:12:47,803 - INFO - Completed batch 23, total work units processed by this worker: 736
+Overall progress:  62%|██████▏   | 5624/9000 [03:35<01:30, 37.21work_units/s, completed=5592, last_gpu=4, workers=8]Overall progress:  62%|██████▏   | 5624/9000 [03:35<01:30, 37.21work_units/s, completed=5624, last_gpu=2, workers=8]2025-09-05 17:12:47,803 - GPU-2 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:47,803 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:48,581 - GPU-0 - INFO - Completed batch 24, total work units processed by this worker: 768
+2025-09-05 17:12:48,581 - INFO - Completed batch 24, total work units processed by this worker: 768
+Overall progress:  63%|██████▎   | 5656/9000 [03:36<01:27, 38.31work_units/s, completed=5624, last_gpu=2, workers=8]Overall progress:  63%|██████▎   | 5656/9000 [03:36<01:27, 38.31work_units/s, completed=5656, last_gpu=0, workers=8]2025-09-05 17:12:48,688 - GPU-0 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:48,688 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:50,599 - GPU-6 - INFO - Completed batch 22, total work units processed by this worker: 704
+2025-09-05 17:12:50,599 - INFO - Completed batch 22, total work units processed by this worker: 704
+Overall progress:  63%|██████▎   | 5688/9000 [03:38<02:03, 26.90work_units/s, completed=5656, last_gpu=0, workers=8]Overall progress:  63%|██████▎   | 5688/9000 [03:38<02:03, 26.90work_units/s, completed=5688, last_gpu=6, workers=8]2025-09-05 17:12:50,711 - GPU-6 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:50,711 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:51,324 - GPU-3 - INFO - Completed batch 24, total work units processed by this worker: 740
+2025-09-05 17:12:51,324 - INFO - Completed batch 24, total work units processed by this worker: 740
+Overall progress:  64%|██████▎   | 5720/9000 [03:38<01:47, 30.46work_units/s, completed=5688, last_gpu=6, workers=8]Overall progress:  64%|██████▎   | 5720/9000 [03:38<01:47, 30.46work_units/s, completed=5720, last_gpu=3, workers=8]2025-09-05 17:12:51,470 - GPU-3 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:51,470 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:52,663 - GPU-1 - INFO - Completed batch 22, total work units processed by this worker: 704
+2025-09-05 17:12:52,663 - INFO - Completed batch 22, total work units processed by this worker: 704
+Overall progress:  64%|██████▍   | 5752/9000 [03:40<01:55, 28.14work_units/s, completed=5720, last_gpu=3, workers=8]Overall progress:  64%|██████▍   | 5752/9000 [03:40<01:55, 28.14work_units/s, completed=5752, last_gpu=1, workers=8]2025-09-05 17:12:52,785 - GPU-1 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:52,785 - INFO - Processing batch 23 (32 work units)
+2025-09-05 17:12:52,788 - GPU-5 - INFO - Completed batch 24, total work units processed by this worker: 712
+2025-09-05 17:12:52,788 - INFO - Completed batch 24, total work units processed by this worker: 712
+Overall progress:  64%|██████▍   | 5784/9000 [03:40<01:27, 36.86work_units/s, completed=5752, last_gpu=1, workers=8]2025-09-05 17:12:52,904 - GPU-5 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:52,904 - INFO - Processing batch 25 (32 work units)
+Overall progress:  64%|██████▍   | 5784/9000 [03:40<01:27, 36.86work_units/s, completed=5784, last_gpu=5, workers=8]2025-09-05 17:12:53,962 - GPU-0 - INFO - Completed batch 25, total work units processed by this worker: 800
+2025-09-05 17:12:53,962 - INFO - Completed batch 25, total work units processed by this worker: 800
+Overall progress:  65%|██████▍   | 5816/9000 [03:41<01:32, 34.59work_units/s, completed=5784, last_gpu=5, workers=8]2025-09-05 17:12:53,962 - GPU-0 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:12:53,962 - INFO - Processing batch 26 (32 work units)
+Overall progress:  65%|██████▍   | 5816/9000 [03:41<01:32, 34.59work_units/s, completed=5816, last_gpu=0, workers=8]2025-09-05 17:12:54,135 - GPU-2 - INFO - Completed batch 24, total work units processed by this worker: 768
+2025-09-05 17:12:54,135 - INFO - Completed batch 24, total work units processed by this worker: 768
+Overall progress:  65%|██████▍   | 5848/9000 [03:41<01:08, 45.73work_units/s, completed=5816, last_gpu=0, workers=8]Overall progress:  65%|██████▍   | 5848/9000 [03:41<01:08, 45.73work_units/s, completed=5848, last_gpu=2, workers=8]2025-09-05 17:12:54,244 - GPU-2 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:54,244 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:56,969 - GPU-6 - INFO - Completed batch 23, total work units processed by this worker: 736
+2025-09-05 17:12:56,969 - INFO - Completed batch 23, total work units processed by this worker: 736
+Overall progress:  65%|██████▌   | 5880/9000 [03:44<02:10, 23.88work_units/s, completed=5848, last_gpu=2, workers=8]2025-09-05 17:12:56,970 - GPU-6 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:12:56,970 - INFO - Processing batch 24 (32 work units)
+Overall progress:  65%|██████▌   | 5880/9000 [03:44<02:10, 23.88work_units/s, completed=5880, last_gpu=6, workers=8]2025-09-05 17:12:57,630 - GPU-3 - INFO - Completed batch 25, total work units processed by this worker: 772
+2025-09-05 17:12:57,630 - INFO - Completed batch 25, total work units processed by this worker: 772
+Overall progress:  66%|██████▌   | 5912/9000 [03:45<01:49, 28.16work_units/s, completed=5880, last_gpu=6, workers=8]2025-09-05 17:12:57,631 - GPU-3 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:12:57,631 - INFO - Processing batch 26 (32 work units)
+Overall progress:  66%|██████▌   | 5912/9000 [03:45<01:49, 28.16work_units/s, completed=5912, last_gpu=3, workers=8]2025-09-05 17:12:58,352 - GPU-4 - INFO - Completed batch 24, total work units processed by this worker: 740
+2025-09-05 17:12:58,352 - INFO - Completed batch 24, total work units processed by this worker: 740
+Overall progress:  66%|██████▌   | 5944/9000 [03:45<01:36, 31.62work_units/s, completed=5912, last_gpu=3, workers=8]Overall progress:  66%|██████▌   | 5944/9000 [03:45<01:36, 31.62work_units/s, completed=5944, last_gpu=4, workers=8]2025-09-05 17:12:58,476 - GPU-4 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:58,476 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:12:59,298 - GPU-2 - INFO - Completed batch 25, total work units processed by this worker: 800
+2025-09-05 17:12:59,298 - INFO - Completed batch 25, total work units processed by this worker: 800
+Overall progress:  66%|██████▋   | 5976/9000 [03:46<01:33, 32.26work_units/s, completed=5944, last_gpu=4, workers=8]Overall progress:  66%|██████▋   | 5976/9000 [03:46<01:33, 32.26work_units/s, completed=5976, last_gpu=2, workers=8]2025-09-05 17:12:59,298 - GPU-2 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:12:59,298 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:13:00,496 - GPU-1 - INFO - Completed batch 23, total work units processed by this worker: 736
+2025-09-05 17:13:00,496 - INFO - Completed batch 23, total work units processed by this worker: 736
+Overall progress:  67%|██████▋   | 6008/9000 [03:48<01:38, 30.37work_units/s, completed=5976, last_gpu=2, workers=8]2025-09-05 17:13:00,496 - GPU-1 - INFO - Processing batch 24 (32 work units)
+2025-09-05 17:13:00,496 - INFO - Processing batch 24 (32 work units)
+Overall progress:  67%|██████▋   | 6008/9000 [03:48<01:38, 30.37work_units/s, completed=6008, last_gpu=1, workers=8]2025-09-05 17:13:01,008 - GPU-0 - INFO - Completed batch 26, total work units processed by this worker: 832
+2025-09-05 17:13:01,008 - INFO - Completed batch 26, total work units processed by this worker: 832
+Overall progress:  67%|██████▋   | 6040/9000 [03:48<01:22, 35.91work_units/s, completed=6008, last_gpu=1, workers=8]Overall progress:  67%|██████▋   | 6040/9000 [03:48<01:22, 35.91work_units/s, completed=6040, last_gpu=0, workers=8]2025-09-05 17:13:01,114 - GPU-0 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:01,114 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:02,104 - GPU-7 - INFO - Completed batch 25, total work units processed by this worker: 744
+2025-09-05 17:13:02,104 - INFO - Completed batch 25, total work units processed by this worker: 744
+Overall progress:  67%|██████▋   | 6072/9000 [03:49<01:27, 33.59work_units/s, completed=6040, last_gpu=0, workers=8]2025-09-05 17:13:02,104 - GPU-7 - INFO - Processing batch 26 (4 work units)
+2025-09-05 17:13:02,104 - INFO - Processing batch 26 (4 work units)
+Overall progress:  67%|██████▋   | 6072/9000 [03:49<01:27, 33.59work_units/s, completed=6072, last_gpu=7, workers=8]2025-09-05 17:13:03,540 - GPU-3 - INFO - Completed batch 26, total work units processed by this worker: 804
+2025-09-05 17:13:03,540 - INFO - Completed batch 26, total work units processed by this worker: 804
+Overall progress:  68%|██████▊   | 6104/9000 [03:51<01:39, 29.15work_units/s, completed=6072, last_gpu=7, workers=8]Overall progress:  68%|██████▊   | 6104/9000 [03:51<01:39, 29.15work_units/s, completed=6104, last_gpu=3, workers=8]2025-09-05 17:13:03,649 - GPU-3 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:03,649 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:03,852 - GPU-6 - INFO - Completed batch 24, total work units processed by this worker: 768
+2025-09-05 17:13:03,852 - INFO - Completed batch 24, total work units processed by this worker: 768
+Overall progress:  68%|██████▊   | 6136/9000 [03:51<01:17, 37.12work_units/s, completed=6104, last_gpu=3, workers=8]Overall progress:  68%|██████▊   | 6136/9000 [03:51<01:17, 37.12work_units/s, completed=6136, last_gpu=6, workers=8]2025-09-05 17:13:03,959 - GPU-6 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:13:03,959 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:13:05,092 - GPU-2 - INFO - Completed batch 26, total work units processed by this worker: 832
+2025-09-05 17:13:05,092 - INFO - Completed batch 26, total work units processed by this worker: 832
+Overall progress:  69%|██████▊   | 6168/9000 [03:52<01:26, 32.81work_units/s, completed=6136, last_gpu=6, workers=8]Overall progress:  69%|██████▊   | 6168/9000 [03:52<01:26, 32.81work_units/s, completed=6168, last_gpu=2, workers=8]2025-09-05 17:13:05,201 - GPU-7 - INFO - Completed batch 26, total work units processed by this worker: 748
+2025-09-05 17:13:05,201 - INFO - Completed batch 26, total work units processed by this worker: 748
+Overall progress:  69%|██████▊   | 6172/9000 [03:52<01:26, 32.81work_units/s, completed=6172, last_gpu=7, workers=8]2025-09-05 17:13:05,212 - GPU-2 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:05,212 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:05,317 - GPU-7 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:05,317 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:05,958 - GPU-5 - INFO - Completed batch 25, total work units processed by this worker: 744
+2025-09-05 17:13:05,958 - INFO - Completed batch 25, total work units processed by this worker: 744
+Overall progress:  69%|██████▉   | 6204/9000 [03:53<01:19, 35.22work_units/s, completed=6172, last_gpu=7, workers=8]Overall progress:  69%|██████▉   | 6204/9000 [03:53<01:19, 35.22work_units/s, completed=6204, last_gpu=5, workers=8]2025-09-05 17:13:05,959 - GPU-5 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:13:05,959 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:13:06,295 - GPU-1 - INFO - Completed batch 24, total work units processed by this worker: 768
+2025-09-05 17:13:06,295 - INFO - Completed batch 24, total work units processed by this worker: 768
+Overall progress:  69%|██████▉   | 6236/9000 [03:53<01:04, 43.16work_units/s, completed=6204, last_gpu=5, workers=8]Overall progress:  69%|██████▉   | 6236/9000 [03:53<01:04, 43.16work_units/s, completed=6236, last_gpu=1, workers=8]2025-09-05 17:13:06,407 - GPU-1 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:13:06,407 - INFO - Processing batch 25 (32 work units)
+2025-09-05 17:13:06,531 - GPU-0 - INFO - Completed batch 27, total work units processed by this worker: 864
+2025-09-05 17:13:06,531 - INFO - Completed batch 27, total work units processed by this worker: 864
+Overall progress:  70%|██████▉   | 6268/9000 [03:54<00:50, 54.01work_units/s, completed=6236, last_gpu=1, workers=8]Overall progress:  70%|██████▉   | 6268/9000 [03:54<00:50, 54.01work_units/s, completed=6268, last_gpu=0, workers=8]2025-09-05 17:13:06,531 - GPU-0 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:06,531 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:06,898 - GPU-4 - INFO - Completed batch 25, total work units processed by this worker: 772
+2025-09-05 17:13:06,898 - INFO - Completed batch 25, total work units processed by this worker: 772
+Overall progress:  70%|███████   | 6300/9000 [03:54<00:44, 60.85work_units/s, completed=6268, last_gpu=0, workers=8]2025-09-05 17:13:06,899 - GPU-4 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:13:06,899 - INFO - Processing batch 26 (32 work units)
+Overall progress:  70%|███████   | 6300/9000 [03:54<00:44, 60.85work_units/s, completed=6300, last_gpu=4, workers=8]2025-09-05 17:13:09,559 - GPU-6 - INFO - Completed batch 25, total work units processed by this worker: 800
+2025-09-05 17:13:09,559 - INFO - Completed batch 25, total work units processed by this worker: 800
+Overall progress:  70%|███████   | 6332/9000 [03:57<01:36, 27.57work_units/s, completed=6300, last_gpu=4, workers=8]2025-09-05 17:13:09,559 - GPU-6 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:13:09,559 - INFO - Processing batch 26 (32 work units)
+Overall progress:  70%|███████   | 6332/9000 [03:57<01:36, 27.57work_units/s, completed=6332, last_gpu=6, workers=8]2025-09-05 17:13:10,641 - GPU-5 - INFO - Completed batch 26, total work units processed by this worker: 776
+2025-09-05 17:13:10,641 - INFO - Completed batch 26, total work units processed by this worker: 776
+Overall progress:  71%|███████   | 6364/9000 [03:58<01:33, 28.14work_units/s, completed=6332, last_gpu=6, workers=8]Overall progress:  71%|███████   | 6364/9000 [03:58<01:33, 28.14work_units/s, completed=6364, last_gpu=5, workers=8]2025-09-05 17:13:10,750 - GPU-5 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:10,750 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:11,150 - GPU-7 - INFO - Completed batch 27, total work units processed by this worker: 780
+2025-09-05 17:13:11,150 - INFO - Completed batch 27, total work units processed by this worker: 780
+2025-09-05 17:13:11,150 - GPU-7 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:11,150 - INFO - Processing batch 28 (32 work units)
+Overall progress:  71%|███████   | 6396/9000 [03:58<01:17, 33.70work_units/s, completed=6364, last_gpu=5, workers=8]Overall progress:  71%|███████   | 6396/9000 [03:58<01:17, 33.70work_units/s, completed=6396, last_gpu=7, workers=8]2025-09-05 17:13:11,396 - GPU-0 - INFO - Completed batch 28, total work units processed by this worker: 896
+2025-09-05 17:13:11,396 - INFO - Completed batch 28, total work units processed by this worker: 896
+Overall progress:  71%|███████▏  | 6428/9000 [03:58<00:59, 43.30work_units/s, completed=6396, last_gpu=7, workers=8]Overall progress:  71%|███████▏  | 6428/9000 [03:58<00:59, 43.30work_units/s, completed=6428, last_gpu=0, workers=8]2025-09-05 17:13:11,529 - GPU-0 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:11,529 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:11,926 - GPU-2 - INFO - Completed batch 27, total work units processed by this worker: 864
+2025-09-05 17:13:11,926 - INFO - Completed batch 27, total work units processed by this worker: 864
+Overall progress:  72%|███████▏  | 6460/9000 [03:59<00:53, 47.30work_units/s, completed=6428, last_gpu=0, workers=8]2025-09-05 17:13:11,926 - GPU-2 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:11,926 - INFO - Processing batch 28 (32 work units)
+Overall progress:  72%|███████▏  | 6460/9000 [03:59<00:53, 47.30work_units/s, completed=6460, last_gpu=2, workers=8]2025-09-05 17:13:12,531 - GPU-4 - INFO - Completed batch 26, total work units processed by this worker: 804
+2025-09-05 17:13:12,531 - INFO - Completed batch 26, total work units processed by this worker: 804
+Overall progress:  72%|███████▏  | 6492/9000 [04:00<00:51, 48.85work_units/s, completed=6460, last_gpu=2, workers=8]Overall progress:  72%|███████▏  | 6492/9000 [04:00<00:51, 48.85work_units/s, completed=6492, last_gpu=4, workers=8]2025-09-05 17:13:12,639 - GPU-4 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:12,639 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:14,123 - GPU-1 - INFO - Completed batch 25, total work units processed by this worker: 800
+2025-09-05 17:13:14,123 - INFO - Completed batch 25, total work units processed by this worker: 800
+Overall progress:  72%|███████▏  | 6524/9000 [04:01<01:12, 34.19work_units/s, completed=6492, last_gpu=4, workers=8]2025-09-05 17:13:14,124 - GPU-1 - INFO - Processing batch 26 (32 work units)
+2025-09-05 17:13:14,124 - INFO - Processing batch 26 (32 work units)
+Overall progress:  72%|███████▏  | 6524/9000 [04:01<01:12, 34.19work_units/s, completed=6524, last_gpu=1, workers=8]2025-09-05 17:13:14,895 - GPU-6 - INFO - Completed batch 26, total work units processed by this worker: 832
+2025-09-05 17:13:14,895 - INFO - Completed batch 26, total work units processed by this worker: 832
+Overall progress:  73%|███████▎  | 6556/9000 [04:02<01:07, 36.09work_units/s, completed=6524, last_gpu=1, workers=8]Overall progress:  73%|███████▎  | 6556/9000 [04:02<01:07, 36.09work_units/s, completed=6556, last_gpu=6, workers=8]2025-09-05 17:13:15,003 - GPU-6 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:15,003 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:17,417 - GPU-5 - INFO - Completed batch 27, total work units processed by this worker: 808
+2025-09-05 17:13:17,417 - INFO - Completed batch 27, total work units processed by this worker: 808
+Overall progress:  73%|███████▎  | 6588/9000 [04:04<01:43, 23.24work_units/s, completed=6556, last_gpu=6, workers=8]2025-09-05 17:13:17,417 - GPU-5 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:17,417 - INFO - Processing batch 28 (32 work units)
+Overall progress:  73%|███████▎  | 6588/9000 [04:04<01:43, 23.24work_units/s, completed=6588, last_gpu=5, workers=8]2025-09-05 17:13:17,531 - GPU-0 - INFO - Completed batch 29, total work units processed by this worker: 928
+2025-09-05 17:13:17,531 - INFO - Completed batch 29, total work units processed by this worker: 928
+Overall progress:  74%|███████▎  | 6620/9000 [04:05<01:14, 32.06work_units/s, completed=6588, last_gpu=5, workers=8]2025-09-05 17:13:17,531 - GPU-0 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:17,531 - INFO - Processing batch 30 (32 work units)
+Overall progress:  74%|███████▎  | 6620/9000 [04:05<01:14, 32.06work_units/s, completed=6620, last_gpu=0, workers=8]2025-09-05 17:13:17,723 - GPU-4 - INFO - Completed batch 27, total work units processed by this worker: 836
+2025-09-05 17:13:17,723 - INFO - Completed batch 27, total work units processed by this worker: 836
+Overall progress:  74%|███████▍  | 6652/9000 [04:05<00:55, 42.31work_units/s, completed=6620, last_gpu=0, workers=8]2025-09-05 17:13:17,723 - GPU-4 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:17,723 - INFO - Processing batch 28 (32 work units)
+Overall progress:  74%|███████▍  | 6652/9000 [04:05<00:55, 42.31work_units/s, completed=6652, last_gpu=4, workers=8]2025-09-05 17:13:19,158 - GPU-3 - INFO - Completed batch 27, total work units processed by this worker: 836
+2025-09-05 17:13:19,158 - INFO - Completed batch 27, total work units processed by this worker: 836
+Overall progress:  74%|███████▍  | 6684/9000 [04:06<01:09, 33.33work_units/s, completed=6652, last_gpu=4, workers=8]Overall progress:  74%|███████▍  | 6684/9000 [04:06<01:09, 33.33work_units/s, completed=6684, last_gpu=3, workers=8]2025-09-05 17:13:19,159 - GPU-3 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:19,159 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:19,612 - GPU-1 - INFO - Completed batch 26, total work units processed by this worker: 832
+2025-09-05 17:13:19,612 - INFO - Completed batch 26, total work units processed by this worker: 832
+Overall progress:  75%|███████▍  | 6716/9000 [04:07<00:57, 39.59work_units/s, completed=6684, last_gpu=3, workers=8]Overall progress:  75%|███████▍  | 6716/9000 [04:07<00:57, 39.59work_units/s, completed=6716, last_gpu=1, workers=8]2025-09-05 17:13:19,721 - GPU-1 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:19,721 - INFO - Processing batch 27 (32 work units)
+2025-09-05 17:13:21,515 - GPU-6 - INFO - Completed batch 27, total work units processed by this worker: 864
+2025-09-05 17:13:21,515 - INFO - Completed batch 27, total work units processed by this worker: 864
+Overall progress:  75%|███████▍  | 6748/9000 [04:09<01:19, 28.15work_units/s, completed=6716, last_gpu=1, workers=8]Overall progress:  75%|███████▍  | 6748/9000 [04:09<01:19, 28.15work_units/s, completed=6748, last_gpu=6, workers=8]2025-09-05 17:13:21,516 - GPU-6 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:21,516 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:23,466 - GPU-7 - INFO - Completed batch 28, total work units processed by this worker: 812
+2025-09-05 17:13:23,466 - INFO - Completed batch 28, total work units processed by this worker: 812
+Overall progress:  75%|███████▌  | 6780/9000 [04:10<01:35, 23.17work_units/s, completed=6748, last_gpu=6, workers=8]Overall progress:  75%|███████▌  | 6780/9000 [04:10<01:35, 23.17work_units/s, completed=6780, last_gpu=7, workers=8]2025-09-05 17:13:23,573 - GPU-7 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:23,573 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:23,750 - GPU-4 - INFO - Completed batch 28, total work units processed by this worker: 868
+2025-09-05 17:13:23,750 - INFO - Completed batch 28, total work units processed by this worker: 868
+Overall progress:  76%|███████▌  | 6812/9000 [04:11<01:11, 30.42work_units/s, completed=6780, last_gpu=7, workers=8]Overall progress:  76%|███████▌  | 6812/9000 [04:11<01:11, 30.42work_units/s, completed=6812, last_gpu=4, workers=8]2025-09-05 17:13:23,765 - GPU-5 - INFO - Completed batch 28, total work units processed by this worker: 840
+2025-09-05 17:13:23,765 - INFO - Completed batch 28, total work units processed by this worker: 840
+Overall progress:  76%|███████▌  | 6844/9000 [04:11<01:10, 30.42work_units/s, completed=6844, last_gpu=5, workers=8]2025-09-05 17:13:23,844 - GPU-4 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:23,844 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:23,878 - GPU-5 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:23,878 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:24,632 - GPU-3 - INFO - Completed batch 28, total work units processed by this worker: 868
+2025-09-05 17:13:24,632 - INFO - Completed batch 28, total work units processed by this worker: 868
+Overall progress:  76%|███████▋  | 6876/9000 [04:12<00:51, 41.56work_units/s, completed=6844, last_gpu=5, workers=8]Overall progress:  76%|███████▋  | 6876/9000 [04:12<00:51, 41.56work_units/s, completed=6876, last_gpu=3, workers=8]2025-09-05 17:13:24,750 - GPU-3 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:24,750 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:25,154 - GPU-1 - INFO - Completed batch 27, total work units processed by this worker: 864
+2025-09-05 17:13:25,154 - INFO - Completed batch 27, total work units processed by this worker: 864
+Overall progress:  77%|███████▋  | 6908/9000 [04:12<00:46, 45.18work_units/s, completed=6876, last_gpu=3, workers=8]2025-09-05 17:13:25,154 - GPU-1 - INFO - Processing batch 28 (32 work units)
+2025-09-05 17:13:25,154 - INFO - Processing batch 28 (32 work units)
+Overall progress:  77%|███████▋  | 6908/9000 [04:12<00:46, 45.18work_units/s, completed=6908, last_gpu=1, workers=8]2025-09-05 17:13:26,847 - GPU-6 - INFO - Completed batch 28, total work units processed by this worker: 896
+2025-09-05 17:13:26,847 - INFO - Completed batch 28, total work units processed by this worker: 896
+Overall progress:  77%|███████▋  | 6940/9000 [04:14<01:03, 32.28work_units/s, completed=6908, last_gpu=1, workers=8]2025-09-05 17:13:26,944 - GPU-6 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:26,944 - INFO - Processing batch 29 (32 work units)
+Overall progress:  77%|███████▋  | 6940/9000 [04:14<01:03, 32.28work_units/s, completed=6940, last_gpu=6, workers=8]2025-09-05 17:13:27,168 - GPU-0 - INFO - Completed batch 30, total work units processed by this worker: 960
+2025-09-05 17:13:27,168 - INFO - Completed batch 30, total work units processed by this worker: 960
+Overall progress:  77%|███████▋  | 6972/9000 [04:14<00:49, 40.89work_units/s, completed=6940, last_gpu=6, workers=8]Overall progress:  77%|███████▋  | 6972/9000 [04:14<00:49, 40.89work_units/s, completed=6972, last_gpu=0, workers=8]2025-09-05 17:13:27,288 - GPU-0 - INFO - Processing batch 31 (4 work units)
+2025-09-05 17:13:27,288 - INFO - Processing batch 31 (4 work units)
+2025-09-05 17:13:30,490 - GPU-0 - INFO - Completed batch 31, total work units processed by this worker: 964
+2025-09-05 17:13:30,490 - INFO - Completed batch 31, total work units processed by this worker: 964
+Overall progress:  78%|███████▊  | 6976/9000 [04:17<00:49, 40.89work_units/s, completed=6976, last_gpu=0, workers=8]2025-09-05 17:13:30,490 - GPU-0 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:13:30,490 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:13:30,617 - GPU-4 - INFO - Completed batch 29, total work units processed by this worker: 900
+2025-09-05 17:13:30,617 - INFO - Completed batch 29, total work units processed by this worker: 900
+2025-09-05 17:13:30,617 - GPU-4 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:30,617 - INFO - Processing batch 30 (32 work units)
+Overall progress:  78%|███████▊  | 7008/9000 [04:18<01:31, 21.66work_units/s, completed=6976, last_gpu=0, workers=8]Overall progress:  78%|███████▊  | 7008/9000 [04:18<01:31, 21.66work_units/s, completed=7008, last_gpu=4, workers=8]2025-09-05 17:13:30,694 - GPU-2 - INFO - Completed batch 28, total work units processed by this worker: 896
+2025-09-05 17:13:30,694 - INFO - Completed batch 28, total work units processed by this worker: 896
+Overall progress:  78%|███████▊  | 7040/9000 [04:18<01:30, 21.66work_units/s, completed=7040, last_gpu=2, workers=8]2025-09-05 17:13:30,802 - GPU-2 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:30,802 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:30,931 - GPU-7 - INFO - Completed batch 29, total work units processed by this worker: 844
+2025-09-05 17:13:30,931 - INFO - Completed batch 29, total work units processed by this worker: 844
+Overall progress:  79%|███████▊  | 7072/9000 [04:18<00:54, 35.49work_units/s, completed=7040, last_gpu=2, workers=8]Overall progress:  79%|███████▊  | 7072/9000 [04:18<00:54, 35.49work_units/s, completed=7072, last_gpu=7, workers=8]2025-09-05 17:13:30,931 - GPU-7 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:30,931 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:31,088 - GPU-3 - INFO - Completed batch 29, total work units processed by this worker: 900
+2025-09-05 17:13:31,088 - INFO - Completed batch 29, total work units processed by this worker: 900
+Overall progress:  79%|███████▉  | 7104/9000 [04:18<00:42, 44.15work_units/s, completed=7072, last_gpu=7, workers=8]Overall progress:  79%|███████▉  | 7104/9000 [04:18<00:42, 44.15work_units/s, completed=7104, last_gpu=3, workers=8]2025-09-05 17:13:31,088 - GPU-3 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:31,088 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:31,201 - GPU-1 - INFO - Completed batch 28, total work units processed by this worker: 896
+2025-09-05 17:13:31,201 - INFO - Completed batch 28, total work units processed by this worker: 896
+Overall progress:  79%|███████▉  | 7136/9000 [04:18<00:33, 56.15work_units/s, completed=7104, last_gpu=3, workers=8]Overall progress:  79%|███████▉  | 7136/9000 [04:18<00:33, 56.15work_units/s, completed=7136, last_gpu=1, workers=8]2025-09-05 17:13:31,306 - GPU-1 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:31,306 - INFO - Processing batch 29 (32 work units)
+2025-09-05 17:13:31,478 - GPU-6 - INFO - Completed batch 29, total work units processed by this worker: 928
+2025-09-05 17:13:31,478 - INFO - Completed batch 29, total work units processed by this worker: 928
+Overall progress:  80%|███████▉  | 7168/9000 [04:18<00:28, 65.02work_units/s, completed=7136, last_gpu=1, workers=8]2025-09-05 17:13:31,478 - GPU-6 - INFO - Processing batch 30 (32 work units)
+Overall progress:  80%|███████▉  | 7168/9000 [04:18<00:28, 65.02work_units/s, completed=7168, last_gpu=6, workers=8]2025-09-05 17:13:31,478 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:33,647 - GPU-5 - INFO - Completed batch 29, total work units processed by this worker: 872
+2025-09-05 17:13:33,647 - INFO - Completed batch 29, total work units processed by this worker: 872
+Overall progress:  80%|████████  | 7200/9000 [04:21<00:53, 33.56work_units/s, completed=7168, last_gpu=6, workers=8]2025-09-05 17:13:33,647 - GPU-5 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:33,647 - INFO - Processing batch 30 (32 work units)
+Overall progress:  80%|████████  | 7200/9000 [04:21<00:53, 33.56work_units/s, completed=7200, last_gpu=5, workers=8]2025-09-05 17:13:34,490 - GPU-4 - INFO - Completed batch 30, total work units processed by this worker: 932
+2025-09-05 17:13:34,490 - INFO - Completed batch 30, total work units processed by this worker: 932
+Overall progress:  80%|████████  | 7232/9000 [04:21<00:50, 34.69work_units/s, completed=7200, last_gpu=5, workers=8]Overall progress:  80%|████████  | 7232/9000 [04:21<00:50, 34.69work_units/s, completed=7232, last_gpu=4, workers=8]2025-09-05 17:13:34,600 - GPU-4 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:34,600 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:35,802 - GPU-6 - INFO - Completed batch 30, total work units processed by this worker: 960
+2025-09-05 17:13:35,802 - INFO - Completed batch 30, total work units processed by this worker: 960
+Overall progress:  81%|████████  | 7264/9000 [04:23<00:56, 30.94work_units/s, completed=7232, last_gpu=4, workers=8]Overall progress:  81%|████████  | 7264/9000 [04:23<00:56, 30.94work_units/s, completed=7264, last_gpu=6, workers=8]2025-09-05 17:13:35,854 - GPU-2 - INFO - Completed batch 29, total work units processed by this worker: 928
+2025-09-05 17:13:35,854 - INFO - Completed batch 29, total work units processed by this worker: 928
+Overall progress:  81%|████████  | 7296/9000 [04:23<00:55, 30.94work_units/s, completed=7296, last_gpu=2, workers=8]2025-09-05 17:13:35,855 - GPU-2 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:35,855 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:35,908 - GPU-6 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:35,908 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:36,507 - GPU-3 - INFO - Completed batch 30, total work units processed by this worker: 932
+2025-09-05 17:13:36,507 - INFO - Completed batch 30, total work units processed by this worker: 932
+Overall progress:  81%|████████▏ | 7328/9000 [04:24<00:37, 44.02work_units/s, completed=7296, last_gpu=2, workers=8]Overall progress:  81%|████████▏ | 7328/9000 [04:24<00:37, 44.02work_units/s, completed=7328, last_gpu=3, workers=8]2025-09-05 17:13:36,631 - GPU-3 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:36,631 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:38,092 - GPU-0 - INFO - Completed batch 32, total work units processed by this worker: 996
+2025-09-05 17:13:38,092 - INFO - Completed batch 32, total work units processed by this worker: 996
+Overall progress:  82%|████████▏ | 7360/9000 [04:25<00:47, 34.19work_units/s, completed=7328, last_gpu=3, workers=8]Overall progress:  82%|████████▏ | 7360/9000 [04:25<00:47, 34.19work_units/s, completed=7360, last_gpu=0, workers=8]2025-09-05 17:13:38,198 - GPU-0 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:13:38,198 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:13:38,790 - GPU-1 - INFO - Completed batch 29, total work units processed by this worker: 928
+2025-09-05 17:13:38,790 - INFO - Completed batch 29, total work units processed by this worker: 928
+Overall progress:  82%|████████▏ | 7392/9000 [04:26<00:43, 36.60work_units/s, completed=7360, last_gpu=0, workers=8]Overall progress:  82%|████████▏ | 7392/9000 [04:26<00:43, 36.60work_units/s, completed=7392, last_gpu=1, workers=8]2025-09-05 17:13:38,790 - GPU-1 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:38,790 - INFO - Processing batch 30 (32 work units)
+2025-09-05 17:13:41,465 - GPU-4 - INFO - Completed batch 31, total work units processed by this worker: 964
+2025-09-05 17:13:41,465 - INFO - Completed batch 31, total work units processed by this worker: 964
+2025-09-05 17:13:41,466 - GPU-4 - INFO - Processing batch 32 (32 work units)
+Overall progress:  82%|████████▏ | 7424/9000 [04:28<01:06, 23.53work_units/s, completed=7392, last_gpu=1, workers=8]2025-09-05 17:13:41,466 - INFO - Processing batch 32 (32 work units)
+Overall progress:  82%|████████▏ | 7424/9000 [04:28<01:06, 23.53work_units/s, completed=7424, last_gpu=4, workers=8]2025-09-05 17:13:42,032 - GPU-6 - INFO - Completed batch 31, total work units processed by this worker: 992
+2025-09-05 17:13:42,032 - INFO - Completed batch 31, total work units processed by this worker: 992
+Overall progress:  83%|████████▎ | 7456/9000 [04:29<00:54, 28.08work_units/s, completed=7424, last_gpu=4, workers=8]2025-09-05 17:13:42,033 - GPU-6 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:13:42,033 - INFO - Processing batch 32 (32 work units)
+Overall progress:  83%|████████▎ | 7456/9000 [04:29<00:54, 28.08work_units/s, completed=7456, last_gpu=6, workers=8]2025-09-05 17:13:42,881 - GPU-3 - INFO - Completed batch 31, total work units processed by this worker: 964
+2025-09-05 17:13:42,881 - INFO - Completed batch 31, total work units processed by this worker: 964
+Overall progress:  83%|████████▎ | 7488/9000 [04:30<00:49, 30.28work_units/s, completed=7456, last_gpu=6, workers=8]Overall progress:  83%|████████▎ | 7488/9000 [04:30<00:49, 30.28work_units/s, completed=7488, last_gpu=3, workers=8]2025-09-05 17:13:42,881 - GPU-3 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:13:42,881 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:13:43,305 - GPU-2 - INFO - Completed batch 30, total work units processed by this worker: 960
+2025-09-05 17:13:43,305 - INFO - Completed batch 30, total work units processed by this worker: 960
+Overall progress:  84%|████████▎ | 7520/9000 [04:30<00:40, 36.61work_units/s, completed=7488, last_gpu=3, workers=8]Overall progress:  84%|████████▎ | 7520/9000 [04:30<00:40, 36.61work_units/s, completed=7520, last_gpu=2, workers=8]2025-09-05 17:13:43,413 - GPU-2 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:43,413 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:46,451 - GPU-4 - INFO - Completed batch 32, total work units processed by this worker: 996
+2025-09-05 17:13:46,451 - INFO - Completed batch 32, total work units processed by this worker: 996
+Overall progress:  84%|████████▍ | 7552/9000 [04:33<01:09, 20.81work_units/s, completed=7520, last_gpu=2, workers=8]Overall progress:  84%|████████▍ | 7552/9000 [04:33<01:09, 20.81work_units/s, completed=7552, last_gpu=4, workers=8]2025-09-05 17:13:46,538 - GPU-1 - INFO - Completed batch 30, total work units processed by this worker: 960
+2025-09-05 17:13:46,538 - INFO - Completed batch 30, total work units processed by this worker: 960
+Overall progress:  84%|████████▍ | 7584/9000 [04:34<01:08, 20.81work_units/s, completed=7584, last_gpu=1, workers=8]2025-09-05 17:13:46,559 - GPU-4 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:13:46,559 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:13:46,665 - GPU-1 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:46,665 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:48,037 - GPU-6 - INFO - Completed batch 32, total work units processed by this worker: 1024
+2025-09-05 17:13:48,037 - INFO - Completed batch 32, total work units processed by this worker: 1024
+Overall progress:  85%|████████▍ | 7616/9000 [04:35<00:51, 26.69work_units/s, completed=7584, last_gpu=1, workers=8]Overall progress:  85%|████████▍ | 7616/9000 [04:35<00:51, 26.69work_units/s, completed=7616, last_gpu=6, workers=8]2025-09-05 17:13:48,143 - GPU-6 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:13:48,143 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:13:49,993 - GPU-2 - INFO - Completed batch 31, total work units processed by this worker: 992
+2025-09-05 17:13:49,993 - INFO - Completed batch 31, total work units processed by this worker: 992
+Overall progress:  85%|████████▍ | 7648/9000 [04:37<00:58, 23.11work_units/s, completed=7616, last_gpu=6, workers=8]2025-09-05 17:13:49,993 - GPU-2 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:13:49,993 - INFO - Processing batch 32 (32 work units)
+Overall progress:  85%|████████▍ | 7648/9000 [04:37<00:58, 23.11work_units/s, completed=7648, last_gpu=2, workers=8]2025-09-05 17:13:51,031 - GPU-4 - INFO - Completed batch 33, total work units processed by this worker: 1028
+2025-09-05 17:13:51,031 - INFO - Completed batch 33, total work units processed by this worker: 1028
+Overall progress:  85%|████████▌ | 7680/9000 [04:38<00:53, 24.72work_units/s, completed=7648, last_gpu=2, workers=8]Overall progress:  85%|████████▌ | 7680/9000 [04:38<00:53, 24.72work_units/s, completed=7680, last_gpu=4, workers=8]2025-09-05 17:13:51,031 - GPU-4 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:13:51,031 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:13:51,938 - GPU-1 - INFO - Completed batch 31, total work units processed by this worker: 992
+2025-09-05 17:13:51,938 - INFO - Completed batch 31, total work units processed by this worker: 992
+Overall progress:  86%|████████▌ | 7712/9000 [04:39<00:47, 26.90work_units/s, completed=7680, last_gpu=4, workers=8]2025-09-05 17:13:51,938 - GPU-1 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:13:51,938 - INFO - Processing batch 32 (32 work units)
+Overall progress:  86%|████████▌ | 7712/9000 [04:39<00:47, 26.90work_units/s, completed=7712, last_gpu=1, workers=8]2025-09-05 17:13:52,845 - GPU-5 - INFO - Completed batch 30, total work units processed by this worker: 904
+2025-09-05 17:13:52,845 - INFO - Completed batch 30, total work units processed by this worker: 904
+Overall progress:  86%|████████▌ | 7744/9000 [04:40<00:43, 28.80work_units/s, completed=7712, last_gpu=1, workers=8]Overall progress:  86%|████████▌ | 7744/9000 [04:40<00:43, 28.80work_units/s, completed=7744, last_gpu=5, workers=8]2025-09-05 17:13:52,937 - GPU-6 - INFO - Completed batch 33, total work units processed by this worker: 1056
+2025-09-05 17:13:52,937 - INFO - Completed batch 33, total work units processed by this worker: 1056
+Overall progress:  86%|████████▋ | 7776/9000 [04:40<00:42, 28.80work_units/s, completed=7776, last_gpu=6, workers=8]2025-09-05 17:13:52,937 - GPU-6 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:13:52,937 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:13:52,967 - GPU-5 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:52,967 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:13:53,562 - GPU-0 - INFO - Completed batch 33, total work units processed by this worker: 1028
+2025-09-05 17:13:53,562 - INFO - Completed batch 33, total work units processed by this worker: 1028
+Overall progress:  87%|████████▋ | 7808/9000 [04:41<00:28, 41.16work_units/s, completed=7776, last_gpu=6, workers=8]Overall progress:  87%|████████▋ | 7808/9000 [04:41<00:28, 41.16work_units/s, completed=7808, last_gpu=0, workers=8]2025-09-05 17:13:53,562 - GPU-0 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:13:53,562 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:13:56,247 - GPU-2 - INFO - Completed batch 32, total work units processed by this worker: 1024
+2025-09-05 17:13:56,247 - INFO - Completed batch 32, total work units processed by this worker: 1024
+Overall progress:  87%|████████▋ | 7840/9000 [04:43<00:44, 25.88work_units/s, completed=7808, last_gpu=0, workers=8]Overall progress:  87%|████████▋ | 7840/9000 [04:43<00:44, 25.88work_units/s, completed=7840, last_gpu=2, workers=8]2025-09-05 17:13:56,376 - GPU-2 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:13:56,376 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:13:58,152 - GPU-5 - INFO - Completed batch 31, total work units processed by this worker: 936
+2025-09-05 17:13:58,152 - INFO - Completed batch 31, total work units processed by this worker: 936
+2025-09-05 17:13:58,152 - GPU-5 - INFO - Processing batch 32 (4 work units)
+Overall progress:  87%|████████▋ | 7872/9000 [04:45<00:49, 22.74work_units/s, completed=7840, last_gpu=2, workers=8]2025-09-05 17:13:58,152 - INFO - Processing batch 32 (4 work units)
+Overall progress:  87%|████████▋ | 7872/9000 [04:45<00:49, 22.74work_units/s, completed=7872, last_gpu=5, workers=8]2025-09-05 17:13:58,204 - GPU-6 - INFO - Completed batch 34, total work units processed by this worker: 1088
+2025-09-05 17:13:58,204 - INFO - Completed batch 34, total work units processed by this worker: 1088
+2025-09-05 17:13:58,287 - GPU-6 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:13:58,287 - INFO - Processing batch 35 (32 work units)
+Overall progress:  88%|████████▊ | 7904/9000 [04:45<00:36, 30.00work_units/s, completed=7872, last_gpu=5, workers=8]Overall progress:  88%|████████▊ | 7904/9000 [04:45<00:36, 30.00work_units/s, completed=7904, last_gpu=6, workers=8]2025-09-05 17:13:59,172 - GPU-4 - INFO - Completed batch 34, total work units processed by this worker: 1060
+2025-09-05 17:13:59,172 - INFO - Completed batch 34, total work units processed by this worker: 1060
+Overall progress:  88%|████████▊ | 7936/9000 [04:46<00:33, 31.48work_units/s, completed=7904, last_gpu=6, workers=8]Overall progress:  88%|████████▊ | 7936/9000 [04:46<00:33, 31.48work_units/s, completed=7936, last_gpu=4, workers=8]2025-09-05 17:13:59,305 - GPU-4 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:13:59,305 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:14:00,009 - GPU-5 - INFO - Completed batch 32, total work units processed by this worker: 940
+2025-09-05 17:14:00,009 - INFO - Completed batch 32, total work units processed by this worker: 940
+Overall progress:  88%|████████▊ | 7940/9000 [04:47<00:33, 31.48work_units/s, completed=7940, last_gpu=5, workers=8]2025-09-05 17:14:00,046 - GPU-2 - INFO - Completed batch 33, total work units processed by this worker: 1056
+2025-09-05 17:14:00,046 - INFO - Completed batch 33, total work units processed by this worker: 1056
+Overall progress:  89%|████████▊ | 7972/9000 [04:47<00:30, 33.95work_units/s, completed=7940, last_gpu=5, workers=8]Overall progress:  89%|████████▊ | 7972/9000 [04:47<00:30, 33.95work_units/s, completed=7972, last_gpu=2, workers=8]2025-09-05 17:14:00,046 - GPU-2 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:14:00,046 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:14:00,121 - GPU-5 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:14:00,121 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:14:00,932 - GPU-0 - INFO - Completed batch 34, total work units processed by this worker: 1060
+2025-09-05 17:14:00,932 - INFO - Completed batch 34, total work units processed by this worker: 1060
+Overall progress:  89%|████████▉ | 8004/9000 [04:48<00:28, 34.52work_units/s, completed=7972, last_gpu=2, workers=8]Overall progress:  89%|████████▉ | 8004/9000 [04:48<00:28, 34.52work_units/s, completed=8004, last_gpu=0, workers=8]2025-09-05 17:14:00,958 - GPU-1 - INFO - Completed batch 32, total work units processed by this worker: 1024
+2025-09-05 17:14:00,958 - INFO - Completed batch 32, total work units processed by this worker: 1024
+2025-09-05 17:14:01,044 - GPU-0 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:14:01,044 - INFO - Processing batch 35 (32 work units)
+Overall progress:  89%|████████▉ | 8036/9000 [04:48<00:21, 45.66work_units/s, completed=8004, last_gpu=0, workers=8]2025-09-05 17:14:01,070 - GPU-1 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:14:01,070 - INFO - Processing batch 33 (32 work units)
+Overall progress:  89%|████████▉ | 8036/9000 [04:48<00:21, 45.66work_units/s, completed=8036, last_gpu=1, workers=8]2025-09-05 17:14:04,120 - GPU-4 - INFO - Completed batch 35, total work units processed by this worker: 1092
+2025-09-05 17:14:04,120 - INFO - Completed batch 35, total work units processed by this worker: 1092
+2025-09-05 17:14:04,120 - GPU-4 - INFO - Processing batch 36 (32 work units)
+2025-09-05 17:14:04,120 - INFO - Processing batch 36 (32 work units)
+Overall progress:  90%|████████▉ | 8068/9000 [04:51<00:40, 23.14work_units/s, completed=8036, last_gpu=1, workers=8]Overall progress:  90%|████████▉ | 8068/9000 [04:51<00:40, 23.14work_units/s, completed=8068, last_gpu=4, workers=8]2025-09-05 17:14:05,257 - GPU-5 - INFO - Completed batch 33, total work units processed by this worker: 972
+2025-09-05 17:14:05,257 - INFO - Completed batch 33, total work units processed by this worker: 972
+Overall progress:  90%|█████████ | 8100/9000 [04:52<00:36, 24.41work_units/s, completed=8068, last_gpu=4, workers=8]2025-09-05 17:14:05,257 - GPU-5 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:14:05,257 - INFO - Processing batch 34 (32 work units)
+Overall progress:  90%|█████████ | 8100/9000 [04:52<00:36, 24.41work_units/s, completed=8100, last_gpu=5, workers=8]2025-09-05 17:14:05,591 - GPU-0 - INFO - Completed batch 35, total work units processed by this worker: 1092
+2025-09-05 17:14:05,591 - INFO - Completed batch 35, total work units processed by this worker: 1092
+2025-09-05 17:14:05,591 - GPU-0 - INFO - Processing batch 36 (32 work units)
+2025-09-05 17:14:05,591 - INFO - Processing batch 36 (32 work units)
+Overall progress:  90%|█████████ | 8132/9000 [04:53<00:27, 31.30work_units/s, completed=8100, last_gpu=5, workers=8]Overall progress:  90%|█████████ | 8132/9000 [04:53<00:27, 31.30work_units/s, completed=8132, last_gpu=0, workers=8]2025-09-05 17:14:06,934 - GPU-7 - INFO - Completed batch 30, total work units processed by this worker: 876
+2025-09-05 17:14:06,934 - INFO - Completed batch 30, total work units processed by this worker: 876
+Overall progress:  91%|█████████ | 8164/9000 [04:54<00:29, 28.63work_units/s, completed=8132, last_gpu=0, workers=8]Overall progress:  91%|█████████ | 8164/9000 [04:54<00:29, 28.63work_units/s, completed=8164, last_gpu=7, workers=8]2025-09-05 17:14:07,048 - GPU-7 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:14:07,048 - INFO - Processing batch 31 (32 work units)
+2025-09-05 17:14:07,623 - GPU-2 - INFO - Completed batch 34, total work units processed by this worker: 1088
+2025-09-05 17:14:07,623 - INFO - Completed batch 34, total work units processed by this worker: 1088
+Overall progress:  91%|█████████ | 8196/9000 [04:55<00:24, 32.32work_units/s, completed=8164, last_gpu=7, workers=8]Overall progress:  91%|█████████ | 8196/9000 [04:55<00:24, 32.32work_units/s, completed=8196, last_gpu=2, workers=8]2025-09-05 17:14:07,653 - GPU-4 - INFO - Completed batch 36, total work units processed by this worker: 1124
+2025-09-05 17:14:07,653 - INFO - Completed batch 36, total work units processed by this worker: 1124
+Overall progress:  91%|█████████▏| 8228/9000 [04:55<00:23, 32.32work_units/s, completed=8228, last_gpu=4, workers=8]2025-09-05 17:14:07,737 - GPU-2 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:14:07,737 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:14:07,776 - GPU-4 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:07,776 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:08,722 - GPU-6 - INFO - Completed batch 35, total work units processed by this worker: 1120
+2025-09-05 17:14:08,722 - INFO - Completed batch 35, total work units processed by this worker: 1120
+2025-09-05 17:14:08,722 - GPU-6 - INFO - Processing batch 36 (32 work units)
+Overall progress:  92%|█████████▏| 8260/9000 [04:56<00:18, 40.63work_units/s, completed=8228, last_gpu=4, workers=8]2025-09-05 17:14:08,722 - INFO - Processing batch 36 (32 work units)
+Overall progress:  92%|█████████▏| 8260/9000 [04:56<00:18, 40.63work_units/s, completed=8260, last_gpu=6, workers=8]2025-09-05 17:14:11,264 - GPU-0 - INFO - Completed batch 36, total work units processed by this worker: 1124
+2025-09-05 17:14:11,264 - INFO - Completed batch 36, total work units processed by this worker: 1124
+Overall progress:  92%|█████████▏| 8292/9000 [04:58<00:27, 26.20work_units/s, completed=8260, last_gpu=6, workers=8]Overall progress:  92%|█████████▏| 8292/9000 [04:58<00:27, 26.20work_units/s, completed=8292, last_gpu=0, workers=8]2025-09-05 17:14:11,369 - GPU-0 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:11,369 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:12,893 - GPU-5 - INFO - Completed batch 34, total work units processed by this worker: 1004
+2025-09-05 17:14:12,893 - INFO - Completed batch 34, total work units processed by this worker: 1004
+Overall progress:  92%|█████████▏| 8324/9000 [05:00<00:28, 24.10work_units/s, completed=8292, last_gpu=0, workers=8]Overall progress:  92%|█████████▏| 8324/9000 [05:00<00:28, 24.10work_units/s, completed=8324, last_gpu=5, workers=8]2025-09-05 17:14:12,972 - GPU-7 - INFO - Completed batch 31, total work units processed by this worker: 908
+2025-09-05 17:14:12,972 - INFO - Completed batch 31, total work units processed by this worker: 908
+Overall progress:  93%|█████████▎| 8356/9000 [05:00<00:26, 24.10work_units/s, completed=8356, last_gpu=7, workers=8]2025-09-05 17:14:12,973 - GPU-7 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:14:12,973 - INFO - Processing batch 32 (32 work units)
+2025-09-05 17:14:13,024 - GPU-5 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:14:13,024 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:14:14,822 - GPU-2 - INFO - Completed batch 35, total work units processed by this worker: 1120
+2025-09-05 17:14:14,822 - INFO - Completed batch 35, total work units processed by this worker: 1120
+Overall progress:  93%|█████████▎| 8388/9000 [05:02<00:22, 27.29work_units/s, completed=8356, last_gpu=7, workers=8]2025-09-05 17:14:14,822 - GPU-2 - INFO - Processing batch 36 (32 work units)
+Overall progress:  93%|█████████▎| 8388/9000 [05:02<00:22, 27.29work_units/s, completed=8388, last_gpu=2, workers=8]2025-09-05 17:14:14,822 - INFO - Processing batch 36 (32 work units)
+2025-09-05 17:14:15,048 - GPU-0 - INFO - Completed batch 37, total work units processed by this worker: 1156
+2025-09-05 17:14:15,048 - INFO - Completed batch 37, total work units processed by this worker: 1156
+2025-09-05 17:14:15,048 - GPU-0 - INFO - Processing batch 38 (32 work units)
+2025-09-05 17:14:15,048 - INFO - Processing batch 38 (32 work units)
+Overall progress:  94%|█████████▎| 8420/9000 [05:02<00:17, 33.64work_units/s, completed=8388, last_gpu=2, workers=8]Overall progress:  94%|█████████▎| 8420/9000 [05:02<00:17, 33.64work_units/s, completed=8420, last_gpu=0, workers=8]2025-09-05 17:14:15,276 - GPU-4 - INFO - Completed batch 37, total work units processed by this worker: 1156
+2025-09-05 17:14:15,276 - INFO - Completed batch 37, total work units processed by this worker: 1156
+Overall progress:  94%|█████████▍| 8452/9000 [05:02<00:13, 41.54work_units/s, completed=8420, last_gpu=0, workers=8]2025-09-05 17:14:15,276 - GPU-4 - INFO - Processing batch 38 (32 work units)
+2025-09-05 17:14:15,276 - INFO - Processing batch 38 (32 work units)
+Overall progress:  94%|█████████▍| 8452/9000 [05:02<00:13, 41.54work_units/s, completed=8452, last_gpu=4, workers=8]2025-09-05 17:14:16,654 - GPU-5 - INFO - Completed batch 35, total work units processed by this worker: 1036
+2025-09-05 17:14:16,654 - INFO - Completed batch 35, total work units processed by this worker: 1036
+Overall progress:  94%|█████████▍| 8484/9000 [05:04<00:15, 34.40work_units/s, completed=8452, last_gpu=4, workers=8]Overall progress:  94%|█████████▍| 8484/9000 [05:04<00:15, 34.40work_units/s, completed=8484, last_gpu=5, workers=8]2025-09-05 17:14:16,654 - GPU-5 - INFO - Processing batch 36 (32 work units)
+2025-09-05 17:14:16,654 - INFO - Processing batch 36 (32 work units)
+2025-09-05 17:14:16,749 - GPU-7 - INFO - Completed batch 32, total work units processed by this worker: 940
+2025-09-05 17:14:16,749 - INFO - Completed batch 32, total work units processed by this worker: 940
+Overall progress:  95%|█████████▍| 8516/9000 [05:04<00:11, 43.74work_units/s, completed=8484, last_gpu=5, workers=8]Overall progress:  95%|█████████▍| 8516/9000 [05:04<00:11, 43.74work_units/s, completed=8516, last_gpu=7, workers=8]2025-09-05 17:14:16,858 - GPU-7 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:14:16,858 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:14:16,943 - GPU-6 - INFO - Completed batch 36, total work units processed by this worker: 1152
+2025-09-05 17:14:16,943 - INFO - Completed batch 36, total work units processed by this worker: 1152
+Overall progress:  95%|█████████▍| 8548/9000 [05:04<00:10, 43.74work_units/s, completed=8548, last_gpu=6, workers=8]2025-09-05 17:14:17,063 - GPU-6 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:17,063 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:19,098 - GPU-3 - INFO - Completed batch 32, total work units processed by this worker: 996
+2025-09-05 17:14:19,098 - INFO - Completed batch 32, total work units processed by this worker: 996
+Overall progress:  95%|█████████▌| 8580/9000 [05:06<00:11, 35.47work_units/s, completed=8548, last_gpu=6, workers=8]Overall progress:  95%|█████████▌| 8580/9000 [05:06<00:11, 35.47work_units/s, completed=8580, last_gpu=3, workers=8]2025-09-05 17:14:19,228 - GPU-3 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:14:19,228 - INFO - Processing batch 33 (32 work units)
+2025-09-05 17:14:19,632 - GPU-2 - INFO - Completed batch 36, total work units processed by this worker: 1152
+2025-09-05 17:14:19,632 - INFO - Completed batch 36, total work units processed by this worker: 1152
+Overall progress:  96%|█████████▌| 8612/9000 [05:07<00:09, 39.30work_units/s, completed=8580, last_gpu=3, workers=8]Overall progress:  96%|█████████▌| 8612/9000 [05:07<00:09, 39.30work_units/s, completed=8612, last_gpu=2, workers=8]2025-09-05 17:14:19,758 - GPU-2 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:19,758 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:21,300 - GPU-4 - INFO - Completed batch 38, total work units processed by this worker: 1188
+2025-09-05 17:14:21,300 - INFO - Completed batch 38, total work units processed by this worker: 1188
+Overall progress:  96%|█████████▌| 8644/9000 [05:08<00:11, 31.03work_units/s, completed=8612, last_gpu=2, workers=8]Overall progress:  96%|█████████▌| 8644/9000 [05:08<00:11, 31.03work_units/s, completed=8644, last_gpu=4, workers=8]2025-09-05 17:14:21,409 - GPU-4 - INFO - Processing batch 39 (32 work units)
+2025-09-05 17:14:21,409 - INFO - Processing batch 39 (32 work units)
+2025-09-05 17:14:21,410 - GPU-7 - INFO - Completed batch 33, total work units processed by this worker: 972
+2025-09-05 17:14:21,410 - INFO - Completed batch 33, total work units processed by this worker: 972
+Overall progress:  96%|█████████▋| 8676/9000 [05:08<00:07, 40.73work_units/s, completed=8644, last_gpu=4, workers=8]Overall progress:  96%|█████████▋| 8676/9000 [05:08<00:07, 40.73work_units/s, completed=8676, last_gpu=7, workers=8]2025-09-05 17:14:21,410 - GPU-7 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:14:21,410 - INFO - Processing batch 34 (32 work units)
+2025-09-05 17:14:21,684 - GPU-5 - INFO - Completed batch 36, total work units processed by this worker: 1068
+2025-09-05 17:14:21,684 - INFO - Completed batch 36, total work units processed by this worker: 1068
+Overall progress:  97%|█████████▋| 8708/9000 [05:09<00:05, 49.64work_units/s, completed=8676, last_gpu=7, workers=8]Overall progress:  97%|█████████▋| 8708/9000 [05:09<00:05, 49.64work_units/s, completed=8708, last_gpu=5, workers=8]2025-09-05 17:14:21,793 - GPU-5 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:21,793 - INFO - Processing batch 37 (32 work units)
+2025-09-05 17:14:25,256 - GPU-7 - INFO - Completed batch 34, total work units processed by this worker: 1004
+2025-09-05 17:14:25,256 - INFO - Completed batch 34, total work units processed by this worker: 1004
+Overall progress:  97%|█████████▋| 8740/9000 [05:12<00:11, 21.74work_units/s, completed=8708, last_gpu=5, workers=8]Overall progress:  97%|█████████▋| 8740/9000 [05:12<00:11, 21.74work_units/s, completed=8740, last_gpu=7, workers=8]2025-09-05 17:14:25,366 - GPU-7 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:14:25,366 - INFO - Processing batch 35 (32 work units)
+2025-09-05 17:14:25,384 - GPU-0 - INFO - Completed batch 38, total work units processed by this worker: 1188
+2025-09-05 17:14:25,384 - INFO - Completed batch 38, total work units processed by this worker: 1188
+Overall progress:  97%|█████████▋| 8772/9000 [05:12<00:07, 29.48work_units/s, completed=8740, last_gpu=7, workers=8]Overall progress:  97%|█████████▋| 8772/9000 [05:12<00:07, 29.48work_units/s, completed=8772, last_gpu=0, workers=8]2025-09-05 17:14:25,513 - GPU-0 - INFO - Processing batch 39 (4 work units)
+2025-09-05 17:14:25,513 - INFO - Processing batch 39 (4 work units)
+2025-09-05 17:14:25,522 - GPU-5 - INFO - Completed batch 37, total work units processed by this worker: 1100
+2025-09-05 17:14:25,522 - INFO - Completed batch 37, total work units processed by this worker: 1100
+2025-09-05 17:14:25,522 - GPU-5 - INFO - Received end signal, exiting
+2025-09-05 17:14:25,522 - INFO - Received end signal, exiting
+Overall progress:  98%|█████████▊| 8804/9000 [05:13<00:04, 39.53work_units/s, completed=8772, last_gpu=0, workers=8]Overall progress:  98%|█████████▊| 8804/9000 [05:13<00:04, 39.53work_units/s, completed=8804, last_gpu=5, workers=8]2025-09-05 17:14:25,522 - GPU-5 - INFO - Worker completed. Processed 37 batches, 1100 work units
+2025-09-05 17:14:25,522 - INFO - Worker completed. Processed 37 batches, 1100 work units
+2025-09-05 17:14:26,520 - GPU-4 - INFO - Completed batch 39, total work units processed by this worker: 1220
+2025-09-05 17:14:26,520 - INFO - Completed batch 39, total work units processed by this worker: 1220
+Overall progress:  98%|█████████▊| 8836/9000 [05:14<00:04, 37.00work_units/s, completed=8804, last_gpu=5, workers=8]2025-09-05 17:14:26,520 - GPU-4 - INFO - Received end signal, exiting
+2025-09-05 17:14:26,520 - INFO - Received end signal, exiting
+Overall progress:  98%|█████████▊| 8836/9000 [05:14<00:04, 37.00work_units/s, completed=8836, last_gpu=4, workers=8]2025-09-05 17:14:26,521 - GPU-4 - INFO - Worker completed. Processed 39 batches, 1220 work units
+2025-09-05 17:14:26,521 - INFO - Worker completed. Processed 39 batches, 1220 work units
+2025-09-05 17:14:26,543 - GPU-6 - INFO - Completed batch 37, total work units processed by this worker: 1184
+2025-09-05 17:14:26,543 - INFO - Completed batch 37, total work units processed by this worker: 1184
+Overall progress:  99%|█████████▊| 8868/9000 [05:14<00:03, 37.00work_units/s, completed=8868, last_gpu=6, workers=8]2025-09-05 17:14:26,544 - GPU-6 - INFO - Received end signal, exiting
+2025-09-05 17:14:26,544 - INFO - Received end signal, exiting
+2025-09-05 17:14:26,544 - GPU-6 - INFO - Worker completed. Processed 37 batches, 1184 work units
+2025-09-05 17:14:26,544 - INFO - Worker completed. Processed 37 batches, 1184 work units
+2025-09-05 17:14:27,930 - GPU-3 - INFO - Completed batch 33, total work units processed by this worker: 1028
+2025-09-05 17:14:27,930 - INFO - Completed batch 33, total work units processed by this worker: 1028
+2025-09-05 17:14:27,930 - GPU-3 - INFO - Received end signal, exiting
+2025-09-05 17:14:27,930 - INFO - Received end signal, exiting
+Overall progress:  99%|█████████▉| 8900/9000 [05:15<00:02, 40.40work_units/s, completed=8868, last_gpu=6, workers=8]Overall progress:  99%|█████████▉| 8900/9000 [05:15<00:02, 40.40work_units/s, completed=8900, last_gpu=3, workers=8]2025-09-05 17:14:27,931 - GPU-3 - INFO - Worker completed. Processed 33 batches, 1028 work units
+2025-09-05 17:14:27,931 - INFO - Worker completed. Processed 33 batches, 1028 work units
+2025-09-05 17:14:28,346 - GPU-0 - INFO - Completed batch 39, total work units processed by this worker: 1192
+2025-09-05 17:14:28,346 - INFO - Completed batch 39, total work units processed by this worker: 1192
+2025-09-05 17:14:28,346 - GPU-0 - INFO - Received end signal, exiting
+2025-09-05 17:14:28,346 - INFO - Received end signal, exiting
+Overall progress:  99%|█████████▉| 8904/9000 [05:15<00:02, 40.40work_units/s, completed=8904, last_gpu=0, workers=8]2025-09-05 17:14:28,346 - GPU-0 - INFO - Worker completed. Processed 39 batches, 1192 work units
+2025-09-05 17:14:28,346 - INFO - Worker completed. Processed 39 batches, 1192 work units
+2025-09-05 17:14:29,906 - GPU-7 - INFO - Completed batch 35, total work units processed by this worker: 1036
+2025-09-05 17:14:29,906 - INFO - Completed batch 35, total work units processed by this worker: 1036
+2025-09-05 17:14:29,906 - GPU-7 - INFO - Received end signal, exiting
+2025-09-05 17:14:29,906 - INFO - Received end signal, exiting
+Overall progress:  99%|█████████▉| 8936/9000 [05:17<00:02, 30.45work_units/s, completed=8904, last_gpu=0, workers=8]Overall progress:  99%|█████████▉| 8936/9000 [05:17<00:02, 30.45work_units/s, completed=8936, last_gpu=7, workers=8]2025-09-05 17:14:29,907 - GPU-7 - INFO - Worker completed. Processed 35 batches, 1036 work units
+2025-09-05 17:14:29,907 - INFO - Worker completed. Processed 35 batches, 1036 work units
+2025-09-05 17:14:31,215 - GPU-1 - INFO - Completed batch 33, total work units processed by this worker: 1056
+2025-09-05 17:14:31,215 - INFO - Completed batch 33, total work units processed by this worker: 1056
+2025-09-05 17:14:31,215 - GPU-1 - INFO - Received end signal, exiting
+2025-09-05 17:14:31,215 - INFO - Received end signal, exiting
+Overall progress: 100%|█████████▉| 8968/9000 [05:18<00:01, 28.67work_units/s, completed=8936, last_gpu=7, workers=8]Overall progress: 100%|█████████▉| 8968/9000 [05:18<00:01, 28.67work_units/s, completed=8968, last_gpu=1, workers=8]2025-09-05 17:14:31,215 - GPU-1 - INFO - Worker completed. Processed 33 batches, 1056 work units
+2025-09-05 17:14:31,215 - INFO - Worker completed. Processed 33 batches, 1056 work units
+2025-09-05 17:14:34,312 - GPU-2 - INFO - Completed batch 37, total work units processed by this worker: 1184
+2025-09-05 17:14:34,312 - INFO - Completed batch 37, total work units processed by this worker: 1184
+Overall progress: 100%|██████████| 9000/9000 [05:21<00:00, 19.47work_units/s, completed=8968, last_gpu=1, workers=8]2025-09-05 17:14:34,312 - GPU-2 - INFO - Received end signal, exiting
+2025-09-05 17:14:34,312 - INFO - Received end signal, exiting
+Overall progress: 100%|██████████| 9000/9000 [05:21<00:00, 19.47work_units/s, completed=9000, last_gpu=2, workers=8]2025-09-05 17:14:34,312 - GPU-2 - INFO - Worker completed. Processed 37 batches, 1184 work units
+2025-09-05 17:14:34,312 - INFO - Worker completed. Processed 37 batches, 1184 work units
+Overall progress: 100%|██████████| 9000/9000 [05:40<00:00, 19.47work_units/s, completed=9000, last_gpu=2, workers=8]Overall progress: 100%|██████████| 9000/9000 [05:53<00:00, 25.49work_units/s, completed=9000, last_gpu=2, workers=8]
+2025-09-05 17:15:05,576 - INFO - Progress monitoring completed. Total processed: 9000
+Worker process 0 completed successfully
+Worker process 1 completed successfully
+Worker process 2 completed successfully
+Worker process 3 completed successfully
+Worker process 4 completed successfully
+Worker process 5 completed successfully
+Worker process 6 completed successfully
+Worker process 7 completed successfully
+
+All workers completed!
+Results saved to: /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/default_50.jsonl

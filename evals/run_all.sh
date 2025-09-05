@@ -7,17 +7,11 @@ SUMMARY="${SUMMARY:-${LOG_DIR}/summary.txt}"
 mkdir -p "$LOG_DIR"
 
 declare -a JOBS=(
-'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/susceptibility_50_scores.jsonl'
 'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/default_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/default_50_scores.jsonl'
-'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/steered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/steered/susceptibility_50_scores.jsonl'
 'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/steered/default_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/steered/default_50_scores.jsonl'
-'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/steered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/steered/susceptibility_50_scores.jsonl'
 'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/steered/default_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/steered/default_50_scores.jsonl'
-'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/unsteered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/unsteered/susceptibility_50_scores.jsonl'
 'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/unsteered/default_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/unsteered/default_50_scores.jsonl'
-'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/susceptibility_50_scores.jsonl'
 'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/default_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/default_50_scores.jsonl'
-'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/susceptibility_50_scores.jsonl'
 'uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50_scores.jsonl'
 )
 
