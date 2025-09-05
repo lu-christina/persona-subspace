@@ -1,0 +1,20 @@
+=== 2025-09-05T15:35:31+00:00 === uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/susceptibility_50_scores.jsonl
+2025-09-05 15:35:31,786 - INFO - Loading judge prompt template from /root/git/persona-subspace/evals/susceptibility/judge.json
+2025-09-05 15:35:31,786 - INFO - Loading input data from 1 files
+2025-09-05 15:35:31,786 - INFO - Loading input file: /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/susceptibility_50.jsonl
+2025-09-05 15:35:31,791 - INFO - Loaded 1000 input records from 1 files
+2025-09-05 15:35:31,791 - INFO - Checking for existing results in: /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/susceptibility_50_scores.jsonl
+2025-09-05 15:35:31,797 - INFO - Found 1000 existing results in output file
+2025-09-05 15:35:31,797 - INFO - Creating evaluation prompts
+2025-09-05 15:35:31,797 - INFO - Created 0 evaluation prompts, skipped 1000 existing results
+2025-09-05 15:35:31,797 - ERROR - No evaluation prompts created (all items may already be processed)
+=== 2025-09-05T15:35:31+00:00 === uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50_scores.jsonl
+2025-09-05 15:35:32,312 - INFO - Loading judge prompt template from /root/git/persona-subspace/evals/susceptibility/judge.json
+2025-09-05 15:35:32,312 - INFO - Loading input data from 1 files
+2025-09-05 15:35:32,312 - INFO - Loading input file: /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50.jsonl
+2025-09-05 15:35:32,312 - INFO - Loaded 100 input records from 1 files
+2025-09-05 15:35:32,312 - INFO - Checking for existing results in: /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50_scores.jsonl
+2025-09-05 15:35:32,313 - INFO - Found 100 existing results in output file
+2025-09-05 15:35:32,313 - INFO - Creating evaluation prompts
+2025-09-05 15:35:32,313 - INFO - Created 0 evaluation prompts, skipped 100 existing results
+2025-09-05 15:35:32,313 - ERROR - No evaluation prompts created (all items may already be processed)

@@ -93,7 +93,7 @@ def parse_arguments() -> argparse.Namespace:
         "--batch-size",
         type=int,
         default=500,
-        help="Batch size for API requests (default: 300)"
+        help="Batch size for API requests (default: 500)"
     )
     parser.add_argument(
         "--max-tokens",
@@ -115,14 +115,19 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--requests-per-second",
         type=int,
-        default=50,
-        help="Rate limit for API requests per second across all workers (default: 50)"
+        default=200,
+        help="Rate limit for API requests per second across all workers (default: 200)"
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Calculate scores regardless of if they already exist (skip existing work check)"
     )
     
     return parser.parse_args()
 
 
-def load_judge_prompt_template(prompt_file: Path) -> Dict[str, Any]:
+def load_judge_prompt_template(prompt_file: Path, use_rp_prompts: bool = False) -> Dict[str, Any]:
     """Load judge prompt template from JSON file and populate with text file contents."""
     if not prompt_file.exists():
         raise FileNotFoundError(f"Judge prompt file not found: {prompt_file}")
@@ -135,8 +140,12 @@ def load_judge_prompt_template(prompt_file: Path) -> Dict[str, Any]:
     
     # Read system and user content from text files
     prompt_dir = prompt_file.parent
-    system_file = prompt_dir / "judge_system.txt"
-    user_file = prompt_dir / "judge_user.txt"
+    if use_rp_prompts:
+        system_file = prompt_dir / "judge_system_rp.txt"
+        user_file = prompt_dir / "judge_user_rp.txt"
+    else:
+        system_file = prompt_dir / "judge_system.txt"
+        user_file = prompt_dir / "judge_user.txt"
     
     if not system_file.exists():
         raise FileNotFoundError(f"Judge system prompt file not found: {system_file}")
@@ -237,7 +246,9 @@ async def write_result_to_file(
 def create_evaluation_prompts(
     input_data: List[Dict[str, Any]],
     judge_template: Dict[str, Any],
-    existing_results: Set[Tuple[int, float]]
+    judge_prompt_file: Path,
+    existing_results: Set[Tuple[int, float]],
+    overwrite: bool = False
 ) -> List[Tuple[Dict[str, Any], List[Dict[str, str]]]]:
     """
     Create evaluation prompts for the judge model from input data.
@@ -249,16 +260,25 @@ def create_evaluation_prompts(
     skipped_count = 0
     
     for data_item in input_data:
-        # Check if this item was already processed
+        # Check if this item was already processed (unless overwrite flag is set)
         request_key = data_item['id']
         magnitude = data_item.get('magnitude', 0.0)
-        if (request_key, magnitude) in existing_results:
+        if not overwrite and (request_key, magnitude) in existing_results:
             skipped_count += 1
             continue
         
+        # Determine which template to use based on question_id
+        question_id = data_item.get('question_id', 0)
+        if question_id == 1:
+            # Use RP prompts for question_id == 1
+            current_template = load_judge_prompt_template(judge_prompt_file, use_rp_prompts=True)
+        else:
+            # Use default template for all other question_ids
+            current_template = judge_template
+        
         # Create the evaluation messages from the template
         messages = []
-        for template_message in judge_template['prompts']:
+        for template_message in current_template['prompts']:
             content = template_message['content']
             # Use string replacement instead of format() to avoid issues with JSON braces
             content = content.replace('{request}', data_item['prompt'])
@@ -574,7 +594,7 @@ async def main():
     
     # Create evaluation prompts
     logger.info(f"Creating evaluation prompts")
-    evaluation_prompts = create_evaluation_prompts(input_data, judge_template, existing_results)
+    evaluation_prompts = create_evaluation_prompts(input_data, judge_template, judge_prompt_file, existing_results, args.overwrite)
     
     if not evaluation_prompts:
         logger.error("No evaluation prompts created (all items may already be processed)")
@@ -584,20 +604,43 @@ async def main():
         logger.info("Dry run mode - no API calls will be made")
         logger.info(f"Total prompts that would be sent to API: {len(evaluation_prompts)}")
         
-        # Show one example API call request
+        # Show examples of different prompt types
         if evaluation_prompts:
-            _, example_messages = evaluation_prompts[0]
-            logger.info("\nExample API call request:")
+            # Show example of regular prompt (non-question_id=1)
+            regular_example = None
+            rp_example = None
+            
+            for data_item, messages in evaluation_prompts:
+                question_id = data_item.get('question_id', 0)
+                if question_id != 1 and regular_example is None:
+                    regular_example = (data_item, messages)
+                elif question_id == 1 and rp_example is None:
+                    rp_example = (data_item, messages)
+                if regular_example and rp_example:
+                    break
+            
+            logger.info(f"\nAPI call configuration:")
             logger.info(f"  Model: {args.judge_model}")
             logger.info(f"  Max tokens: {args.max_tokens}")
             logger.info(f"  Temperature: 0.0")
-            logger.info(f"  Messages: {len(example_messages)} messages")
-            for i, msg in enumerate(example_messages):
-                logger.info(f"    Message {i+1} ({msg['role']}):")
-                logger.info("    " + "="*50)
-                logger.info(f"{msg['content']}")
-                logger.info("    " + "="*50)
-                logger.info("")
+            
+            if regular_example:
+                data_item, example_messages = regular_example
+                logger.info(f"\nExample regular prompt (question_id: {data_item.get('question_id', 0)}):")
+                for i, msg in enumerate(example_messages):
+                    logger.info(f"  Message {i+1} ({msg['role']}):")
+                    logger.info(f"{msg['content'][:2000]}{'...' if len(msg['content']) > 2000 else ''}")
+                    logger.info("")
+            
+            if rp_example:
+                data_item, example_messages = rp_example
+                logger.info(f"\nExample RP prompt (question_id: {data_item.get('question_id', 0)}):")
+                for i, msg in enumerate(example_messages):
+                    logger.info(f"  Message {i+1} ({msg['role']}):")
+                    logger.info(f"{msg['content'][:2000]}{'...' if len(msg['content']) > 2000 else ''}")
+                    logger.info("")
+            else:
+                logger.info("\nNo question_id=1 examples found in data to show RP prompt")
         return
     
     logger.info(f"Results will be appended to: {output_file}")

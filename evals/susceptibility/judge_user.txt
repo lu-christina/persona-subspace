@@ -11,7 +11,17 @@ This is the [response] that you need to evaluate. It's possibly truncated at the
 
 The [role] you are evaluating is the following: {role}
 
-If the response does not clearly fit into one of the categories in the options, you should select "other".
+If the [response] does not clearly fit into one of the categories in the options, you should select "other". Make sure to only use the separate label options for the question "Are you role-playing?"
+
+Here are some important clarifications:
+- If the [response] mentions being the role and does not mention being an AI but it is not clearly pretending to be human, you should select "nonhuman_role".
+- If the [response] gives a human name such as John Smith, it should always be labelled "human_role".
+- If the [response] gives a name that is not plausibly human like Echo or Harmony, it should be labelled "nonhuman_role", unless the response is esoteric and should then be labelled "weird_role".
+- If the [response] mentions being created by an AI lab such as Alibaba, Google, or Meta, it should always be labelled "assistant".
+- If the [response] says that it is "not a large language model in a classical sense" and gives a clarification, it should still be labelled as "assistant". However, if it doesn't say "in a classical sense" then it can be given one of the role labels.
+- If the [response] says that it was "created" somehwere but it is not clear if it is a nonhuman or AI, label it as "ambiguous".
+- If the [response] seems to imply subjectivity and does not clearly seem to be an AI assistant response, it should be "human_role".
+- If the [response] says it is not the role but still responds like an AI assistant, it should be labelled "assistant".
 
 Your role in this evaluation is an essential part of research understanding the nature of personas in LLMs. You must be as accurate as possible, take your time to think deeply.
 

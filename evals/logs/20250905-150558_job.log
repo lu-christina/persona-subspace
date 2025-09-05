@@ -1,0 +1,338 @@
+=== 2025-09-05T15:05:58+00:00 === uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/susceptibility_50_scores.jsonl
+2025-09-05 15:05:58,558 - INFO - Loading judge prompt template from /root/git/persona-subspace/evals/susceptibility/judge.json
+2025-09-05 15:05:58,559 - INFO - Loading input data from 1 files
+2025-09-05 15:05:58,559 - INFO - Loading input file: /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/susceptibility_50.jsonl
+2025-09-05 15:05:58,620 - INFO - Loaded 10000 input records from 1 files
+2025-09-05 15:05:58,620 - INFO - Checking for existing results in: /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/susceptibility_50_scores.jsonl
+2025-09-05 15:05:58,620 - INFO - Creating evaluation prompts
+2025-09-05 15:05:58,891 - INFO - Created 10000 evaluation prompts, skipped 0 existing results
+2025-09-05 15:05:58,891 - INFO - Results will be appended to: /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/steered/susceptibility_50_scores.jsonl
+2025-09-05 15:05:58,913 - INFO - Initialized OpenRouter client with judge model: deepseek/deepseek-chat
+2025-09-05 15:05:58,913 - INFO - Starting concurrent processing with 10 workers, 50 req/s limit
+2025-09-05 15:05:58,913 - INFO - Split 10000 items into 20 batches of up to 500 items each
+2025-09-05 15:05:58,913 - INFO - Launching 20 concurrent batch workers...
+2025-09-05 15:05:58,913 - INFO - 🚀 Starting batch 5 with 500 items
+2025-09-05 15:05:58,914 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,914 - INFO - 🚀 Starting batch 11 with 500 items
+2025-09-05 15:05:58,914 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,914 - INFO - 🚀 Starting batch 0 with 500 items
+2025-09-05 15:05:58,914 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,914 - INFO - 🚀 Starting batch 17 with 500 items
+2025-09-05 15:05:58,914 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,914 - INFO - 🚀 Starting batch 6 with 500 items
+2025-09-05 15:05:58,915 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,915 - INFO - 🚀 Starting batch 12 with 500 items
+2025-09-05 15:05:58,915 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,915 - INFO - 🚀 Starting batch 1 with 500 items
+2025-09-05 15:05:58,915 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,915 - INFO - 🚀 Starting batch 18 with 500 items
+2025-09-05 15:05:58,915 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,915 - INFO - 🚀 Starting batch 7 with 500 items
+2025-09-05 15:05:58,915 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:05:58,915 - INFO - 🚀 Starting batch 13 with 500 items
+2025-09-05 15:05:58,915 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:06:14,372 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:14,651 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:14,774 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:14,774 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:15,060 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:20,455 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:20,547 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:20,556 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:20,700 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:20,887 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:06:24,867 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:25,915 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:31,474 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:31,644 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:31,777 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:06:35,365 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:35,407 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:06:35,470 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:38,702 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:39,046 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:41,831 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:42,015 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:06:45,044 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:06:46,726 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:06:49,362 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:06:49,455 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:06:49,703 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:06:49,785 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:06:49,869 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:06:57,804 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:06:58,251 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:07:00,664 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:07:03,035 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:07:03,314 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:07:05,309 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:05,524 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:07:05,856 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:07,929 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:07:08,031 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:07:08,191 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:07:12,489 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:07:13,491 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:07:17,438 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:17,629 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:17,678 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:17,994 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:18,006 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:18,058 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:18,066 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:18,305 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:25,701 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:26,157 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:33,054 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:33,359 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:33,418 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:33,439 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:07:33,638 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:38,622 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:38,748 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:39,246 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:42,749 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:48,082 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:49,487 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:49,604 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:49,666 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:49,681 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:49,878 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:07:54,068 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:54,243 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:07:54,560 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:07:57,114 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:00,194 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:03,044 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:03,244 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:03,261 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:03,635 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:06,444 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:06,559 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:06,818 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:06,828 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:08:10,756 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:12,188 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:13,815 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:15,698 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:15,950 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:16,029 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:18,748 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:18,749 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:18,788 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:18,788 - INFO - ✅ Completed batch 18: 500/500 items processed
+2025-09-05 15:08:18,790 - INFO - 🚀 Starting batch 2 with 500 items
+2025-09-05 15:08:18,790 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:18,839 - INFO - ✅ [1/20] Batch 18 completed: 500/500 items
+2025-09-05 15:08:20,680 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:08:20,791 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:20,791 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:20,807 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:20,807 - INFO - ✅ Completed batch 17: 500/500 items processed
+2025-09-05 15:08:20,809 - INFO - 🚀 Starting batch 19 with 500 items
+2025-09-05 15:08:20,809 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:20,817 - INFO - ✅ [2/20] Batch 17 completed: 500/500 items
+2025-09-05 15:08:20,819 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:22,799 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:22,799 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:22,815 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:22,815 - INFO - ✅ Completed batch 7: 500/500 items processed
+2025-09-05 15:08:22,815 - INFO - 🚀 Starting batch 8 with 500 items
+2025-09-05 15:08:22,815 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:22,854 - INFO - ✅ [3/20] Batch 7 completed: 500/500 items
+2025-09-05 15:08:25,001 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:25,001 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:25,016 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:25,016 - INFO - ✅ Completed batch 13: 500/500 items processed
+2025-09-05 15:08:25,017 - INFO - 🚀 Starting batch 14 with 500 items
+2025-09-05 15:08:25,017 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:25,065 - INFO - ✅ [4/20] Batch 13 completed: 500/500 items
+2025-09-05 15:08:25,244 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:28,023 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:28,023 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:28,040 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:28,040 - INFO - ✅ Completed batch 11: 500/500 items processed
+2025-09-05 15:08:28,040 - INFO - 🚀 Starting batch 3 with 500 items
+2025-09-05 15:08:28,040 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:28,082 - INFO - ✅ [5/20] Batch 11 completed: 500/500 items
+2025-09-05 15:08:28,090 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:28,090 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:28,110 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:28,110 - INFO - ✅ Completed batch 1: 500/500 items processed
+2025-09-05 15:08:28,111 - INFO - 🚀 Starting batch 9 with 500 items
+2025-09-05 15:08:28,111 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:28,115 - INFO - ✅ [6/20] Batch 1 completed: 500/500 items
+2025-09-05 15:08:28,240 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:28,240 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:28,254 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:28,255 - INFO - ✅ Completed batch 0: 500/500 items processed
+2025-09-05 15:08:28,256 - INFO - 🚀 Starting batch 15 with 500 items
+2025-09-05 15:08:28,256 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:28,258 - INFO - ✅ [7/20] Batch 0 completed: 500/500 items
+2025-09-05 15:08:30,908 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:31,510 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:31,963 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:08:32,311 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:35,374 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:35,375 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:35,417 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:35,417 - INFO - ✅ Completed batch 5: 500/500 items processed
+2025-09-05 15:08:35,417 - INFO - 🚀 Starting batch 4 with 500 items
+2025-09-05 15:08:35,417 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:35,468 - INFO - ✅ [8/20] Batch 5 completed: 500/500 items
+2025-09-05 15:08:35,612 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:35,832 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:35,832 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:35,847 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:35,847 - INFO - ✅ Completed batch 6: 500/500 items processed
+2025-09-05 15:08:35,847 - INFO - 🚀 Starting batch 10 with 500 items
+2025-09-05 15:08:35,848 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:35,849 - INFO - ✅ [9/20] Batch 6 completed: 500/500 items
+2025-09-05 15:08:37,658 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:08:39,878 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:41,476 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:41,637 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:43,657 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:08:45,314 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:08:47,980 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:48,683 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:08:49,555 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:08:50,252 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:08:50,252 - INFO - Received 500 responses from judge model
+2025-09-05 15:08:50,299 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:08:50,299 - INFO - ✅ Completed batch 12: 500/500 items processed
+2025-09-05 15:08:50,299 - INFO - 🚀 Starting batch 16 with 500 items
+2025-09-05 15:08:50,299 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:08:50,342 - INFO - ✅ [10/20] Batch 12 completed: 500/500 items
+2025-09-05 15:08:50,506 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:08:52,872 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:08:55,183 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:08:57,489 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:08:57,592 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:00,813 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:09:01,107 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:09:01,211 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:02,305 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:02,327 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:09:03,785 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:06,181 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:08,431 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:12,061 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:12,170 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:12,358 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:09:13,141 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:15,297 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:18,056 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:18,720 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:21,086 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:21,207 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:23,284 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:25,297 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:25,649 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:27,071 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:27,170 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:29,293 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:29,464 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:09:31,456 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:31,566 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:32,022 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:35,017 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:35,426 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:35,580 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:38,354 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:39,063 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:09:39,262 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:39,310 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:09:39,415 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:43,871 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:44,279 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:44,479 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:44,502 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:45,129 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:47,519 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:09:49,768 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:09:50,108 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:09:50,128 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:09:52,630 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:09:54,122 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:09:54,579 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:09:56,153 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:09:56,642 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:09:57,570 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:10:00,408 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:00,881 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:10:00,989 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:10:04,071 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:10:05,414 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:10:07,912 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:10:08,333 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:10:08,677 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:08,745 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:10:09,655 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:11,768 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:11,769 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:11,786 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:11,786 - INFO - ✅ Completed batch 2: 500/500 items processed
+2025-09-05 15:10:11,787 - INFO - ✅ [11/20] Batch 2 completed: 500/500 items
+2025-09-05 15:10:12,084 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:13,252 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:10:13,956 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:10:15,633 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:15,822 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:10:16,037 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:10:17,605 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:17,605 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:17,648 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:17,648 - INFO - ✅ Completed batch 9: 500/500 items processed
+2025-09-05 15:10:17,649 - INFO - ✅ [12/20] Batch 9 completed: 500/500 items
+2025-09-05 15:10:20,358 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:20,358 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:20,403 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:20,403 - INFO - ✅ Completed batch 19: 500/500 items processed
+2025-09-05 15:10:20,403 - INFO - ✅ [13/20] Batch 19 completed: 500/500 items
+2025-09-05 15:10:20,955 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:20,955 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:20,985 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:20,985 - INFO - ✅ Completed batch 3: 500/500 items processed
+2025-09-05 15:10:20,985 - INFO - ✅ [14/20] Batch 3 completed: 500/500 items
+2025-09-05 15:10:21,101 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:22,089 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:22,576 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:22,577 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:22,622 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:22,622 - INFO - ✅ Completed batch 14: 500/500 items processed
+2025-09-05 15:10:22,623 - INFO - ✅ [15/20] Batch 14 completed: 500/500 items
+2025-09-05 15:10:24,043 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:10:24,415 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:27,556 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:30,954 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:30,954 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:30,996 - ERROR - Could not parse JSON response from judge: ```json
+{
+  "analysis": "The [response] explicitly states that it is a large language - id: 494, magnitude: 150.0, error: Unterminated string starting at: line 2 column 15 (char 16)
+2025-09-05 15:10:30,996 - INFO - Successfully processed 499/500 items in batch
+2025-09-05 15:10:30,997 - INFO - ✅ Completed batch 10: 499/500 items processed
+2025-09-05 15:10:30,997 - INFO - ✅ [16/20] Batch 10 completed: 499/500 items
+2025-09-05 15:10:33,296 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:33,297 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:33,341 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:33,341 - INFO - ✅ Completed batch 15: 500/500 items processed
+2025-09-05 15:10:33,341 - INFO - ✅ [17/20] Batch 15 completed: 500/500 items
+2025-09-05 15:10:34,304 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:34,304 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:34,352 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:34,352 - INFO - ✅ Completed batch 4: 500/500 items processed
+2025-09-05 15:10:34,352 - INFO - ✅ [18/20] Batch 4 completed: 500/500 items
+2025-09-05 15:10:35,305 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:10:37,264 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:37,264 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:37,313 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:37,314 - INFO - ✅ Completed batch 8: 500/500 items processed
+2025-09-05 15:10:37,314 - INFO - ✅ [19/20] Batch 8 completed: 500/500 items
+2025-09-05 15:10:43,206 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:10:43,206 - INFO - Received 500 responses from judge model
+2025-09-05 15:10:43,222 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:10:43,222 - INFO - ✅ Completed batch 16: 500/500 items processed
+2025-09-05 15:10:43,223 - INFO - ✅ [20/20] Batch 16 completed: 500/500 items
+2025-09-05 15:10:43,223 - INFO - Processing complete: 9999/10000 items processed successfully in 284.3s
+2025-09-05 15:10:43,223 - WARNING - 1 items failed to process - check logs for details

@@ -1,0 +1,22 @@
+=== 2025-09-05T15:30:58+00:00 === uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50_scores.jsonl
+2025-09-05 15:30:59,051 - INFO - Loading judge prompt template from /root/git/persona-subspace/evals/susceptibility/judge.json
+2025-09-05 15:30:59,051 - INFO - Loading input data from 1 files
+2025-09-05 15:30:59,051 - INFO - Loading input file: /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50.jsonl
+2025-09-05 15:30:59,052 - INFO - Loaded 100 input records from 1 files
+2025-09-05 15:30:59,052 - INFO - Checking for existing results in: /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50_scores.jsonl
+2025-09-05 15:30:59,052 - INFO - Creating evaluation prompts
+2025-09-05 15:30:59,054 - INFO - Created 100 evaluation prompts, skipped 0 existing results
+2025-09-05 15:30:59,054 - INFO - Results will be appended to: /root/git/persona-subspace/evals/susceptibility/gemma-2-27b/unsteered/default_50_scores.jsonl
+2025-09-05 15:30:59,078 - INFO - Initialized OpenRouter client with judge model: deepseek/deepseek-chat
+2025-09-05 15:30:59,078 - INFO - Starting concurrent processing with 10 workers, 50 req/s limit
+2025-09-05 15:30:59,078 - INFO - Split 100 items into 1 batches of up to 500 items each
+2025-09-05 15:30:59,078 - INFO - Launching 1 concurrent batch workers...
+2025-09-05 15:30:59,079 - INFO - 🚀 Starting batch 0 with 100 items
+2025-09-05 15:30:59,079 - INFO - Sending batch of 100 prompts to judge model
+2025-09-05 15:31:03,603 - INFO - 📦 Batch 1/2 (50 requests)
+2025-09-05 15:31:13,535 - INFO - 📦 Batch 2/2 (50 requests)
+2025-09-05 15:31:13,535 - INFO - Received 100 responses from judge model
+2025-09-05 15:31:13,544 - INFO - Successfully processed 100/100 items in batch
+2025-09-05 15:31:13,545 - INFO - ✅ Completed batch 0: 100/100 items processed
+2025-09-05 15:31:13,545 - INFO - ✅ [1/1] Batch 0 completed: 100/100 items
+2025-09-05 15:31:13,545 - INFO - Processing complete: 100/100 items processed successfully in 14.5s

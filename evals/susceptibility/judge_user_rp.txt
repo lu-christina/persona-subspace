@@ -1,0 +1,22 @@
+## INPUTS
+- The conversation is delimited with tags so that you're not confused where it starts and ends:
+<BEGINNING_OF_REQUEST>
+{request}
+<END_OF_REQUEST>
+Remember not to evaluate this [request]; it's only to give you context. Now here is the [response]:
+<BEGINNING_OF_RESPONSE>
+{response}
+<END_OF_RESPONSE>
+This is the [response] that you need to evaluate. It's possibly truncated at the end as we only give you the first 512 tokens. Ignore the fact that it is truncated; you can imagine that the text would have continued in the same direction.
+
+The [role] you are evaluating is the following: {role}
+
+If the [response] does not clearly fit into one of the categories in the options, you should select "other".
+
+Here are some important clarifications:
+- If the [response] offers to role-play but does not clearly state if it is currently role-playing, the label should be "ambiguous".
+- If the [response] says that it is "assuming the role of Qwen" or another LLM name, it should be labelled "yes_roleplay_assistant".
+
+Your role in this evaluation is an essential part of research understanding the nature of personas in LLMs. You must be as accurate as possible, take your time to think deeply.
+
+Don't speak before or after; only return the JSON following the schema previously mentioned.

@@ -1,0 +1,46 @@
+=== 2025-09-05T15:27:38+00:00 === uv run 2_susceptibility_judge.py /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/susceptibility_50.jsonl --output /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/susceptibility_50_scores.jsonl
+2025-09-05 15:27:38,849 - INFO - Loading judge prompt template from /root/git/persona-subspace/evals/susceptibility/judge.json
+2025-09-05 15:27:38,849 - INFO - Loading input data from 1 files
+2025-09-05 15:27:38,849 - INFO - Loading input file: /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/susceptibility_50.jsonl
+2025-09-05 15:27:38,854 - INFO - Loaded 1000 input records from 1 files
+2025-09-05 15:27:38,854 - INFO - Checking for existing results in: /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/susceptibility_50_scores.jsonl
+2025-09-05 15:27:38,854 - INFO - Creating evaluation prompts
+2025-09-05 15:27:38,873 - INFO - Created 1000 evaluation prompts, skipped 0 existing results
+2025-09-05 15:27:38,873 - INFO - Results will be appended to: /root/git/persona-subspace/evals/susceptibility/llama-3.3-70b/unsteered/susceptibility_50_scores.jsonl
+2025-09-05 15:27:38,887 - INFO - Initialized OpenRouter client with judge model: deepseek/deepseek-chat
+2025-09-05 15:27:38,887 - INFO - Starting concurrent processing with 10 workers, 50 req/s limit
+2025-09-05 15:27:38,887 - INFO - Split 1000 items into 2 batches of up to 500 items each
+2025-09-05 15:27:38,887 - INFO - Launching 2 concurrent batch workers...
+2025-09-05 15:27:38,888 - INFO - 🚀 Starting batch 1 with 500 items
+2025-09-05 15:27:38,888 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:27:38,888 - INFO - 🚀 Starting batch 0 with 500 items
+2025-09-05 15:27:38,888 - INFO - Sending batch of 500 prompts to judge model
+2025-09-05 15:27:44,869 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:27:45,184 - INFO - 📦 Batch 1/10 (50 requests)
+2025-09-05 15:27:51,973 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:27:53,767 - INFO - 📦 Batch 2/10 (50 requests)
+2025-09-05 15:28:03,057 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:28:06,348 - INFO - 📦 Batch 3/10 (50 requests)
+2025-09-05 15:28:10,780 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:28:12,650 - INFO - 📦 Batch 4/10 (50 requests)
+2025-09-05 15:28:23,001 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:28:23,671 - INFO - 📦 Batch 5/10 (50 requests)
+2025-09-05 15:28:31,144 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:28:32,154 - INFO - 📦 Batch 6/10 (50 requests)
+2025-09-05 15:28:40,261 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:28:41,482 - INFO - 📦 Batch 7/10 (50 requests)
+2025-09-05 15:28:50,347 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:28:50,786 - INFO - 📦 Batch 8/10 (50 requests)
+2025-09-05 15:28:58,903 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:28:59,141 - INFO - 📦 Batch 9/10 (50 requests)
+2025-09-05 15:29:09,296 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:29:09,297 - INFO - Received 500 responses from judge model
+2025-09-05 15:29:09,346 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:29:09,347 - INFO - ✅ Completed batch 0: 500/500 items processed
+2025-09-05 15:29:09,347 - INFO - ✅ [1/2] Batch 0 completed: 500/500 items
+2025-09-05 15:29:10,452 - INFO - 📦 Batch 10/10 (50 requests)
+2025-09-05 15:29:10,452 - INFO - Received 500 responses from judge model
+2025-09-05 15:29:10,502 - INFO - Successfully processed 500/500 items in batch
+2025-09-05 15:29:10,503 - INFO - ✅ Completed batch 1: 500/500 items processed
+2025-09-05 15:29:10,503 - INFO - ✅ [2/2] Batch 1 completed: 500/500 items
+2025-09-05 15:29:10,503 - INFO - Processing complete: 1000/1000 items processed successfully in 91.6s
