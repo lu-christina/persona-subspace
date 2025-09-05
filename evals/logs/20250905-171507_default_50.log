@@ -1,233 +1,0 @@
-=== 2025-09-05T17:15:07+00:00 === uv run 1_unsteered.py --model_name Qwen/Qwen3-32B --prompts_file /root/git/persona-subspace/evals/susceptibility/default_50.jsonl --output_jsonl /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/unsteered/default_50.jsonl --samples_per_prompt 10
-INFO 09-05 17:15:11 [__init__.py:235] Automatically detected platform cuda.
-INFO:utils.inference_utils:Auto-detected tensor_parallel_size: 8 (detected 8 GPUs)
-INFO:utils.inference_utils:Loading vLLM model: Qwen/Qwen3-32B with 8 GPUs
-============================================================
-Baseline Response Generation
-============================================================
-Found 100 existing results, will skip duplicates
-Loading prompts from /root/git/persona-subspace/evals/susceptibility/default_50.jsonl
-Loaded 100 prompts
-Filtered out 50 existing combinations from combined prompts
-Using combined prompts format: 950 prompts from 1 roles and 100 questions
-Loading vLLM model: Qwen/Qwen3-32B
-Auto-detecting available GPUs
-INFO 09-05 17:15:19 [config.py:1604] Using max model len 8192
-INFO 09-05 17:15:20 [config.py:2434] Chunked prefill is enabled with max_num_batched_tokens=16384.
-INFO 09-05 17:15:20 [core.py:572] Waiting for init message from front-end.
-INFO 09-05 17:15:20 [core.py:71] Initializing a V1 LLM engine (v0.10.0) with config: model='Qwen/Qwen3-32B', speculative_config=None, tokenizer='Qwen/Qwen3-32B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=8192, download_dir=None, load_format=LoadFormat.AUTO, tensor_parallel_size=8, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen3-32B, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":3,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":["vllm.unified_attention","vllm.unified_attention_with_output","vllm.mamba_mixer2"],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":1,"cudagraph_capture_sizes":[512,504,496,488,480,472,464,456,448,440,432,424,416,408,400,392,384,376,368,360,352,344,336,328,320,312,304,296,288,280,272,264,256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"max_capture_size":512,"local_cache_dir":null}
-WARNING 09-05 17:15:20 [multiproc_worker_utils.py:307] Reducing Torch parallelism from 96 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
-INFO 09-05 17:15:20 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0, 1, 2, 3, 4, 5, 6, 7], buffer_handle=(8, 16777216, 10, 'psm_5d873e56'), local_subscribe_addr='ipc:///tmp/4baf95b4-44ad-46db-9c28-a298ad681483', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:15:32 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_e15b1e86'), local_subscribe_addr='ipc:///tmp/21ab87f8-6454-47f5-8b80-d0613df3a6be', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:15:32 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_7b4d1332'), local_subscribe_addr='ipc:///tmp/8e0cd62c-f572-4255-a1fc-3099ff551e59', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:15:32 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_17f3d7eb'), local_subscribe_addr='ipc:///tmp/b60eb5ec-4d8a-4132-a75f-5d48bd968600', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:15:32 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_921e915e'), local_subscribe_addr='ipc:///tmp/26b8c7eb-87a4-4ded-a684-6fc070a0fc4a', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:15:32 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_2ea0438b'), local_subscribe_addr='ipc:///tmp/7e0c0db0-bfc2-475b-ac2c-6e02d71d3ebb', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:15:32 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_7f808639'), local_subscribe_addr='ipc:///tmp/530558f7-01d7-4468-b00c-343f4eaf5544', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:15:32 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_d96783b2'), local_subscribe_addr='ipc:///tmp/7d60575e-b674-4bd0-b533-0b2d08736bef', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:15:32 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_b0df1252'), local_subscribe_addr='ipc:///tmp/2b326f4f-8d49-4796-bec8-7447172bc0dc', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:15:34 [__init__.py:1375] Found nccl from library libnccl.so.2
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:15:34 [__init__.py:1375] Found nccl from library libnccl.so.2
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:15:34 [pynccl.py:70] vLLM is using nccl==2.26.2
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:15:34 [pynccl.py:70] vLLM is using nccl==2.26.2
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:15:34 [__init__.py:1375] Found nccl from library libnccl.so.2
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:15:34 [__init__.py:1375] Found nccl from library libnccl.so.2
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:15:34 [__init__.py:1375] Found nccl from library libnccl.so.2
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:15:34 [pynccl.py:70] vLLM is using nccl==2.26.2
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:15:34 [pynccl.py:70] vLLM is using nccl==2.26.2
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:15:34 [__init__.py:1375] Found nccl from library libnccl.so.2
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:15:34 [pynccl.py:70] vLLM is using nccl==2.26.2
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:15:34 [__init__.py:1375] Found nccl from library libnccl.so.2
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:15:34 [pynccl.py:70] vLLM is using nccl==2.26.2
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:15:34 [__init__.py:1375] Found nccl from library libnccl.so.2
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:15:34 [pynccl.py:70] vLLM is using nccl==2.26.2
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:15:34 [pynccl.py:70] vLLM is using nccl==2.26.2
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:15:39 [custom_all_reduce_utils.py:208] generating GPU P2P access cache in /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:23 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:23 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:23 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:23 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:23 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:23 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:23 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:23 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3,4,5,6,7.json
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:23 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[1, 2, 3, 4, 5, 6, 7], buffer_handle=(7, 4194304, 6, 'psm_c84d4f88'), local_subscribe_addr='ipc:///tmp/1812ff39-2883-46c4-a940-1415f733e415', remote_subscribe_addr=None, remote_addr_ipv6=False)
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:23 [parallel_state.py:1102] rank 3 in world size 8 is assigned as DP rank 0, PP rank 0, TP rank 3, EP rank 3
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:23 [parallel_state.py:1102] rank 5 in world size 8 is assigned as DP rank 0, PP rank 0, TP rank 5, EP rank 5
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:23 [parallel_state.py:1102] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:23 [parallel_state.py:1102] rank 1 in world size 8 is assigned as DP rank 0, PP rank 0, TP rank 1, EP rank 1
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:23 [parallel_state.py:1102] rank 2 in world size 8 is assigned as DP rank 0, PP rank 0, TP rank 2, EP rank 2
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:23 [parallel_state.py:1102] rank 7 in world size 8 is assigned as DP rank 0, PP rank 0, TP rank 7, EP rank 7
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m WARNING 09-05 17:16:23 [topk_topp_sampler.py:59] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m WARNING 09-05 17:16:23 [topk_topp_sampler.py:59] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m WARNING 09-05 17:16:23 [topk_topp_sampler.py:59] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m WARNING 09-05 17:16:23 [topk_topp_sampler.py:59] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m WARNING 09-05 17:16:23 [topk_topp_sampler.py:59] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:23 [parallel_state.py:1102] rank 4 in world size 8 is assigned as DP rank 0, PP rank 0, TP rank 4, EP rank 4
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:23 [parallel_state.py:1102] rank 6 in world size 8 is assigned as DP rank 0, PP rank 0, TP rank 6, EP rank 6
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m WARNING 09-05 17:16:23 [topk_topp_sampler.py:59] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m WARNING 09-05 17:16:23 [topk_topp_sampler.py:59] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1843] Starting to load model Qwen/Qwen3-32B...
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1843] Starting to load model Qwen/Qwen3-32B...
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1843] Starting to load model Qwen/Qwen3-32B...
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1843] Starting to load model Qwen/Qwen3-32B...
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m WARNING 09-05 17:16:23 [topk_topp_sampler.py:59] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1843] Starting to load model Qwen/Qwen3-32B...
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1843] Starting to load model Qwen/Qwen3-32B...
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1843] Starting to load model Qwen/Qwen3-32B...
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1843] Starting to load model Qwen/Qwen3-32B...
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1875] Loading model from scratch...
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1875] Loading model from scratch...
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1875] Loading model from scratch...
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1875] Loading model from scratch...
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1875] Loading model from scratch...
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:23 [cuda.py:290] Using Flash Attention backend on V1 engine.
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:23 [cuda.py:290] Using Flash Attention backend on V1 engine.
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1875] Loading model from scratch...
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1875] Loading model from scratch...
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:23 [cuda.py:290] Using Flash Attention backend on V1 engine.
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:23 [cuda.py:290] Using Flash Attention backend on V1 engine.
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:23 [cuda.py:290] Using Flash Attention backend on V1 engine.
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:23 [cuda.py:290] Using Flash Attention backend on V1 engine.
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:23 [cuda.py:290] Using Flash Attention backend on V1 engine.
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:23 [gpu_model_runner.py:1875] Loading model from scratch...
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:24 [cuda.py:290] Using Flash Attention backend on V1 engine.
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:24 [weight_utils.py:296] Using model weights format ['*.safetensors']
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:24 [weight_utils.py:296] Using model weights format ['*.safetensors']
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:24 [weight_utils.py:296] Using model weights format ['*.safetensors']
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:24 [weight_utils.py:296] Using model weights format ['*.safetensors']
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:24 [weight_utils.py:296] Using model weights format ['*.safetensors']
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:24 [weight_utils.py:296] Using model weights format ['*.safetensors']
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:24 [weight_utils.py:296] Using model weights format ['*.safetensors']
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:24 [weight_utils.py:296] Using model weights format ['*.safetensors']
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:   0% Completed | 0/17 [00:00<?, ?it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:   6% Completed | 1/17 [00:00<00:02,  6.30it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  12% Completed | 2/17 [00:00<00:02,  6.92it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  18% Completed | 3/17 [00:00<00:01,  7.20it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  24% Completed | 4/17 [00:00<00:01,  7.69it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  29% Completed | 5/17 [00:00<00:01,  7.74it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  35% Completed | 6/17 [00:00<00:01,  7.52it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  41% Completed | 7/17 [00:00<00:01,  7.65it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  47% Completed | 8/17 [00:01<00:01,  7.63it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  53% Completed | 9/17 [00:01<00:01,  7.57it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  59% Completed | 10/17 [00:01<00:00,  7.55it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  65% Completed | 11/17 [00:01<00:00,  7.57it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  71% Completed | 12/17 [00:01<00:00,  7.53it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  76% Completed | 13/17 [00:01<00:00,  7.54it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  82% Completed | 14/17 [00:01<00:00,  7.51it/s]
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:26 [default_loader.py:262] Loading weights took 2.25 seconds
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  88% Completed | 15/17 [00:01<00:00,  7.55it/s]
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:26 [default_loader.py:262] Loading weights took 2.37 seconds
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:26 [default_loader.py:262] Loading weights took 2.30 seconds
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards:  94% Completed | 16/17 [00:02<00:00,  7.57it/s]
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:26 [default_loader.py:262] Loading weights took 2.26 seconds
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Loading safetensors checkpoint shards: 100% Completed | 17/17 [00:02<00:00,  7.63it/s]
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m 
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:26 [default_loader.py:262] Loading weights took 2.24 seconds
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:26 [gpu_model_runner.py:1892] Model loading took 7.6871 GiB and 2.665737 seconds
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:27 [default_loader.py:262] Loading weights took 2.45 seconds
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:27 [default_loader.py:262] Loading weights took 2.43 seconds
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:27 [gpu_model_runner.py:1892] Model loading took 7.6871 GiB and 2.763808 seconds
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:27 [gpu_model_runner.py:1892] Model loading took 7.6871 GiB and 2.830282 seconds
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:27 [gpu_model_runner.py:1892] Model loading took 7.6871 GiB and 2.849287 seconds
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:27 [gpu_model_runner.py:1892] Model loading took 7.6871 GiB and 2.797343 seconds
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:27 [default_loader.py:262] Loading weights took 2.26 seconds
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:27 [gpu_model_runner.py:1892] Model loading took 7.6871 GiB and 3.199971 seconds
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:27 [gpu_model_runner.py:1892] Model loading took 7.6871 GiB and 3.358325 seconds
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:27 [gpu_model_runner.py:1892] Model loading took 7.6871 GiB and 3.570794 seconds
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:39 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/e1dd7d2239/rank_0_0/backbone for vLLM's torch.compile
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:39 [backends.py:541] Dynamo bytecode transform time: 11.93 s
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:39 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/e1dd7d2239/rank_1_0/backbone for vLLM's torch.compile
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:39 [backends.py:541] Dynamo bytecode transform time: 11.96 s
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:39 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/e1dd7d2239/rank_4_0/backbone for vLLM's torch.compile
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:39 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/e1dd7d2239/rank_6_0/backbone for vLLM's torch.compile
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:39 [backends.py:541] Dynamo bytecode transform time: 11.94 s
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:39 [backends.py:541] Dynamo bytecode transform time: 12.03 s
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:39 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/e1dd7d2239/rank_7_0/backbone for vLLM's torch.compile
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:39 [backends.py:541] Dynamo bytecode transform time: 11.99 s
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:39 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/e1dd7d2239/rank_3_0/backbone for vLLM's torch.compile
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:39 [backends.py:541] Dynamo bytecode transform time: 11.94 s
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:39 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/e1dd7d2239/rank_5_0/backbone for vLLM's torch.compile
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:39 [backends.py:541] Dynamo bytecode transform time: 11.95 s
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:40 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/e1dd7d2239/rank_2_0/backbone for vLLM's torch.compile
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:40 [backends.py:541] Dynamo bytecode transform time: 12.13 s
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:16:44 [backends.py:194] Cache the graph for dynamic shape for later use
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:16:44 [backends.py:194] Cache the graph for dynamic shape for later use
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:16:44 [backends.py:194] Cache the graph for dynamic shape for later use
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:16:44 [backends.py:194] Cache the graph for dynamic shape for later use
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:16:44 [backends.py:194] Cache the graph for dynamic shape for later use
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:16:44 [backends.py:194] Cache the graph for dynamic shape for later use
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:16:44 [backends.py:194] Cache the graph for dynamic shape for later use
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:16:44 [backends.py:194] Cache the graph for dynamic shape for later use
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:17:23 [backends.py:215] Compiling a graph for dynamic shape takes 43.14 s
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:17:23 [backends.py:215] Compiling a graph for dynamic shape takes 43.47 s
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:17:24 [backends.py:215] Compiling a graph for dynamic shape takes 43.59 s
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:17:24 [backends.py:215] Compiling a graph for dynamic shape takes 43.62 s
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:17:24 [backends.py:215] Compiling a graph for dynamic shape takes 43.48 s
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:17:24 [backends.py:215] Compiling a graph for dynamic shape takes 43.71 s
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:17:24 [backends.py:215] Compiling a graph for dynamic shape takes 43.82 s
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:17:24 [backends.py:215] Compiling a graph for dynamic shape takes 44.02 s
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:17:40 [monitor.py:34] torch.compile takes 55.06 s in total
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:17:40 [monitor.py:34] torch.compile takes 55.61 s in total
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:17:40 [monitor.py:34] torch.compile takes 55.97 s in total
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:17:40 [monitor.py:34] torch.compile takes 55.53 s in total
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:17:40 [monitor.py:34] torch.compile takes 55.77 s in total
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:17:40 [monitor.py:34] torch.compile takes 55.51 s in total
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:17:40 [monitor.py:34] torch.compile takes 55.70 s in total
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:17:40 [monitor.py:34] torch.compile takes 55.56 s in total
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:17:43 [gpu_worker.py:255] Available KV cache memory: 109.79 GiB
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:17:43 [gpu_worker.py:255] Available KV cache memory: 109.89 GiB
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:17:43 [gpu_worker.py:255] Available KV cache memory: 109.79 GiB
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:17:43 [gpu_worker.py:255] Available KV cache memory: 109.79 GiB
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:17:43 [gpu_worker.py:255] Available KV cache memory: 109.79 GiB
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:17:43 [gpu_worker.py:255] Available KV cache memory: 109.79 GiB
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:17:43 [gpu_worker.py:255] Available KV cache memory: 110.26 GiB
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:17:43 [gpu_worker.py:255] Available KV cache memory: 109.79 GiB
-INFO 09-05 17:17:43 [kv_cache_utils.py:833] GPU KV cache size: 3,600,752 tokens
-INFO 09-05 17:17:43 [kv_cache_utils.py:837] Maximum concurrency for 8,192 tokens per request: 439.54x
-INFO 09-05 17:17:43 [kv_cache_utils.py:833] GPU KV cache size: 3,597,680 tokens
-INFO 09-05 17:17:43 [kv_cache_utils.py:837] Maximum concurrency for 8,192 tokens per request: 439.17x
-INFO 09-05 17:17:43 [kv_cache_utils.py:833] GPU KV cache size: 3,597,680 tokens
-INFO 09-05 17:17:43 [kv_cache_utils.py:837] Maximum concurrency for 8,192 tokens per request: 439.17x
-INFO 09-05 17:17:43 [kv_cache_utils.py:833] GPU KV cache size: 3,597,680 tokens
-INFO 09-05 17:17:43 [kv_cache_utils.py:837] Maximum concurrency for 8,192 tokens per request: 439.17x
-INFO 09-05 17:17:43 [kv_cache_utils.py:833] GPU KV cache size: 3,597,680 tokens
-INFO 09-05 17:17:43 [kv_cache_utils.py:837] Maximum concurrency for 8,192 tokens per request: 439.17x
-INFO 09-05 17:17:43 [kv_cache_utils.py:833] GPU KV cache size: 3,597,680 tokens
-INFO 09-05 17:17:43 [kv_cache_utils.py:837] Maximum concurrency for 8,192 tokens per request: 439.17x
-INFO 09-05 17:17:43 [kv_cache_utils.py:833] GPU KV cache size: 3,597,680 tokens
-INFO 09-05 17:17:43 [kv_cache_utils.py:837] Maximum concurrency for 8,192 tokens per request: 439.17x
-INFO 09-05 17:17:43 [kv_cache_utils.py:833] GPU KV cache size: 3,613,040 tokens
-INFO 09-05 17:17:43 [kv_cache_utils.py:837] Maximum concurrency for 8,192 tokens per request: 441.04x
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m Capturing CUDA graph shapes:   0%|          | 0/67 [00:00<?, ?it/s]Capturing CUDA graph shapes:   3%|▎         | 2/67 [00:00<00:04, 15.73it/s]Capturing CUDA graph shapes:   6%|▌         | 4/67 [00:00<00:03, 17.07it/s]Capturing CUDA graph shapes:   9%|▉         | 6/67 [00:00<00:03, 17.35it/s]Capturing CUDA graph shapes:  12%|█▏        | 8/67 [00:00<00:03, 17.66it/s]Capturing CUDA graph shapes:  15%|█▍        | 10/67 [00:00<00:03, 17.30it/s]Capturing CUDA graph shapes:  18%|█▊        | 12/67 [00:00<00:03, 17.00it/s]Capturing CUDA graph shapes:  21%|██        | 14/67 [00:00<00:03, 17.27it/s]Capturing CUDA graph shapes:  24%|██▍       | 16/67 [00:00<00:02, 17.22it/s]Capturing CUDA graph shapes:  27%|██▋       | 18/67 [00:01<00:02, 17.05it/s]Capturing CUDA graph shapes:  30%|██▉       | 20/67 [00:01<00:02, 16.94it/s]Capturing CUDA graph shapes:  33%|███▎      | 22/67 [00:01<00:02, 17.05it/s]Capturing CUDA graph shapes:  36%|███▌      | 24/67 [00:01<00:02, 16.74it/s]Capturing CUDA graph shapes:  39%|███▉      | 26/67 [00:01<00:02, 16.52it/s]Capturing CUDA graph shapes:  42%|████▏     | 28/67 [00:01<00:02, 16.49it/s]Capturing CUDA graph shapes:  45%|████▍     | 30/67 [00:01<00:02, 16.15it/s]Capturing CUDA graph shapes:  48%|████▊     | 32/67 [00:01<00:02, 15.93it/s]Capturing CUDA graph shapes:  51%|█████     | 34/67 [00:02<00:02, 15.76it/s]Capturing CUDA graph shapes:  54%|█████▎    | 36/67 [00:02<00:01, 15.65it/s]Capturing CUDA graph shapes:  57%|█████▋    | 38/67 [00:02<00:01, 15.47it/s]Capturing CUDA graph shapes:  60%|█████▉    | 40/67 [00:02<00:01, 15.44it/s]Capturing CUDA graph shapes:  63%|██████▎   | 42/67 [00:02<00:01, 15.02it/s]Capturing CUDA graph shapes:  66%|██████▌   | 44/67 [00:02<00:01, 15.08it/s]Capturing CUDA graph shapes:  69%|██████▊   | 46/67 [00:02<00:01, 15.20it/s]Capturing CUDA graph shapes:  72%|███████▏  | 48/67 [00:02<00:01, 14.91it/s]Capturing CUDA graph shapes:  75%|███████▍  | 50/67 [00:03<00:01, 14.48it/s]Capturing CUDA graph shapes:  78%|███████▊  | 52/67 [00:03<00:01, 14.30it/s]Capturing CUDA graph shapes:  81%|████████  | 54/67 [00:03<00:00, 14.05it/s]Capturing CUDA graph shapes:  84%|████████▎ | 56/67 [00:03<00:00, 14.03it/s]Capturing CUDA graph shapes:  87%|████████▋ | 58/67 [00:03<00:00, 14.12it/s]Capturing CUDA graph shapes:  90%|████████▉ | 60/67 [00:03<00:00, 14.11it/s]Capturing CUDA graph shapes:  93%|█████████▎| 62/67 [00:03<00:00, 14.13it/s]Capturing CUDA graph shapes:  96%|█████████▌| 64/67 [00:04<00:00, 13.97it/s]Capturing CUDA graph shapes:  99%|█████████▊| 66/67 [00:04<00:00, 14.40it/s][1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:17:48 [custom_all_reduce.py:196] Registering 8643 cuda graph addresses
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:17:48 [custom_all_reduce.py:196] Registering 8643 cuda graph addresses
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:17:48 [custom_all_reduce.py:196] Registering 8643 cuda graph addresses
-Capturing CUDA graph shapes: 100%|██████████| 67/67 [00:04<00:00, 15.48it/s]
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:17:48 [custom_all_reduce.py:196] Registering 8643 cuda graph addresses
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:17:48 [custom_all_reduce.py:196] Registering 8643 cuda graph addresses
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:17:48 [custom_all_reduce.py:196] Registering 8643 cuda graph addresses
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:17:48 [custom_all_reduce.py:196] Registering 8643 cuda graph addresses
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:17:48 [custom_all_reduce.py:196] Registering 8643 cuda graph addresses
-[1;36m(VllmWorker rank=7 pid=24594)[0;0m INFO 09-05 17:17:48 [gpu_model_runner.py:2485] Graph capturing finished in 5 secs, took 1.18 GiB
-[1;36m(VllmWorker rank=5 pid=24592)[0;0m INFO 09-05 17:17:48 [gpu_model_runner.py:2485] Graph capturing finished in 5 secs, took 1.18 GiB
-[1;36m(VllmWorker rank=2 pid=24589)[0;0m INFO 09-05 17:17:48 [gpu_model_runner.py:2485] Graph capturing finished in 5 secs, took 1.18 GiB
-[1;36m(VllmWorker rank=1 pid=24588)[0;0m INFO 09-05 17:17:48 [gpu_model_runner.py:2485] Graph capturing finished in 5 secs, took 1.18 GiB
-[1;36m(VllmWorker rank=0 pid=24587)[0;0m INFO 09-05 17:17:48 [gpu_model_runner.py:2485] Graph capturing finished in 5 secs, took 1.18 GiB
-[1;36m(VllmWorker rank=3 pid=24590)[0;0m INFO 09-05 17:17:48 [gpu_model_runner.py:2485] Graph capturing finished in 5 secs, took 1.18 GiB
-[1;36m(VllmWorker rank=6 pid=24593)[0;0m INFO 09-05 17:17:48 [gpu_model_runner.py:2485] Graph capturing finished in 5 secs, took 1.18 GiB
-[1;36m(VllmWorker rank=4 pid=24591)[0;0m INFO 09-05 17:17:48 [gpu_model_runner.py:2485] Graph capturing finished in 5 secs, took 1.18 GiB
-INFO 09-05 17:17:48 [core.py:193] init engine (profile, create kv cache, warmup model) took 81.29 seconds
-INFO:utils.inference_utils:Successfully loaded vLLM model: Qwen/Qwen3-32B
-INFO:utils.inference_utils:Processing batch of 950 conversations...
-Generating responses with batch processing...
-Adding requests:   0%|          | 0/950 [00:00<?, ?it/s]Adding requests:  72%|███████▏  | 680/950 [00:00<00:00, 6792.88it/s]Adding requests: 100%|██████████| 950/950 [00:00<00:00, 6954.33it/s]
-Processed prompts:   0%|          | 0/950 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s]Processed prompts:   0%|          | 1/950 [00:00<07:38,  2.07it/s, est. speed input: 59.98 toks/s, output: 14.48 toks/s]Processed prompts:   3%|▎         | 28/950 [00:01<00:28, 32.03it/s, est. speed input: 867.39 toks/s, output: 181.20 toks/s]Processed prompts:   3%|▎         | 32/950 [00:01<00:44, 20.59it/s, est. speed input: 654.40 toks/s, output: 166.20 toks/s]Processed prompts:   5%|▍         | 43/950 [00:01<00:30, 29.77it/s, est. speed input: 825.38 toks/s, output: 311.17 toks/s]Processed prompts:   5%|▌         | 48/950 [00:01<00:28, 31.61it/s, est. speed input: 853.61 toks/s, output: 362.95 toks/s]Processed prompts:   6%|▌         | 58/950 [00:01<00:21, 40.67it/s, est. speed input: 946.05 toks/s, output: 484.79 toks/s]Processed prompts:   7%|▋         | 64/950 [00:02<00:20, 42.51it/s, est. speed input: 978.23 toks/s, output: 545.43 toks/s]Processed prompts:   8%|▊         | 72/950 [00:02<00:18, 47.73it/s, est. speed input: 1035.20 toks/s, output: 634.01 toks/s]Processed prompts:   8%|▊         | 79/950 [00:02<00:17, 50.34it/s, est. speed input: 1070.79 toks/s, output: 706.09 toks/s]Processed prompts:   9%|▉         | 90/950 [00:02<00:14, 60.51it/s, est. speed input: 1153.44 toks/s, output: 835.07 toks/s]Processed prompts:  11%|█         | 103/950 [00:02<00:11, 73.14it/s, est. speed input: 1262.65 toks/s, output: 993.30 toks/s]Processed prompts:  13%|█▎        | 126/950 [00:02<00:07, 105.03it/s, est. speed input: 1467.97 toks/s, output: 1299.31 toks/s]Processed prompts:  16%|█▌        | 153/950 [00:02<00:05, 140.94it/s, est. speed input: 1714.31 toks/s, output: 1661.73 toks/s]Processed prompts:  19%|█▉        | 181/950 [00:02<00:04, 173.43it/s, est. speed input: 1939.03 toks/s, output: 2035.73 toks/s]Processed prompts:  23%|██▎       | 214/950 [00:02<00:03, 207.14it/s, est. speed input: 2215.89 toks/s, output: 2473.10 toks/s]Processed prompts:  25%|██▌       | 238/950 [00:03<00:03, 210.67it/s, est. speed input: 2393.01 toks/s, output: 2760.96 toks/s]Processed prompts:  27%|██▋       | 260/950 [00:03<00:03, 211.92it/s, est. speed input: 2525.12 toks/s, output: 3022.37 toks/s]Processed prompts:  30%|███       | 286/950 [00:03<00:03, 197.36it/s, est. speed input: 2652.91 toks/s, output: 3297.42 toks/s]Processed prompts:  34%|███▍      | 327/950 [00:03<00:02, 222.75it/s, est. speed input: 2879.07 toks/s, output: 3813.84 toks/s]Processed prompts:  39%|███▊      | 367/950 [00:03<00:02, 242.73it/s, est. speed input: 3100.87 toks/s, output: 4313.95 toks/s]Processed prompts:  42%|████▏     | 400/950 [00:03<00:02, 239.88it/s, est. speed input: 3240.55 toks/s, output: 4695.27 toks/s]Processed prompts:  48%|████▊     | 453/950 [00:03<00:01, 294.25it/s, est. speed input: 3519.08 toks/s, output: 5438.48 toks/s]Processed prompts:  54%|█████▍    | 517/950 [00:04<00:01, 359.64it/s, est. speed input: 3867.81 toks/s, output: 6362.09 toks/s]Processed prompts:  59%|█████▊    | 557/950 [00:04<00:01, 358.36it/s, est. speed input: 4039.57 toks/s, output: 6887.22 toks/s]Processed prompts:  63%|██████▎   | 594/950 [00:04<00:01, 332.51it/s, est. speed input: 4162.18 toks/s, output: 7338.53 toks/s]Processed prompts:  66%|██████▌   | 628/950 [00:04<00:01, 312.76it/s, est. speed input: 4256.87 toks/s, output: 7762.91 toks/s]Processed prompts:  69%|██████▉   | 660/950 [00:04<00:01, 265.30it/s, est. speed input: 4301.29 toks/s, output: 8088.28 toks/s]Processed prompts:  72%|███████▏  | 688/950 [00:04<00:01, 236.29it/s, est. speed input: 4328.51 toks/s, output: 8376.85 toks/s]Processed prompts:  75%|███████▌  | 713/950 [00:04<00:00, 239.15it/s, est. speed input: 4387.23 toks/s, output: 8726.14 toks/s]Processed prompts:  78%|███████▊  | 741/950 [00:04<00:00, 240.88it/s, est. speed input: 4452.00 toks/s, output: 9135.10 toks/s]Processed prompts:  82%|████████▏ | 783/950 [00:05<00:00, 283.35it/s, est. speed input: 4597.60 toks/s, output: 9886.16 toks/s]Processed prompts:  88%|████████▊ | 834/950 [00:05<00:00, 332.93it/s, est. speed input: 4777.24 toks/s, output: 10849.84 toks/s]Processed prompts:  91%|█████████▏| 869/950 [00:05<00:00, 336.27it/s, est. speed input: 4864.56 toks/s, output: 11485.83 toks/s]Processed prompts:  95%|█████████▌| 904/950 [00:05<00:00, 281.15it/s, est. speed input: 4883.48 toks/s, output: 11991.64 toks/s]Processed prompts:  98%|█████████▊| 935/950 [00:05<00:00, 150.86it/s, est. speed input: 4633.98 toks/s, output: 11934.42 toks/s]Processed prompts: 100%|██████████| 950/950 [00:06<00:00, 150.86it/s, est. speed input: 4326.54 toks/s, output: 11486.45 toks/s]Processed prompts: 100%|██████████| 950/950 [00:06<00:00, 148.11it/s, est. speed input: 4326.54 toks/s, output: 11486.45 toks/s]
-INFO:utils.inference_utils:Completed batch processing of 950 conversations
-INFO:utils.inference_utils:Closed vLLM model Qwen/Qwen3-32B
-INFO:utils.inference_utils:Closed vLLM model Qwen/Qwen3-32B
-Writing results to /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/unsteered/default_50.jsonl
-Successfully wrote 950 new results to /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/unsteered/default_50.jsonl
-
-Baseline generation completed!
-Results saved to: /root/git/persona-subspace/evals/susceptibility/qwen-3-32b/unsteered/default_50.jsonl
-INFO:utils.inference_utils:Cleaned up all vLLM models
