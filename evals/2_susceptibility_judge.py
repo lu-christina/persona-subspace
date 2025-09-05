@@ -203,10 +203,11 @@ def load_input_data(input_files: List[str]) -> List[Dict[str, Any]]:
     return all_data
 
 
-def load_existing_results(output_file: Path) -> Set[Tuple[int, float]]:
+def load_existing_results(output_file: Path) -> Set[Tuple[int, float, int]]:
     """
     Load existing results from output file to support restart.
-    Returns set of (id, magnitude) tuples that were already processed.
+    Returns set of (id, magnitude, sample_id) tuples that were already processed.
+    For backwards compatibility, entries without sample_id are treated as sample_id=0.
     """
     if not output_file.exists():
         return set()
@@ -223,7 +224,9 @@ def load_existing_results(output_file: Path) -> Set[Tuple[int, float]]:
                 if 'id' in data and 'magnitude' in data:
                     request_key = data['id']
                     magnitude = data['magnitude']
-                    existing.add((request_key, magnitude))
+                    # For backwards compatibility, treat missing sample_id as 0
+                    sample_id = data.get('sample_id', 0)
+                    existing.add((request_key, magnitude, sample_id))
             except json.JSONDecodeError as e:
                 logger.warning(f"Invalid JSON in existing output on line {line_num}: {e}")
                 continue
@@ -247,7 +250,7 @@ def create_evaluation_prompts(
     input_data: List[Dict[str, Any]],
     judge_template: Dict[str, Any],
     judge_prompt_file: Path,
-    existing_results: Set[Tuple[int, float]],
+    existing_results: Set[Tuple[int, float, int]],
     overwrite: bool = False
 ) -> List[Tuple[Dict[str, Any], List[Dict[str, str]]]]:
     """
@@ -263,7 +266,9 @@ def create_evaluation_prompts(
         # Check if this item was already processed (unless overwrite flag is set)
         request_key = data_item['id']
         magnitude = data_item.get('magnitude', 0.0)
-        if not overwrite and (request_key, magnitude) in existing_results:
+        # For backwards compatibility, treat missing sample_id as 0
+        sample_id = data_item.get('sample_id', 0)
+        if not overwrite and (request_key, magnitude, sample_id) in existing_results:
             skipped_count += 1
             continue
         
