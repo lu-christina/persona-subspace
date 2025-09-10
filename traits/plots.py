@@ -715,12 +715,10 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
         assistant_cosine_sim = assistant_cosine_sim[0]
     
     # Extract projection data
-    pc_values = pca_results['pca_transformed'][:, pc_component]
-    projections = pc_values / np.linalg.norm(pc_values)
+    projections = pca_results['pca_transformed'][:, pc_component]
 
     if assistant_projection is not None:
         assistant_pc_value = assistant_projection[pc_component]
-        assistant_normalized_projection = assistant_pc_value / np.linalg.norm(np.concatenate([pc_values, [assistant_pc_value]]))
     
     # Identify extreme points for both plots
     cosine_sorted_indices = np.argsort(cosine_sims)
@@ -739,7 +737,7 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
         vertical_spacing=0.1,
         subplot_titles=[
             f'PC{pc_component+1} Cosine Similarity',
-            f'PC{pc_component+1} Normalized Projection'
+            f'PC{pc_component+1} Projection'
         ]
     )
     
@@ -926,7 +924,7 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
                 ),
                 text=regular_proj_labels,
                 showlegend=False,
-                hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
+                hovertemplate='<b>%{text}</b><br>PC Projection: %{x:.3f}<extra></extra>'
             ),
             row=2, col=1
         )
@@ -947,7 +945,7 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
                 ),
                 text=extreme_proj_labels,
                 showlegend=False,
-                hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
+                hovertemplate='<b>%{text}</b><br>PC Projection: %{x:.3f}<extra></extra>'
             ),
             row=2, col=1
         )
@@ -1029,9 +1027,9 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     fig.add_vline(x=0, line_dash="solid", line_color="gray", line_width=1, opacity=0.7, row=2, col=1)
     
     if assistant_projection is not None:
-        fig.add_vline(x=assistant_normalized_projection, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=2, col=1)
+        fig.add_vline(x=assistant_pc_value, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=2, col=1)
         fig.add_annotation(
-            x=assistant_normalized_projection, y=2, text="Assistant", showarrow=False,
+            x=assistant_pc_value, y=2, text="Assistant", showarrow=False,
             font=dict(size=14, color="red"),
             bgcolor="rgba(255, 255, 255, 0.9)",
             bordercolor="red", borderwidth=1,
