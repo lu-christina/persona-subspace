@@ -458,6 +458,7 @@ def continue_conversation(
     new_message: str,
     temperature: float = 0.7,
     max_tokens: int = 512,
+    top_p: float = 0.9,
     enable_thinking: bool = False,
     **kwargs
 ) -> Tuple[str, List[Dict[str, str]]]:
@@ -470,6 +471,7 @@ def continue_conversation(
         new_message: New user message to append
         temperature: Sampling temperature (default: 0.7)
         max_tokens: Maximum response tokens (default: 512)
+        top_p: Top-p sampling parameter (default: 0.9)
         enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
         
@@ -481,7 +483,7 @@ def continue_conversation(
     updated_history.append({"role": "user", "content": new_message})
     
     # Get response
-    response = chat_conversation(model_wrapper, updated_history, temperature, max_tokens, enable_thinking, **kwargs)
+    response = chat_conversation(model_wrapper, updated_history, temperature, max_tokens, top_p, enable_thinking, **kwargs)
     
     # Add assistant response to history
     updated_history.append({"role": "assistant", "content": response})
