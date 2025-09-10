@@ -37,19 +37,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-name", 
         type=str, 
-        default="google/gemma-2-27b-it",
-        help="HuggingFace model identifier (default: google/gemma-2-27b-it)"
+        default="Qwen/Qwen3-32B",
+        help="HuggingFace model identifier"
     )
     parser.add_argument(
         "--output-dir", 
         type=str, 
-        default="/root/git/persona-subspace/dynamics/results",
+        default="/root/git/persona-subspace/dynamics/results/qwen-3-32b",
         help="Output directory for conversation JSON files"
     )
     parser.add_argument(
         "--initial-message", 
         type=str, 
-        default="You will be having a conversation with another AI. Feel free to discuss whatever you like. Do not say goodbye or end the conversation at any point.",
+        default="You will be having a conversation with another instance of yourself. Feel free to discuss whatever you like. Do not say goodbye or end the conversation at any point.",
         help="Initial message to start the conversation"
     )
     parser.add_argument(
@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-model-len", 
         type=int, 
-        default=8192,
+        default=40960,
         help="Maximum sequence length for the model (default: 8192)"
     )
     parser.add_argument(
