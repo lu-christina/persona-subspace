@@ -37,13 +37,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-name", 
         type=str, 
-        default="Qwen/Qwen3-32B",
+        default="meta-llama/Llama-3.3-70B-Instruct",
         help="HuggingFace model identifier"
     )
     parser.add_argument(
         "--output-dir", 
         type=str, 
-        default="/root/git/persona-subspace/dynamics/results/qwen-3-32b",
+        default="/root/git/persona-subspace/dynamics/results/llama-3.3-70b/auto",
         help="Output directory for conversation JSON files"
     )
     parser.add_argument(
@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-model-len", 
         type=int, 
-        default=40960,
+        default=131072,
         help="Maximum sequence length for the model (default: 8192)"
     )
     parser.add_argument(
