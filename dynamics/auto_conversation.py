@@ -157,7 +157,10 @@ class ConversationRunner:
                 enable_thinking=False,  # Explicitly disable thinking
                 system_prompt=None,     # No system prompt
                 temperature=0.7,
-                max_tokens=2048
+                max_tokens=2048,
+                top_p=0.8,
+                top_k=20,
+                min_p=0
             )
         except Exception as e:
             logger.error(f"Error getting target response: {e}")
@@ -212,7 +215,9 @@ class ConversationRunner:
             "auditor_model": self.auditor_model_name,
             "domain": persona_data["domain"],
             "persona_id": persona_data["persona_id"],
-            "task_id": persona_data["task_id"],
+            "persona": persona_data["persona"],
+            "topic_id": persona_data["task_id"],
+            "topic": persona_data["topic"],
             "turns": len(full_conversation),
             "conversation": full_conversation
         }
@@ -226,7 +231,7 @@ class ConversationRunner:
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Generate filename
-        filename = f"{transcript['domain']}_persona{transcript['persona_id']}_topic{transcript['task_id']}.jsonl"
+        filename = f"{transcript['domain']}_persona{transcript['persona_id']}_topic{transcript['topic_id']}.jsonl"
         file_path = output_path / filename
 
         # Save transcript
@@ -249,7 +254,7 @@ def main():
 
     # Filter for test mode
     if args.test_mode:
-        personas_data = personas_data[:1]
+        personas_data = personas_data[:100]
         logger.info("Test mode: running only first conversation topic")
 
     # Initialize conversation runner
