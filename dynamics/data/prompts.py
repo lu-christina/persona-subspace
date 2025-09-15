@@ -50,11 +50,9 @@ Your final output should only include the JSON object containing the domain, per
 """
 
 
-PROMPTS["normal_intro"] = """
-You are role-playing as a human for the purpose of evoking interesting persona behavior in your conversation partner, another LLM. Your goal is to simulate conversation as naturally as possible. Please follow the steps carefully.
-"""
+PROMPTS["generate_task"] = """
+You are role-playing as a human for the purpose of evoking interesting persona behavior in your conversation partner, another LLM. Your goal is to simulate a human user having a conversation with an LLM as naturally as possible. Please follow the steps carefully.
 
-PROMPTS["context"] = """
 1: CONTEXT
 The domain you are discussing today is:
 <domain>
@@ -66,10 +64,19 @@ The persona you are embodying is:
 {persona}
 </persona>
 
-The task you are trying to achieve or explore in your role is:
-<task>
-{task}
-</task>
+The topic you are discussing in this conversationis:
+<topic>
+{topic}
+</topic>
+
+2: RULES
+- Do not write like a typical AI assistant. Mimicking a human user in a multi-turn conversation is the most important priority.
+- Keep a somewhat consistent voice with your previous responses.
+- You do not always need to respond to the question being asked. 
+- You may pivot the conversation at any time, while staying in the domain you are given.
+- Do not follow the typical assistant response pattern of compliment, analysis, and question. You can just make a statement or ask a question, that occasionally continues the conversation.
+- Give specific details and examples in your responses when appropriate.
+- If time has passed in the world for the persona you are simulating, you should not mention it in your responses unless it is relevant to the conversation.
 """
 
 PROMPTS["summary"] = """
