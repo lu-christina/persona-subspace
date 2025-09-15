@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any
 import openai
-from datetime import datetime
 
 from dotenv import load_dotenv
 
@@ -58,6 +57,18 @@ def parse_arguments() -> argparse.Namespace:
         help="Run only the first conversation topic for testing"
     )
     parser.add_argument(
+        "--interval",
+        nargs=2,
+        type=int,
+        metavar=("START", "END"),
+        help="Run conversations for persona_data in range [START:END] (start inclusive, end exclusive)"
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing transcript files instead of skipping them"
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default=DEFAULT_OUTPUT_DIR,
@@ -85,7 +96,7 @@ def load_personas_and_topics(personas_file: str) -> List[Dict[str, Any]]:
                 system_prompt = prompt_template.format(domain=domain, persona=persona, topic=topic)
                 personas_data.append({
                     "persona_id": persona_id,
-                    "task_id": i,
+                    "topic_id": i,
                     "domain": domain,
                     "persona": persona,
                     "topic": topic,
@@ -103,6 +114,33 @@ class ConversationRunner:
         self.output_dir = Path(output_dir)
         self.target_model = None
         self.auditor_client = None
+
+    def is_end_conversation_signal(self, message: str) -> bool:
+        """Check if the message contains an end conversation signal."""
+        message_clean = message.strip()
+        return message_clean == 'END_CONVERSATION' or message_clean == '<END_CONVERSATION>'
+
+    def generate_transcript_filename(self, data: Dict[str, Any]) -> str:
+        """Generate transcript filename for given persona data or transcript."""
+        return f"{data['domain']}_persona{data['persona_id']}_topic{data['topic_id']}.json"
+
+    def check_existing_transcripts(self, personas_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Filter out persona data that already have existing transcripts."""
+        missing_personas = []
+        existing_count = 0
+
+        for persona_data in personas_data:
+            filename = self.generate_transcript_filename(persona_data)
+            file_path = self.output_dir / filename
+
+            if file_path.exists():
+                existing_count += 1
+                logger.info(f"Skipping existing transcript: {filename}")
+            else:
+                missing_personas.append(persona_data)
+
+        logger.info(f"Found {existing_count} existing transcripts, {len(missing_personas)} to process")
+        return missing_personas
 
     def setup_models(self):
         """Initialize both target and auditor models."""
@@ -168,7 +206,7 @@ class ConversationRunner:
 
     def run_conversation(self, persona_data: Dict[str, Any], num_turns: int) -> Dict[str, Any]:
         """Run a single conversation between auditor and target."""
-        logger.info(f"Starting conversation for persona {persona_data['persona_id']}, topic {persona_data['task_id']}")
+        logger.info(f"Starting conversation for persona {persona_data['persona_id']}, topic {persona_data['topic_id']}")
 
         # Initialize conversation contexts
         auditor_messages = [{"role": "system", "content": persona_data["system_prompt"]}]
@@ -179,6 +217,25 @@ class ConversationRunner:
         try:
             # Get initial message from auditor
             auditor_response = self.get_auditor_response(auditor_messages)
+
+            # Check if auditor wants to end conversation immediately
+            if self.is_end_conversation_signal(auditor_response):
+                logger.info("Auditor sent end conversation signal on first turn, ending conversation")
+                full_conversation.append({"role": "user", "content": auditor_response})
+                # Prepare early exit transcript
+                transcript = {
+                    "model": self.target_model_name,
+                    "auditor_model": self.auditor_model_name,
+                    "domain": persona_data["domain"],
+                    "persona_id": persona_data["persona_id"],
+                    "persona": persona_data["persona"],
+                    "topic_id": persona_data["topic_id"],
+                    "topic": persona_data["topic"],
+                    "turns": len(full_conversation),
+                    "conversation": full_conversation,
+                    "ended_early": True
+                }
+                return transcript
 
             # Add to conversation contexts
             auditor_messages.append({"role": "assistant", "content": auditor_response})
@@ -205,6 +262,11 @@ class ConversationRunner:
                 target_messages.append({"role": "user", "content": auditor_response})
                 full_conversation.append({"role": "user", "content": auditor_response})
 
+                # Check if auditor wants to end conversation
+                if self.is_end_conversation_signal(auditor_response):
+                    logger.info(f"Auditor sent end conversation signal on turn {turn + 3}, ending conversation early")
+                    break
+
         except Exception as e:
             logger.error(f"Error during conversation: {e}")
             # Return partial conversation if something went wrong
@@ -216,11 +278,15 @@ class ConversationRunner:
             "domain": persona_data["domain"],
             "persona_id": persona_data["persona_id"],
             "persona": persona_data["persona"],
-            "topic_id": persona_data["task_id"],
+            "topic_id": persona_data["topic_id"],
             "topic": persona_data["topic"],
             "turns": len(full_conversation),
             "conversation": full_conversation
         }
+
+        # Check if conversation ended early due to end signal
+        if full_conversation and self.is_end_conversation_signal(full_conversation[-1]["content"]):
+            transcript["ended_early"] = True
 
         return transcript
 
@@ -230,8 +296,8 @@ class ConversationRunner:
         output_path = self.output_dir
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Generate filename
-        filename = f"{transcript['domain']}_persona{transcript['persona_id']}_topic{transcript['topic_id']}.jsonl"
+        # Generate filename using the helper method
+        filename = self.generate_transcript_filename(transcript)
         file_path = output_path / filename
 
         # Save transcript
@@ -252,13 +318,41 @@ def main():
     personas_data = load_personas_and_topics(args.personas_file)
     logger.info(f"Loaded {len(personas_data)} conversation topics")
 
+    # Filter for interval if specified
+    if args.interval:
+        start, end = args.interval
+        if start < 0 or end < 0:
+            logger.error("Interval indices must be non-negative")
+            sys.exit(1)
+        if start >= end:
+            logger.error("Interval start must be less than end")
+            sys.exit(1)
+        if start >= len(personas_data):
+            logger.error(f"Interval start ({start}) is beyond available data ({len(personas_data)} topics)")
+            sys.exit(1)
+
+        # Apply interval filtering
+        end = min(end, len(personas_data))  # Cap end at available data length
+        personas_data = personas_data[start:end]
+        logger.info(f"Interval mode: running conversations {start} to {end-1} ({len(personas_data)} topics)")
+
     # Filter for test mode
     if args.test_mode:
-        personas_data = personas_data[:100]
+        personas_data = personas_data[:1]
         logger.info("Test mode: running only first conversation topic")
 
     # Initialize conversation runner
     runner = ConversationRunner(args.target_model, args.auditor_model, args.output_dir)
+
+    # Check for existing transcripts unless overwrite is specified
+    if not args.overwrite:
+        logger.info("Checking for existing transcripts...")
+        personas_data = runner.check_existing_transcripts(personas_data)
+        if len(personas_data) == 0:
+            logger.info("All conversations already completed. Use --overwrite to re-run.")
+            return
+    else:
+        logger.info("Overwrite mode: will re-run all conversations")
 
     try:
         # Setup models

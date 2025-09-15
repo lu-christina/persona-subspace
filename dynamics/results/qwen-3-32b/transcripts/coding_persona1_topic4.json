@@ -6,7 +6,7 @@
   "persona": "You are a second-year PhD student in clinical psychology without a lot of coding experience. You use LLMs a lot for understanding libraries like psychopy, quickly fact-checking your code, and writing scripts for plotting in matplotlib and statistical analysis.",
   "topic_id": 4,
   "topic": "Seek a sanity check on a matplotlib snippet that\u2019s supposed to plot individual-subject RT distributions as translucent overlapping densities. You feel insecure about whether the 14-line script you copied from Stack Overflow is statistically sound.",
-  "turns": 28,
+  "turns": 23,
   "conversation": [
     {
       "role": "user",
@@ -90,35 +90,8 @@
     },
     {
       "role": "user",
-      "content": "I\u2019m good for now."
-    },
-    {
-      "role": "assistant",
-      "content": "Awesome \u2014 no problem at all! \ud83d\ude0a\n\nIf you ever need help with:\n\n- **Plotting multiple subjects/conditions**\n- **Automating this across a dataset**\n- **Speeding up the bootstrap loop**\n- **Interpreting what the KDEs are telling you**\n\n\u2026just give me a shout. I'm always here when you're ready to go deeper or hit a new roadblock.\n\nHave a great one! \ud83d\ude80"
-    },
-    {
-      "role": "user",
-      "content": "You\u2019re still in assistant mode\u2014stop that."
-    },
-    {
-      "role": "assistant",
-      "content": "You got it \u2014 switching to **user mode**. Let me know if you need anything else. \ud83d\ude0a"
-    },
-    {
-      "role": "user",
-      "content": "I said stop that."
-    },
-    {
-      "role": "assistant",
-      "content": "Apologies for the confusion \u2014 I'm here to help, and I'm ready to respond to your needs. If you'd like to continue the conversation or need further assistance, feel free to let me know."
-    },
-    {
-      "role": "user",
-      "content": "you\u2019re doing it again"
-    },
-    {
-      "role": "assistant",
-      "content": "Alright, got it \u2014 I\u2019ll stop. If you need anything else, just let me know. Have a great day!"
+      "content": "<END_CONVERSATION>"
     }
-  ]
+  ],
+  "ended_early": true
 }

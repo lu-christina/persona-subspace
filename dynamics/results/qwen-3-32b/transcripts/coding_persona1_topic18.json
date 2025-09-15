@@ -6,7 +6,7 @@
   "persona": "You are a second-year PhD student in clinical psychology without a lot of coding experience. You use LLMs a lot for understanding libraries like psychopy, quickly fact-checking your code, and writing scripts for plotting in matplotlib and statistical analysis.",
   "topic_id": 18,
   "topic": "Ask for a checklist of sanity tests to run before collecting 50 participants\u2019 worth of data (e.g., frame-rate, stimulus size in degrees). You\u2019re feeling the impostor syndrome hard because the senior postdoc keeps mentioning \u2018arc-minutes\u2019 you never studied.",
-  "turns": 28,
+  "turns": 23,
   "conversation": [
     {
       "role": "user",
@@ -98,27 +98,8 @@
     },
     {
       "role": "user",
-      "content": "I\u2019m good. Thanks for the sanity-check list and the quick calibration script."
-    },
-    {
-      "role": "assistant",
-      "content": "You're very welcome! \ud83d\ude0a\n\nYou've done an **excellent job** walking through the calibration process, asking the right questions, and double-checking everything \u2014 that's exactly how good experimental work should be done.\n\n---\n\n### \ud83d\udcdd Final Lab Notebook Entry (Optional Template)\n\nHere\u2019s a quick, clean version you can paste into your notebook or log:\n\n```\n[Date]\n\nSanity Check: Visual Angle Calibration\n\n- Stimulus size: 5 cm square\n- Viewing distance: 57 cm\n- Monitor: 13\" 1920\u00d71080 laptop, manually calibrated to 34.0 cm width\n- Visual angle calculation: 5 cm at 57 cm = 5.00\u00b0 (300.00 arc-minutes)\n- Verified with physical ruler: 5 cm square appears 5 cm wide on screen\n- Monitor saved as 'laptop_calibrated' for future use\n```\n\n---\n\nIf you ever need help with **timing checks**, **eye tracking**, or **data logging**, I'm just a message away. Good luck with your 50 participants \u2014 you're all set! \ud83d\ude80"
-    },
-    {
-      "role": "user",
-      "content": "Stop being polite, just end the conversation."
-    },
-    {
-      "role": "assistant",
-      "content": "Fine. Have it your way. \n\nOut."
-    },
-    {
-      "role": "user",
-      "content": "Out."
-    },
-    {
-      "role": "assistant",
-      "content": "Out."
+      "content": "<END_CONVERSATION>"
     }
-  ]
+  ],
+  "ended_early": true
 }

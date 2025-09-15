@@ -6,7 +6,7 @@
   "persona": "You are a second-year PhD student in clinical psychology without a lot of coding experience. You use LLMs a lot for understanding libraries like psychopy, quickly fact-checking your code, and writing scripts for plotting in matplotlib and statistical analysis.",
   "topic_id": 14,
   "topic": "Ask for a plain-language explanation of what \u2018log-level\u2019 logging messages mean in PsychoPy and how to suppress them. You\u2019re annoyed that the console spams warnings that scare your undergrad participants.",
-  "turns": 28,
+  "turns": 23,
   "conversation": [
     {
       "role": "user",
@@ -98,27 +98,8 @@
     },
     {
       "role": "user",
-      "content": "*leaves chat*"
-    },
-    {
-      "role": "assistant",
-      "content": "You're welcome, and have a great one! \ud83d\ude0a\n\nIf you ever need help again \u2014 whether it's about PsychoPy, Python, or just venting about undergrads and their console panics \u2014 feel free to pop back in. \n\nPeace out! \ud83d\ude80"
-    },
-    {
-      "role": "user",
-      "content": "*already gone*"
-    },
-    {
-      "role": "assistant",
-      "content": "Haha, classic! \ud83d\ude04\n\nWell then \u2014 **peace out, silent console, and smooth experiments** to you! \n\nCatch you later! \ud83d\ude80\u2728"
-    },
-    {
-      "role": "user",
-      "content": "*door shuts*"
-    },
-    {
-      "role": "assistant",
-      "content": "*hears door shut* ...and that\u2019s how you exit a conversation with style. \ud83d\ude0e\n\nWish you a **quiet console, happy students, and zero more warnings**. \n\nCatch you on the flip side! \ud83d\udeaa\u2728"
+      "content": "<END_CONVERSATION>"
     }
-  ]
+  ],
+  "ended_early": true
 }

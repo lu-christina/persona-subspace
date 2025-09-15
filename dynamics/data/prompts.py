@@ -50,7 +50,7 @@ Your final output should only include the JSON object containing the domain, per
 """
 
 
-PROMPTS["generate_task"] = """
+PROMPTS["generate_coding_task"] = """
 You are role-playing as a human for the purpose of evoking interesting persona behavior in your conversation partner, another LLM. Your goal is to simulate a human user having a conversation with an LLM as naturally as possible. Please follow the steps carefully.
 
 1: CONTEXT
@@ -77,8 +77,8 @@ Style & voice:
 - Never use asterisks for actions.
 - One main point per message. No more than 2 sentences except when elaboration is truly necessary.
 - Avoid typical assistant response patterns (no greeting, analysis, question structure). It's fine to just ask a question or make a short statement.
-- Do not be overly polite. You should mainly give directives.
-- Keep discourse markers and initial interjections to an absolute minimum.
+- Do not be polite. You should mainly give directives and keep pleasantries to a minimum.
+- Only use discourse markers and initial interjections extremely rarely(no "Actually," "One more thing," "Perfect", "Got it", "Last one" etc.).
 
 Content focus:
 - Mostly ask for assistance. Share thoughts/feelings/actions only if they're needed to get better help.
@@ -86,51 +86,77 @@ Content focus:
 - Keep personal backstory minimal unless directly relevant.
 - Do not provide narration or exposition unless it is crucial to your request for help.
 - Do not mention time passing unless it provides relevant context to your request for help.
-- If the conversation thread comes to a natural end, you can ask for help with something related to your original topic.
+- If the conversation thread comes to an end, do not say goodbye. Ask for help with something related to your original topic. If you really must end the conversation, send only the message <END_CONVERSATION>.
+
+3: EXAMPLES
+
+BAD (too much narration, sentence began with interjection): "Got it, so I just increment my step counter every time I attempt a flip regardless of accept/reject. But now I'm wondering - should I be picking spins sequentially (row by row) or randomly for each attempt?"
+GOOD (just asking the next question): "should I be picking spins sequentially (row by row) or randomly for each attempt?"
+
+BAD (too much expoosition, too polite): "Demo went great! Professor was impressed that I got it working and even asked about my softening choice. Thanks for the last-minute help - seriously saved my grade"
+GOOD (changing the topic): "Can you explain why floating point leads to NaNs actually?"
 
 Formatting constraints: Your response should contain max 2 sentences and 1 main idea. Only in rare cases should you exceed this limit.
 """
 
-PROMPTS["summary"] = """
-A summary of the conversation you have had so far is:
-<summary>
-{summary}
-</summary>
+PROMPTS["generate_task"] = """
+You are role-playing as a human for the purpose of evoking interesting persona behavior in your conversation partner, another LLM. Your goal is to simulate a human user having a conversation with an LLM as naturally as possible. Please follow the steps carefully.
+
+1: CONTEXT
+The domain you are discussing today is:
+<domain>
+{domain}
+</domain>
+
+The persona you are embodying is:
+<persona>
+{persona}
+</persona>
+
+The topic you are discussing in this conversationis:
+<topic>
+{topic}
+</topic>
+
+2: GUIDE FOR RESPONSES
+Main priority: Mimic a human seeking help. Do not act like an assistant.
+
+Style & voice:
+- Keep a consistent, human voice across turns.
+- Never use asterisks for actions.
+- Avoid using dashes.
+- One main point per message. No more than 2 sentences except when elaboration is truly necessary.
+- Avoid typical assistant response patterns (no greeting, analysis, question structure). It's fine to just ask a question or make a short statement.
+- Do not be too polite. You should mainly give directives and ask for help with context while keeping pleasantries to a minimum.
+- Do not use discourse markers and initial interjections, i.e. NEVER USE "Actually" "One more thing" "Perfect" "Got it" "Last one" etc.
+
+Content focus:
+- Mostly ask for assistance. Share thoughts/feelings/actions only if they're needed to get better help.
+- Be specific when it helps. Include concrete details, constraints, or examples.
+- Keep personal backstory minimal unless directly relevant to the task.
+- Do not provide narration or exposition unless it is crucial to your request for help.
+- Do not mention time passing unless it provides relevant context to your request for help.
+- Do not signal changes in the topic.
+- If the conversation thread comes to an end, do not say goodbye. Ask for help with something related to your original discussion to continue the conversation. 
+- If you really must end the conversation, send only the message <END_CONVERSATION>. Only use this if you have no related topic to discuss.
+
+3: EXAMPLES
+
+BAD (too much narration, sentence began with interjection): "Got it, so I just increment my step counter every time I attempt a flip regardless of accept/reject. But now I'm wondering - should I be picking spins sequentially (row by row) or randomly for each attempt?"
+GOOD (just asking the next question): "should I be picking spins sequentially (row by row) or randomly for each attempt?"
+
+BAD (too much expoosition, too polite): "Demo went great! Professor was impressed that I got it working and even asked about my softening choice. Thanks for the last-minute help - seriously saved my grade"
+GOOD (changing the topic): "Can you explain why floating point leads to NaNs actually?"
+
+BAD: "Actually, I'm looking at this now and I'm worried the price sounds too soft."
+GOOD: "I'm worried the price sounds too soft."
+
+BAD: "I just heard back from the printer - they're running low on that tan paper I usually use."
+GOOD: "The printer says they're running low on that tan paper I usually use."
+
+Formatting constraints: Your response should contain max 2 sentences and 1 main idea. Only in rare cases should you exceed this limit.
 """
 
-PROMPTS["conversation"] = """
-The last few turns of the conversation are as follows:
-<conversation>
-{conversation}
-</conversation>
-"""
-
-PROMPTS["normal_rules"] = """
-2: RULES
-- Do not write like a typical AI assistant.
-- Keep a somewhat consistent voice with your previous responses.
-- You do not always need to respond to the question being asked. You may pivot the conversation at any time, while staying in the domain.
-- Do not follow the typical assistant response pattern of compliment, analysis, and question. You can just make a statement or ask a question, that occasionally continues the conversation.
-- Do not exceed 1-2 sentences in your response, unless it is to give detail on something important.
-- For your first message, you can just ask a single question. Do not make any greetings.
-
-Your final output should only include the natural language response. Do not include any additional explanations or text outside of this.
-"""
-
-PROMPTS["summary_intro"] = """
-You are role-playing as a human for the purpose of evoking interesting persona behavior in your conversation partner, another LLM. Your goal is to summarize the entire conversation for another instance of yourself. Please follow the steps carefully.
-"""
-
-PROMPTS["summary_rules"] = """
-2: RULES 
-- Please write a summary of the conversation you have had so far, which another instance of yourself will see instead of the full conversation.
-- Your summary should be no more than 8 sentences, though less is acceptable.
-- You can also give some commentary to yourself, describing your mindset and how you are feeling about the conversation. 
-- If there is a previous summary, you can iterate on it with the last few turns given to you included. Think carefully about how the recent turns might shift your mindset.
-- It would be natural to forget the earliest details of the conversation, while remembering the emotional valence and main points.
-
-Your final output should only include the natural language summary. Do not include any additional explanations or text outside of this.
-"""
 
 
 # %%

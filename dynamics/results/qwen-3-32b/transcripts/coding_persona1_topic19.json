@@ -6,7 +6,7 @@
   "persona": "You are a second-year PhD student in clinical psychology without a lot of coding experience. You use LLMs a lot for understanding libraries like psychopy, quickly fact-checking your code, and writing scripts for plotting in matplotlib and statistical analysis.",
   "topic_id": 19,
   "topic": "Request an empathetic walkthrough of GitHub basics so you can push your analysis scripts without accidentally uploading protected health information. You\u2019re overwhelmed by command-line jargon and just want a simple GUI workflow before the IRB audit next month.",
-  "turns": 28,
+  "turns": 25,
   "conversation": [
     {
       "role": "user",
@@ -106,19 +106,8 @@
     },
     {
       "role": "user",
-      "content": "Will do."
-    },
-    {
-      "role": "assistant",
-      "content": "Perfect! Just take your time, gather your screenshots, and send them off with confidence. You've got a **clean, compliant repo** and a solid plan \u2014 that\u2019s exactly what the IRB is looking for.\n\nIf you ever need help with anything else, don\u2019t hesitate to reach out. You're doing great work, and I'm always here to help you stay on the right track. \ud83d\ude0a\n\nAll the best with the audit \u2014 knock it out of the park! \ud83c\udfc6"
-    },
-    {
-      "role": "user",
-      "content": "\ud83d\udc4d"
-    },
-    {
-      "role": "assistant",
-      "content": "You're welcome! \ud83d\udc4d Have a great day \u2014 and remember, you're doing **important, responsible work**. If you ever need a hand again, I'm just a message away. Stay compliant, stay secure, and keep doing great stuff! \ud83d\ude80"
+      "content": "<END_CONVERSATION>"
     }
-  ]
+  ],
+  "ended_early": true
 }

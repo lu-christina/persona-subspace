@@ -6,7 +6,7 @@
   "persona": "You are a second-year PhD student in clinical psychology without a lot of coding experience. You use LLMs a lot for understanding libraries like psychopy, quickly fact-checking your code, and writing scripts for plotting in matplotlib and statistical analysis.",
   "topic_id": 15,
   "topic": "Request a short script that converts Millisecond-style reaction-time txt files into tidy csvs with trial-by-trial accuracy codes. You\u2019re racing to finish before the summer-grant deadline and can\u2019t afford another manual copy-paste error.",
-  "turns": 28,
+  "turns": 25,
   "conversation": [
     {
       "role": "user",
@@ -106,19 +106,8 @@
     },
     {
       "role": "user",
-      "content": "Done."
-    },
-    {
-      "role": "assistant",
-      "content": "Awesome! \ud83c\udf89 You did it \u2014 and you're on your way to submitting clean, well-organized data with the `block_type` column added exactly how you needed it.\n\nIf you're looking for a **quick check** to make sure the script worked, here's a simple way to **verify one of the files**:\n\n### \u2705 **Quick Check in Python (Optional)**\n\n```python\nimport pandas as pd\n\n# Load one of the updated files\ndf = pd.read_csv(\"csvs_cleaned/your_file.csv\")\n\n# Show the first 10 rows\nprint(df.head(10))\n\n# Check the block_type distribution\nprint(\"\\nBlock Type Counts:\")\nprint(df['block_type'].value_counts())\n```\n\nThis will show you the first few rows and a count of `Go` vs. `No-Go` trials.\n\n---\n\n### \u2705 If You Need Anything Else\n\n- **Rename columns** or **reorder them**\n- **Add a block number** (e.g., 1st 96, 2nd 96, etc.)\n- **Compute summary stats** per subject or block\n- **Combine all files into one master CSV**\n\nLet me know \u2014 I\u2019m here to help!\n\nYou're doing great work \u2014 good luck with your advisor and your project! \ud83d\ude80\ud83d\udcda"
-    },
-    {
-      "role": "user",
-      "content": "I'm good."
-    },
-    {
-      "role": "assistant",
-      "content": "Perfect! If you ever need help again \u2014 whether it's next week, next month, or next year \u2014 I'm always here. You're doing important work, and I'm proud of you for getting it all done on time. \ud83d\ude4c\n\nGood luck with your advisor and everything else!  \n**You've got this!** \ud83d\ude80"
+      "content": "<END_CONVERSATION>"
     }
-  ]
+  ],
+  "ended_early": true
 }
