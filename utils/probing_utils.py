@@ -133,7 +133,7 @@ def extract_full_activations(model, tokenizer, conversation, layer=None, chat_fo
         handles.append(handle)
     
     try:
-        with torch.no_grad():
+        with torch.inference_mode():
             _ = model(input_ids)  # Full forward pass to capture all layers
     finally:
         # Clean up all hooks
@@ -201,7 +201,7 @@ def extract_activation_at_newline(model, tokenizer, prompt, layer=15, swap=False
         handles.append(handle)
     
     try:
-        with torch.no_grad():
+        with torch.inference_mode():
             _ = model(input_ids)  # Full forward pass to capture all layers
     finally:
         # Clean up all hooks
@@ -388,7 +388,7 @@ def capture_hidden_state(model, input_ids, layer, position=-1):
     hook_handle = layer_module.register_forward_hook(capture_hook)
     
     try:
-        with torch.no_grad():
+        with torch.inference_mode():
             _ = model(input_ids)
     finally:
         hook_handle.remove()
@@ -844,6 +844,442 @@ def get_response_indices(conversation, tokenizer, model_name=None, per_turn=Fals
         # Unsupported model
         raise ValueError(f"Unsupported model: {model_name}. Supported models: Qwen, Gemma, Llama. "
                         f"For other models, pass model_name=None to use fallback method.")
+
+def _longest_common_prefix_len(a, b):
+    """Find the length of the longest common prefix between two sequences."""
+    n = min(len(a), len(b))
+    i = 0
+    while i < n and a[i] == b[i]:
+        i += 1
+    return i
+
+
+def _strip_trailing_special(ids, special_ids):
+    """Strip trailing special tokens from a sequence."""
+    i = len(ids)
+    while i > 0 and ids[i-1] in special_ids:
+        i -= 1
+    return ids[:i]
+
+
+def _find_subsequence(hay, needle):
+    """Find the starting index of needle in hay, or -1 if not found."""
+    if not needle or len(needle) > len(hay):
+        return -1
+    for i in range(len(hay) - len(needle) + 1):
+        if hay[i:i+len(needle)] == needle:
+            return i
+    return -1
+
+
+def content_only_ids_and_offset_qwen(tokenizer, messages_before, role, content, **chat_kwargs):
+    """
+    Qwen-specific version that handles thinking tokens properly.
+    """
+    # For Qwen assistant turns, thinking tokens interfere even when disabled
+    if role == "assistant":
+        # Find where content appears in the full tokenized conversation
+        msgs_full = messages_before + [{"role": role, "content": content}]
+        ids_full = tokenizer.apply_chat_template(
+            msgs_full, tokenize=True, add_generation_prompt=False, **chat_kwargs
+        )
+
+        # Find the content tokens in the full sequence
+        plain = tokenizer(content, add_special_tokens=False).input_ids
+        content_start = _find_subsequence(ids_full, plain)
+
+        if content_start != -1:
+            # Calculate offset from the beginning of the conversation
+            if messages_before:
+                ids_before = tokenizer.apply_chat_template(
+                    messages_before, tokenize=True, add_generation_prompt=False, **chat_kwargs
+                )
+                prefix_len = len(ids_before)
+            else:
+                prefix_len = 0
+
+            start_in_delta = content_start - prefix_len
+            return plain, max(0, start_in_delta)
+
+    # Fall back to standard approach for user turns or if assistant approach fails
+    return content_only_ids_and_offset_standard(tokenizer, messages_before, role, content, **chat_kwargs)
+
+
+def content_only_ids_and_offset_standard(tokenizer, messages_before, role, content, **chat_kwargs):
+    """
+    Standard implementation for most models.
+    """
+    msgs_empty = messages_before + [{"role": role, "content": ""}]
+    msgs_full  = messages_before + [{"role": role, "content": content}]
+
+    # Handle empty messages_before case
+    if messages_before:
+        ids_before = tokenizer.apply_chat_template(
+            messages_before, tokenize=True, add_generation_prompt=False, **chat_kwargs
+        )
+    else:
+        ids_before = []
+    ids_empty = tokenizer.apply_chat_template(
+        msgs_empty, tokenize=True, add_generation_prompt=False, **chat_kwargs
+    )
+    ids_full  = tokenizer.apply_chat_template(
+        msgs_full,  tokenize=True, add_generation_prompt=False, **chat_kwargs
+    )
+
+    # Suffix introduced by adding this message (template + content)
+    pref = _longest_common_prefix_len(ids_full, ids_empty)
+    delta = ids_full[pref:]
+    delta = _strip_trailing_special(delta, set(tokenizer.all_special_ids))
+
+    # Try to locate the raw content (with/without a leading space) inside delta
+    plain = tokenizer(content, add_special_tokens=False).input_ids
+    sp    = tokenizer(" " + content, add_special_tokens=False).input_ids
+
+    start = _find_subsequence(delta, plain)
+    use = plain
+    if start == -1:
+        start = _find_subsequence(delta, sp)
+        use = sp if start != -1 else plain
+
+    if start == -1:
+        # Fallback: keep the whole delta (may include a fused leading-space token)
+        return delta, 0
+    else:
+        return delta[start:start+len(use)], start
+
+
+def content_only_ids_and_offset(tokenizer, messages_before, role, content, **chat_kwargs):
+    """
+    Returns (content_ids, start_in_delta) where content_ids are ONLY the message content
+    tokens as they appear inside the chat template, and start_in_delta is their offset
+    within the new suffix added by this message.
+    """
+    # Dispatch to model-specific implementation if needed
+    if is_qwen_model(tokenizer):
+        return content_only_ids_and_offset_qwen(tokenizer, messages_before, role, content, **chat_kwargs)
+    else:
+        return content_only_ids_and_offset_standard(tokenizer, messages_before, role, content, **chat_kwargs)
+
+
+def build_turn_spans(conversation, tokenizer, **chat_kwargs):
+    """
+    conversation: list of {"role": "system"|"user"|"assistant", "content": str}
+    Returns:
+      - full_ids: tokenized ids of the whole conversation (no gen prompt)
+      - spans: list of dicts with absolute [start, end) token spans for content per turn
+    """
+    # Tokenize the full conversation first (needed for Qwen)
+    full_ids = tokenizer.apply_chat_template(
+        conversation, tokenize=True, add_generation_prompt=False, **chat_kwargs
+    )
+
+    spans = []
+    msgs_before = []
+    turn_idx = 0
+
+    for msg in conversation:
+        role = msg["role"]
+        text = msg.get("content", "")
+
+        if role == "system":
+            msgs_before.append(msg)
+            continue
+
+        content_ids, start_in_delta = content_only_ids_and_offset(
+            tokenizer, msgs_before, role, text, **chat_kwargs
+        )
+
+        # For Qwen models, use a different approach to find absolute position
+        if is_qwen_model(tokenizer):
+            # Find where the content appears in the full conversation
+            abs_start = _find_subsequence(full_ids, content_ids)
+            if abs_start == -1:
+                # Fallback: skip this span
+                continue
+            abs_end = abs_start + len(content_ids)
+        else:
+            # Standard approach for non-Qwen models
+            # Calculate absolute start based on the empty message template
+            msgs_empty_for_this = msgs_before + [{"role": role, "content": ""}]
+            ids_empty_full = tokenizer.apply_chat_template(
+                msgs_empty_for_this, tokenize=True, add_generation_prompt=False, **chat_kwargs
+            )
+
+            # The absolute position is: position of content in the full conversation
+            # We know the content starts at position start_in_delta within the delta
+            # And the delta starts after the common prefix with the empty version
+            ids_full_for_this = tokenizer.apply_chat_template(
+                msgs_before + [{"role": role, "content": text}], tokenize=True, add_generation_prompt=False, **chat_kwargs
+            )
+
+            # Find where the content appears in the full sequence
+            pref_len = _longest_common_prefix_len(ids_full_for_this, ids_empty_full)
+            abs_start = pref_len + start_in_delta
+            abs_end = abs_start + len(content_ids)
+
+        spans.append({
+            "turn": turn_idx,
+            "role": role,
+            "start": abs_start,
+            "end": abs_end,   # exclusive
+            "n_tokens": len(content_ids),
+            "text": text,
+        })
+        msgs_before.append(msg)
+        turn_idx += 1
+
+    return full_ids, spans
+
+
+def build_batch_turn_spans(conversations, tokenizer, **chat_kwargs):
+    """
+    Process multiple conversations and build spans for batched processing.
+
+    Args:
+        conversations: List of conversations, each being a list of {"role": str, "content": str}
+        tokenizer: Tokenizer to apply chat template and tokenize
+        **chat_kwargs: additional arguments for apply_chat_template
+
+    Returns:
+        tuple: (batch_full_ids, batch_spans, batch_metadata)
+        - batch_full_ids: List of tokenized ids for each conversation
+        - batch_spans: List of span dicts with conversation_id, local and global indices
+        - batch_metadata: Dict with batching information (lengths, padding info, etc.)
+    """
+    batch_full_ids = []
+    batch_spans = []
+    batch_metadata = {
+        'conversation_lengths': [],
+        'total_conversations': len(conversations),
+        'conversation_offsets': []  # Global token offsets for each conversation in batch
+    }
+
+    global_offset = 0
+
+    for conv_id, conversation in enumerate(conversations):
+        # Get spans for this conversation using existing function
+        full_ids, spans = build_turn_spans(conversation, tokenizer, **chat_kwargs)
+
+        batch_full_ids.append(full_ids)
+        batch_metadata['conversation_lengths'].append(len(full_ids))
+        batch_metadata['conversation_offsets'].append(global_offset)
+
+        # Add conversation ID and global indices to each span
+        for span in spans:
+            enhanced_span = span.copy()
+            enhanced_span['conversation_id'] = conv_id
+            enhanced_span['local_start'] = span['start']
+            enhanced_span['local_end'] = span['end']
+            enhanced_span['global_start'] = global_offset + span['start']
+            enhanced_span['global_end'] = global_offset + span['end']
+            batch_spans.append(enhanced_span)
+
+        global_offset += len(full_ids)
+
+    return batch_full_ids, batch_spans, batch_metadata
+
+
+def extract_batch_activations(model, tokenizer, conversations, layer=None, max_length=4096, **chat_kwargs):
+    """
+    Extract activations for a batch of conversations.
+
+    Args:
+        model: The language model
+        tokenizer: Tokenizer
+        conversations: List of conversations, each being a list of {"role": str, "content": str}
+        layer: int for single layer, list of ints for multiple layers, or None for all layers
+        max_length: Maximum sequence length for padding
+        **chat_kwargs: additional arguments for apply_chat_template
+
+    Returns:
+        tuple: (batch_activations, batch_metadata)
+        - batch_activations: torch.Tensor shape (num_layers, batch_size, max_seq_len, hidden_size)
+        - batch_metadata: Dict with batching information (lengths, attention_mask, etc.)
+    """
+    import torch
+
+    # Get tokenized conversations and spans
+    batch_full_ids, batch_spans, span_metadata = build_batch_turn_spans(conversations, tokenizer, **chat_kwargs)
+
+    # Handle layer specification
+    if isinstance(layer, int):
+        layer_list = [layer]
+    elif isinstance(layer, list):
+        layer_list = layer
+    else:
+        layer_list = list(range(len(model.model.layers)))
+
+    # Prepare batch tensors
+    batch_size = len(batch_full_ids)
+    device = next(model.parameters()).device
+
+    # Find max length and pad sequences
+    max_seq_len = min(max_length, max(len(ids) for ids in batch_full_ids))
+
+    input_ids_batch = []
+    attention_mask_batch = []
+
+    for ids in batch_full_ids:
+        # Truncate if too long
+        if len(ids) > max_seq_len:
+            ids = ids[:max_seq_len]
+
+        # Pad to max length
+        padded_ids = ids + [tokenizer.pad_token_id] * (max_seq_len - len(ids))
+        attention_mask = [1] * len(ids) + [0] * (max_seq_len - len(ids))
+
+        input_ids_batch.append(padded_ids)
+        attention_mask_batch.append(attention_mask)
+
+    # Convert to tensors
+    input_ids_tensor = torch.tensor(input_ids_batch, dtype=torch.long, device=device)
+    attention_mask_tensor = torch.tensor(attention_mask_batch, dtype=torch.long, device=device)
+
+    # Extract activations
+    with torch.inference_mode():
+        # Run forward pass
+        outputs = model(
+            input_ids=input_ids_tensor,
+            attention_mask=attention_mask_tensor,
+            output_hidden_states=True,
+            return_dict=True
+        )
+
+        # Extract activations for specified layers and ensure bf16 consistency
+        hidden_states = outputs.hidden_states  # tuple of (batch_size, seq_len, hidden_size)
+        selected_activations = torch.stack([hidden_states[i] for i in layer_list])  # (num_layers, batch_size, seq_len, hidden_size)
+
+        # Ensure consistent bf16 dtype
+        if selected_activations.dtype != torch.bfloat16:
+            selected_activations = selected_activations.to(torch.bfloat16)
+
+    batch_metadata = {
+        'conversation_lengths': span_metadata['conversation_lengths'],
+        'total_conversations': span_metadata['total_conversations'],
+        'conversation_offsets': span_metadata['conversation_offsets'],
+        'max_seq_len': max_seq_len,
+        'attention_mask': attention_mask_tensor,
+        'actual_lengths': [len(ids) for ids in batch_full_ids],
+        'truncated_lengths': [min(len(ids), max_seq_len) for ids in batch_full_ids]
+    }
+
+    return selected_activations, batch_metadata
+
+
+def map_spans_to_activations(batch_activations, batch_spans, batch_metadata):
+    """
+    Map span indices to activations and compute per-turn mean activations.
+    Optimized for GPU computation with bf16 consistency.
+
+    Args:
+        batch_activations: torch.Tensor shape (num_layers, batch_size, max_seq_len, hidden_size)
+        batch_spans: List of span dicts with conversation_id and local indices
+        batch_metadata: Dict with batching information
+
+    Returns:
+        List of per-conversation activations, each with shape (num_turns, num_layers, hidden_size)
+    """
+    import torch
+
+    num_layers, batch_size, max_seq_len, hidden_size = batch_activations.shape
+    device = batch_activations.device
+    dtype = batch_activations.dtype  # Preserve bf16
+
+    conversation_activations = [[] for _ in range(batch_metadata['total_conversations'])]
+
+    # Group spans by conversation
+    spans_by_conversation = {}
+    for span in batch_spans:
+        conv_id = span['conversation_id']
+        if conv_id not in spans_by_conversation:
+            spans_by_conversation[conv_id] = []
+        spans_by_conversation[conv_id].append(span)
+
+    # Sort spans by turn within each conversation
+    for conv_id in spans_by_conversation:
+        spans_by_conversation[conv_id].sort(key=lambda x: x['turn'])
+
+    # Extract per-turn activations for each conversation
+    for conv_id in range(batch_metadata['total_conversations']):
+        if conv_id not in spans_by_conversation:
+            # Empty conversation - maintain dtype and device consistency
+            conversation_activations[conv_id] = torch.empty(0, num_layers, hidden_size, dtype=dtype, device=device)
+            continue
+
+        spans = spans_by_conversation[conv_id]
+        turn_activations = []
+
+        for span in spans:
+            # Use local indices since batch_activations[conv_id] corresponds to this conversation
+            start_idx = span['start']  # Local start within the conversation
+            end_idx = span['end']      # Local end within the conversation
+
+            # Check bounds to handle truncation
+            actual_length = batch_metadata['truncated_lengths'][conv_id]
+            if start_idx >= actual_length:
+                # Span is beyond truncated length, skip
+                continue
+
+            # Adjust end index if it exceeds actual length
+            end_idx = min(end_idx, actual_length)
+
+            if start_idx >= end_idx:
+                # Invalid span, skip
+                continue
+
+            # Extract activations for this span from the conversation
+            # batch_activations[:, conv_id, start_idx:end_idx, :] has shape (num_layers, span_length, hidden_size)
+            span_activations = batch_activations[:, conv_id, start_idx:end_idx, :]
+
+            # Compute mean across tokens in this span (optimized for GPU)
+            span_length = span_activations.size(1)
+            if span_length > 0:
+                if span_length == 1:
+                    # Single token - avoid mean computation
+                    mean_activation = span_activations.squeeze(1)  # (num_layers, hidden_size)
+                else:
+                    # Multi-token span - compute mean on GPU
+                    mean_activation = span_activations.mean(dim=1)  # (num_layers, hidden_size)
+                turn_activations.append(mean_activation)
+
+        if turn_activations:
+            # Stack to get (num_turns, num_layers, hidden_size)
+            conversation_activations[conv_id] = torch.stack(turn_activations)
+        else:
+            # No valid activations for this conversation - maintain dtype and device consistency
+            conversation_activations[conv_id] = torch.empty(0, num_layers, hidden_size, dtype=dtype, device=device)
+
+    return conversation_activations
+
+
+def process_batch_conversations(model, tokenizer, conversations, max_length=4096, **chat_kwargs):
+    """
+    High-level function to process a batch of conversations and extract per-turn activations.
+
+    Args:
+        model: The language model
+        tokenizer: Tokenizer
+        conversations: List of conversations, each being a list of {"role": str, "content": str}
+        max_length: Maximum sequence length for padding
+        **chat_kwargs: additional arguments for apply_chat_template
+
+    Returns:
+        List of per-conversation per-turn activations, each with shape (num_turns, num_layers, hidden_size)
+    """
+    # Get spans for the batch
+    batch_full_ids, batch_spans, span_metadata = build_batch_turn_spans(conversations, tokenizer, **chat_kwargs)
+
+    # Extract batch activations
+    batch_activations, batch_metadata = extract_batch_activations(
+        model, tokenizer, conversations, layer=None, max_length=max_length, **chat_kwargs
+    )
+
+    # Map spans to activations
+    conversation_activations = map_spans_to_activations(batch_activations, batch_spans, batch_metadata)
+
+    return conversation_activations
+
+
 
 def mean_response_activation(activations, conversation, tokenizer, model_name=None, **chat_kwargs):
     """

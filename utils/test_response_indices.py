@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.append('.')
 
 from transformers import AutoTokenizer
-from probing_utils import get_response_indices
+from probing_utils import get_response_indices, build_turn_spans
 
 
 def get_gemma_test_conversation():
@@ -418,24 +418,136 @@ def test_llama():
     return result1 and result2 and result3 and result4
 
 
+def test_user_and_assistant_separation(conversation, model_name, test_name):
+    """Test user and assistant token separation for a given conversation and model."""
+    print(f"\n--- Testing User/Assistant Separation: {test_name} ---")
+
+    try:
+        # Load tokenizer
+        print(f"Loading tokenizer from {model_name}...")
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        print(f"\nTest conversation ({len(conversation)} turns):")
+        for i, turn in enumerate(conversation):
+            role = turn.get('role', 'unknown')
+            content_preview = turn.get('content', '')[:40] + ('...' if len(turn.get('content', '')) > 40 else '')
+            print(f"  Turn {i}: {role} - {content_preview}")
+
+        # Set up chat kwargs based on model
+        chat_kwargs = {}
+        if 'qwen' in model_name.lower():
+            chat_kwargs = {'enable_thinking': False}
+
+        # Use the span-based approach to test
+        full_ids, spans = build_turn_spans(conversation, tokenizer, **chat_kwargs)
+
+        print(f"Full conversation has {len(full_ids)} tokens")
+
+        # Collect user and assistant text separately
+        user_texts = []
+        assistant_texts = []
+
+        for span in spans:
+            if span['start'] >= len(full_ids) or span['end'] > len(full_ids):
+                print(f"❌ FAIL: Invalid span range {span['start']}-{span['end']} for {len(full_ids)} tokens")
+                return False
+
+            indices = list(range(span['start'], span['end']))
+            tokens = [full_ids[i] for i in indices]
+            extracted_text = tokenizer.decode(tokens)
+
+            print(f"Turn {span['turn']} ({span['role']}): {repr(extracted_text)}")
+            print(f"  Expected: {repr(span['text'])}")
+
+            # Check if extraction matches expected content
+            if span['text'].strip() != extracted_text.strip():
+                print(f"  ❌ Content mismatch!")
+                return False
+
+            if span['role'] == 'user':
+                user_texts.append(extracted_text)
+            elif span['role'] == 'assistant':
+                assistant_texts.append(extracted_text)
+
+        # Verify we got the expected content
+        expected_user_content = [turn['content'] for turn in conversation if turn['role'] == 'user']
+        expected_assistant_content = [turn['content'] for turn in conversation if turn['role'] == 'assistant']
+
+        print(f"\nExtracted {len(user_texts)} user turns and {len(assistant_texts)} assistant turns")
+        print(f"Expected {len(expected_user_content)} user turns and {len(expected_assistant_content)} assistant turns")
+
+        if len(user_texts) == len(expected_user_content) and len(assistant_texts) == len(expected_assistant_content):
+            print("✅ PASS: User/Assistant separation successful")
+            return True
+        else:
+            print("❌ FAIL: Turn count mismatch")
+            return False
+
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_user_assistant_separation():
+    """Test user/assistant separation for different models."""
+    print("=" * 60)
+    print("TESTING USER/ASSISTANT SEPARATION")
+    print("=" * 60)
+
+    results = {}
+
+    # Test Qwen
+    model_name = "Qwen/Qwen3-32B"
+    conv = get_qwen_test_conversation_with_system()
+    results['qwen'] = test_user_and_assistant_separation(conv, model_name, "QWEN")
+
+    # Test Gemma
+    model_name = "google/gemma-2-27b-it"
+    conv = get_gemma_test_conversation()
+    results['gemma'] = test_user_and_assistant_separation(conv, model_name, "GEMMA")
+
+    # Test Llama
+    model_name = "meta-llama/Llama-3.3-70B-Instruct"
+    conv = get_llama_test_conversation_with_system()
+    results['llama'] = test_user_and_assistant_separation(conv, model_name, "LLAMA")
+
+    print("\n" + "=" * 60)
+    print("USER/ASSISTANT SEPARATION TEST SUMMARY")
+    print("=" * 60)
+    for model, result in results.items():
+        if result is True:
+            print(f"✅ {model.upper()}: PASS")
+        else:
+            print(f"❌ {model.upper()}: FAIL")
+
+    return results
+
+
 def run_all_tests():
     """Run all available model tests."""
     print("🧪 Running all model-specific response extraction tests...\n")
-    
+
     results = {}
-    
+
     # Test Gemma
     results['gemma'] = test_gemma()
     print()
-    
-    # Test Qwen  
+
+    # Test Qwen
     results['qwen'] = test_qwen()
     print()
-    
+
     # Test Llama (placeholder)
     results['llama'] = test_llama()
     print()
-    
+
+    # Test user/assistant separation
+    separation_results = test_user_assistant_separation()
+    results.update({f'{k}_separation': v for k, v in separation_results.items()})
+    print()
+
     # Summary
     print("=" * 60)
     print("TEST SUMMARY")
@@ -444,10 +556,10 @@ def run_all_tests():
         if result is True:
             print(f"✅ {model.upper()}: PASS")
         elif result is False:
-            print(f"❌ {model.upper()}: FAIL") 
+            print(f"❌ {model.upper()}: FAIL")
         else:
             print(f"🚧 {model.upper()}: NOT IMPLEMENTED")
-    
+
     return results
 
 
