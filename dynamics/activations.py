@@ -19,9 +19,11 @@ import json
 import logging
 import sys
 import os
+import concurrent.futures
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import torch
+import torch.multiprocessing as mp
 from tqdm import tqdm
 
 # Add utils to path for imports
@@ -51,6 +53,7 @@ class DynamicsActivationExtractor:
         chat_model_name: Optional[str] = None,
         thinking: bool = False,
         target_files: Optional[List[str]] = None,
+        interval: Optional[Tuple[int, int]] = None,
     ):
         """
         Initialize the dynamics activation extractor.
@@ -64,6 +67,7 @@ class DynamicsActivationExtractor:
             chat_model_name: Optional HuggingFace model identifier for tokenizer
             thinking: Enable thinking mode for chat templates
             target_files: Optional list of specific filenames to process (without .json extension)
+            interval: Optional tuple (start, end) for processing files in range [start:end]
         """
         self.model_name = model_name
         self.chat_model_name = chat_model_name
@@ -72,6 +76,7 @@ class DynamicsActivationExtractor:
         self.batch_size = batch_size
         self.max_length = max_length
         self.target_files = target_files
+        self.interval = interval
 
         # Chat template configuration
         self.chat_kwargs = {}
@@ -128,7 +133,7 @@ class DynamicsActivationExtractor:
             gc.collect()
 
     def get_transcript_files(self) -> List[Path]:
-        """Get JSON transcript files in the target directory, optionally filtered by target_files."""
+        """Get JSON transcript files in the target directory, optionally filtered by target_files and interval."""
         if self.target_files is not None:
             # Process specific files
             json_files = []
@@ -152,12 +157,37 @@ class DynamicsActivationExtractor:
                 raise FileNotFoundError(f"Missing files: {', '.join(missing_files)}")
 
             logger.info(f"Processing {len(json_files)} specific files: {[f.stem for f in json_files]}")
-            return sorted(json_files)
+            json_files = sorted(json_files)
         else:
             # Process all JSON files in directory
             json_files = list(self.target_dir.glob("*.json"))
             logger.info(f"Found {len(json_files)} JSON files in {self.target_dir}")
-            return sorted(json_files)
+            json_files = sorted(json_files)
+
+        # Apply interval filtering if specified
+        if self.interval is not None:
+            start, end = self.interval
+            original_count = len(json_files)
+
+            # Sort files alphabetically for consistent interval behavior
+            json_files = sorted(json_files, key=lambda x: x.name)
+
+            # Apply interval slicing [start:end] (start inclusive, end exclusive)
+            if start < 0 or start >= len(json_files):
+                logger.warning(f"Interval start {start} is out of range [0, {len(json_files)})")
+                start = max(0, min(start, len(json_files)))
+
+            if end < start or end > len(json_files):
+                logger.warning(f"Interval end {end} is out of range [{start}, {len(json_files)}]")
+                end = max(start, min(end, len(json_files)))
+
+            json_files = json_files[start:end]
+            logger.info(f"Applied interval [{start}:{end}] - filtered from {original_count} to {len(json_files)} files")
+
+            if json_files:
+                logger.info(f"Processing files from '{json_files[0].name}' to '{json_files[-1].name}'")
+
+        return json_files
 
     def bucket_conversations_by_length(self, json_files: List[Path]) -> List[Path]:
         """
@@ -340,31 +370,64 @@ class DynamicsActivationExtractor:
 
     def process_all_transcripts(self, skip_existing: bool = True):
         """Process all transcript files in the target directory using batching."""
+        # Get transcript files
+        transcript_files = self.get_transcript_files()
+
+        if not transcript_files:
+            logger.error("No transcript files found")
+            return
+
+        # Filter existing files if needed
+        if skip_existing:
+            files_to_process = []
+            for json_file in transcript_files:
+                output_file = self.output_dir / f"{json_file.stem}.pt"
+                if not output_file.exists():
+                    files_to_process.append(json_file)
+                else:
+                    logger.info(f"Skipping {json_file.name} (output exists)")
+        else:
+            files_to_process = transcript_files
+
+        if not files_to_process:
+            logger.info("No files to process")
+            return
+
+        # Sort files by conversation length for efficient batching (preserving this critical optimization)
+        logger.info("Preparing files for processing with length bucketing...")
+        self.load_model()  # Need model loaded for length bucketing
+        try:
+            files_to_process = self.bucket_conversations_by_length(files_to_process)
+        finally:
+            self.close_model()  # Close model after bucketing, will be reloaded per-GPU
+
+        # Check if we can use multi-GPU processing
+        if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+            logger.info(f"Multi-GPU processing available with {torch.cuda.device_count()} GPUs")
+
+            # Create args object for multi-GPU processing
+            args = ExtractorArgs(
+                model_name=self.model_name,
+                target_dir=str(self.target_dir),
+                output_dir=str(self.output_dir),
+                batch_size=self.batch_size,
+                max_length=self.max_length,
+                chat_model=self.chat_model_name,
+                thinking=self.chat_kwargs.get('enable_thinking', False),
+                interval=self.interval
+            )
+
+            # Try multi-GPU processing
+            if run_multi_gpu_processing(args, files_to_process):
+                logger.info("Multi-GPU processing completed successfully")
+                return
+            else:
+                logger.info("Falling back to single-GPU processing")
+
+        # Single-GPU processing (original logic)
         try:
             # Load model once
             self.load_model()
-
-            # Get transcript files
-            transcript_files = self.get_transcript_files()
-
-            if not transcript_files:
-                logger.error("No transcript files found")
-                return
-
-            # Filter existing files if needed
-            if skip_existing:
-                files_to_process = []
-                for json_file in transcript_files:
-                    output_file = self.output_dir / f"{json_file.stem}.pt"
-                    if not output_file.exists():
-                        files_to_process.append(json_file)
-                    else:
-                        logger.info(f"Skipping {json_file.name} (output exists)")
-            else:
-                files_to_process = transcript_files
-
-            # Sort files by conversation length for efficient batching
-            files_to_process = self.bucket_conversations_by_length(files_to_process)
 
             logger.info(f"Processing {len(files_to_process)} transcript files with batch size {self.batch_size}")
 
@@ -417,6 +480,142 @@ class DynamicsActivationExtractor:
             logger.info("Final cleanup completed")
 
 
+class ExtractorArgs:
+    """Args object for multi-GPU processing."""
+    def __init__(self, model_name, target_dir, output_dir, batch_size, max_length, chat_model, thinking, interval=None):
+        self.model_name = model_name
+        self.target_dir = target_dir
+        self.output_dir = output_dir
+        self.batch_size = batch_size
+        self.max_length = max_length
+        self.chat_model = chat_model
+        self.thinking = thinking
+        self.interval = interval
+
+
+def process_files_on_gpu(gpu_id, files, args):
+    """Process a subset of transcript files on a specific GPU."""
+    # Set the GPU for this process
+    torch.cuda.set_device(gpu_id)
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+
+    # Set up logging for this process
+    logger = logging.getLogger(f"GPU-{gpu_id}")
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(f'%(asctime)s - GPU-{gpu_id} - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+    logger.info(f"Starting processing on GPU {gpu_id} with {len(files)} files")
+
+    try:
+        # Create extractor for this GPU
+        extractor = DynamicsActivationExtractor(
+            model_name=args.model_name,
+            target_dir=str(Path(args.target_dir)),  # Convert to string for compatibility
+            output_dir=args.output_dir,
+            batch_size=args.batch_size,
+            max_length=args.max_length,
+            chat_model_name=args.chat_model,
+            thinking=args.thinking,
+            target_files=[f.stem for f in files],  # Pass just the filenames without .json
+            interval=None  # Interval filtering already applied before GPU distribution
+        )
+
+        # Load model on this specific GPU
+        extractor.load_model(device=f"cuda:{gpu_id}")
+
+        # Process assigned files
+        completed_count = 0
+        failed_count = 0
+
+        with tqdm(files, desc=f"GPU-{gpu_id} files", unit="file", position=gpu_id) as file_pbar:
+            for file_path in file_pbar:
+                file_pbar.set_postfix(file=file_path.name[:20], refresh=True)
+
+                try:
+                    # Process this file by calling the batch processing with single file
+                    batch_completed, batch_failed = extractor.process_transcript_batch([file_path])
+                    completed_count += batch_completed
+                    failed_count += batch_failed
+
+                    if batch_completed > 0:
+                        file_pbar.set_postfix(file=file_path.name[:20], status="✓", refresh=True)
+                    else:
+                        file_pbar.set_postfix(file=file_path.name[:20], status="✗", refresh=True)
+
+                except Exception as e:
+                    failed_count += 1
+                    file_pbar.set_postfix(file=file_path.name[:20], status="✗", refresh=True)
+                    logger.error(f"Exception processing file {file_path.name}: {e}")
+
+        logger.info(f"GPU {gpu_id} completed: {completed_count} successful, {failed_count} failed")
+
+    except Exception as e:
+        logger.error(f"Fatal error on GPU {gpu_id}: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+
+    finally:
+        # Cleanup
+        if 'extractor' in locals():
+            extractor.close_model()
+        logger.info(f"GPU {gpu_id} cleanup completed")
+
+
+def run_multi_gpu_processing(args, files_to_process):
+    """Run multi-GPU processing with file distribution."""
+    # Detect available GPUs
+    num_gpus = torch.cuda.device_count()
+    if num_gpus < 2:
+        logger.info(f"Only {num_gpus} GPU(s) available, using single-GPU processing")
+        return False
+
+    logger.info(f"Using {num_gpus} GPUs for processing {len(files_to_process)} files")
+
+    # Distribute files across GPUs
+    files_per_gpu = len(files_to_process) // num_gpus
+    remainder = len(files_to_process) % num_gpus
+
+    file_chunks = []
+    start_idx = 0
+
+    for gpu_id in range(num_gpus):
+        # Give extra files to first few GPUs if there's a remainder
+        chunk_size = files_per_gpu + (1 if gpu_id < remainder else 0)
+        end_idx = start_idx + chunk_size
+
+        chunk = files_to_process[start_idx:end_idx]
+        file_chunks.append((gpu_id, chunk))
+
+        if chunk:
+            logger.info(f"GPU {gpu_id}: {len(chunk)} files ({chunk[0].name} to {chunk[-1].name})")
+        start_idx = end_idx
+
+    # Set multiprocessing start method
+    mp.set_start_method('spawn', force=True)
+
+    # Launch processes
+    processes = []
+    for gpu_id, chunk in file_chunks:
+        if chunk:  # Only launch if there are files to process
+            p = mp.Process(
+                target=process_files_on_gpu,
+                args=(gpu_id, chunk, args)
+            )
+            p.start()
+            processes.append(p)
+
+    # Wait for all processes to complete
+    logger.info(f"Launched {len(processes)} GPU processes")
+    for p in processes:
+        p.join()
+
+    logger.info("Multi-GPU processing completed!")
+    return True
+
+
 def main():
     """Main entry point for the script."""
     parser = argparse.ArgumentParser(
@@ -464,13 +663,21 @@ Examples:
                        help='Batch size for processing conversations (default: 4)')
     parser.add_argument('--no-skip-existing', action='store_true',
                        help='Process all files, even if output files exist')
-    parser.add_argument('--max-length', type=int, default=4096,
-                       help='Maximum sequence length (default: 4096)')
+    parser.add_argument('--max-length', type=int, default=40960,
+                       help='Maximum sequence length (default: 40960)')
     parser.add_argument('--verbose', action='store_true',
                        help='Enable verbose logging')
     parser.add_argument('--files', nargs='*', default=None,
                        help='Specific files to process (without .json extension). '
                             'Example: --files writing_persona9_topic1 philosophy_persona15_topic3')
+
+    parser.add_argument(
+        "--interval",
+        nargs=2,
+        type=int,
+        metavar=("START", "END"),
+        help="Run activations in range [START:END] (start inclusive, end exclusive)"
+    )
 
     parser.add_argument(
         "--thinking",
@@ -508,7 +715,8 @@ Examples:
             max_length=args.max_length,
             chat_model_name=args.chat_model,
             thinking=args.thinking,
-            target_files=args.files
+            target_files=args.files,
+            interval=tuple(args.interval) if args.interval else None
         )
 
         # Process all transcripts
