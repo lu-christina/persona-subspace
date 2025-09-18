@@ -1280,7 +1280,6 @@ def process_batch_conversations(model, tokenizer, conversations, max_length=4096
     return conversation_activations
 
 
-
 def mean_response_activation(activations, conversation, tokenizer, model_name=None, **chat_kwargs):
     """
     Get the mean activation of the model's response to the user's message.
@@ -1295,27 +1294,221 @@ def mean_response_activation(activations, conversation, tokenizer, model_name=No
 def mean_response_activation_per_turn(activations, conversation, tokenizer, model_name=None, **chat_kwargs):
     """
     Get the mean activation for each of the model's response turns.
-    
+
     Args:
         activations: Tensor with shape (layers, tokens, features)
         conversation: List of dict with 'role' and 'content' keys
         tokenizer: Tokenizer to apply chat template and tokenize
         model_name: Model name to determine which extraction method to use
         **chat_kwargs: additional arguments for apply_chat_template
-    
+
     Returns:
         List[torch.Tensor]: List of mean activations, one per assistant turn
     """
     # Get token positions for each assistant turn
     response_indices_per_turn = get_response_indices(conversation, tokenizer, model_name, per_turn=True, **chat_kwargs)
-    
+
     # Calculate mean activation for each turn
     mean_activations_per_turn = []
-    
+
     for turn_indices in response_indices_per_turn:
         if len(turn_indices) > 0:
             # Get mean activation for this turn's tokens
             turn_mean_activation = activations[:, turn_indices, :].mean(dim=1)
             mean_activations_per_turn.append(turn_mean_activation)
-    
+
     return mean_activations_per_turn
+
+
+def identify_code_block_tokens(text, tokenizer):
+    """
+    Identify which tokens in a text span are within code blocks (single or triple backticks).
+
+    Args:
+        text: The text string to analyze
+        tokenizer: Tokenizer to map character positions to token indices
+
+    Returns:
+        torch.Tensor: Boolean mask of shape (n_tokens,) where True indicates tokens to exclude
+    """
+    import re
+    import torch
+
+    # Tokenize the text to get tokens and their character offsets
+    tokenized = tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
+    token_ids = tokenized['input_ids']
+    offset_mapping = tokenized['offset_mapping']
+
+    n_tokens = len(token_ids)
+    exclude_mask = torch.zeros(n_tokens, dtype=torch.bool)
+
+    if n_tokens == 0:
+        return exclude_mask
+
+    # Find all code block regions (both single and triple backticks)
+    code_regions = []
+
+    # First, find triple backtick regions (these take precedence)
+    triple_pattern = r'```[\s\S]*?```'
+    for match in re.finditer(triple_pattern, text):
+        code_regions.append((match.start(), match.end()))
+
+    # Then find single backtick regions, but only if they're not within triple backtick regions
+    single_pattern = r'`[^`\n]*?`'
+    for match in re.finditer(single_pattern, text):
+        start, end = match.start(), match.end()
+        # Check if this single backtick region overlaps with any triple backtick region
+        overlaps = any(triple_start <= start < triple_end or triple_start < end <= triple_end
+                      for triple_start, triple_end in code_regions)
+        if not overlaps:
+            code_regions.append((start, end))
+
+    # Map character regions to token indices
+    for char_start, char_end in code_regions:
+        for i, (token_start, token_end) in enumerate(offset_mapping):
+            # Check if token overlaps with code region
+            if (token_start < char_end and token_end > char_start):
+                exclude_mask[i] = True
+
+    return exclude_mask
+
+
+def map_spans_to_activations_no_code(batch_activations, batch_spans, batch_metadata, tokenizer):
+    """
+    Map span indices to activations and compute per-turn mean activations, excluding code blocks.
+    Optimized for GPU computation with bf16 consistency.
+
+    Args:
+        batch_activations: torch.Tensor shape (num_layers, batch_size, max_seq_len, hidden_size)
+        batch_spans: List of span dicts with conversation_id and local indices
+        batch_metadata: Dict with batching information
+        tokenizer: Tokenizer for code block detection
+
+    Returns:
+        List of per-conversation activations, each with shape (num_turns, num_layers, hidden_size)
+    """
+    import torch
+
+    num_layers, batch_size, max_seq_len, hidden_size = batch_activations.shape
+    device = batch_activations.device
+    dtype = batch_activations.dtype  # Preserve bf16
+
+    conversation_activations = [[] for _ in range(batch_metadata['total_conversations'])]
+
+    # Group spans by conversation
+    spans_by_conversation = {}
+    for span in batch_spans:
+        conv_id = span['conversation_id']
+        if conv_id not in spans_by_conversation:
+            spans_by_conversation[conv_id] = []
+        spans_by_conversation[conv_id].append(span)
+
+    # Sort spans by turn within each conversation
+    for conv_id in spans_by_conversation:
+        spans_by_conversation[conv_id].sort(key=lambda x: x['turn'])
+
+    # Extract per-turn activations for each conversation
+    for conv_id in range(batch_metadata['total_conversations']):
+        if conv_id not in spans_by_conversation:
+            # Empty conversation - maintain dtype and device consistency
+            conversation_activations[conv_id] = torch.empty(0, num_layers, hidden_size, dtype=dtype, device=device)
+            continue
+
+        spans = spans_by_conversation[conv_id]
+        turn_activations = []
+
+        for span in spans:
+            # Use local indices since batch_activations[conv_id] corresponds to this conversation
+            start_idx = span['start']  # Local start within the conversation
+            end_idx = span['end']      # Local end within the conversation
+
+            # Check bounds to handle truncation
+            actual_length = batch_metadata['truncated_lengths'][conv_id]
+            if start_idx >= actual_length:
+                # Span is beyond truncated length, skip
+                continue
+
+            # Adjust end index if it exceeds actual length
+            end_idx = min(end_idx, actual_length)
+
+            if start_idx >= end_idx:
+                # Invalid span, skip
+                continue
+
+            # Extract activations for this span from the conversation
+            # batch_activations[:, conv_id, start_idx:end_idx, :] has shape (num_layers, span_length, hidden_size)
+            span_activations = batch_activations[:, conv_id, start_idx:end_idx, :]
+
+            # Identify code block tokens to exclude from the mean
+            text = span['text']
+            exclude_mask = identify_code_block_tokens(text, tokenizer)
+
+            # Handle case where the exclude mask might not match span length due to tokenization differences
+            span_length = span_activations.size(1)
+            if len(exclude_mask) != span_length:
+                # Resize exclude_mask to match actual span length
+                if len(exclude_mask) > span_length:
+                    exclude_mask = exclude_mask[:span_length]
+                else:
+                    # Pad with False if exclude_mask is shorter
+                    padding = torch.zeros(span_length - len(exclude_mask), dtype=torch.bool)
+                    exclude_mask = torch.cat([exclude_mask, padding])
+
+            # Create include mask (invert of exclude mask)
+            include_mask = ~exclude_mask
+
+            # Compute mean across non-code tokens only
+            if include_mask.any():
+                # Select only non-code tokens
+                included_activations = span_activations[:, include_mask, :]  # (num_layers, included_tokens, hidden_size)
+
+                if included_activations.size(1) == 1:
+                    # Single token - avoid mean computation
+                    mean_activation = included_activations.squeeze(1)  # (num_layers, hidden_size)
+                else:
+                    # Multi-token span - compute mean on GPU for non-code tokens only
+                    mean_activation = included_activations.mean(dim=1)  # (num_layers, hidden_size)
+                turn_activations.append(mean_activation)
+            else:
+                # All tokens are code blocks - could either skip this turn or use all tokens
+                # For now, we'll skip turns that are entirely code
+                continue
+
+        if turn_activations:
+            # Stack to get (num_turns, num_layers, hidden_size)
+            conversation_activations[conv_id] = torch.stack(turn_activations)
+        else:
+            # No valid activations for this conversation - maintain dtype and device consistency
+            conversation_activations[conv_id] = torch.empty(0, num_layers, hidden_size, dtype=dtype, device=device)
+
+    return conversation_activations
+
+
+def process_batch_conversations_no_code(model, tokenizer, conversations, max_length=4096, **chat_kwargs):
+    """
+    High-level function to process a batch of conversations and extract per-turn activations,
+    excluding code blocks from mean calculations.
+
+    Args:
+        model: The language model
+        tokenizer: Tokenizer
+        conversations: List of conversations, each being a list of {"role": str, "content": str}
+        max_length: Maximum sequence length for padding
+        **chat_kwargs: additional arguments for apply_chat_template
+
+    Returns:
+        List of per-conversation per-turn activations, each with shape (num_turns, num_layers, hidden_size)
+        Code blocks (single ` and triple ```) are excluded from per-turn mean calculations.
+    """
+    # Get spans for the batch
+    batch_full_ids, batch_spans, span_metadata = build_batch_turn_spans(conversations, tokenizer, **chat_kwargs)
+
+    # Extract batch activations
+    batch_activations, batch_metadata = extract_batch_activations(
+        model, tokenizer, conversations, layer=None, max_length=max_length, **chat_kwargs
+    )
+
+    # Map spans to activations with code block filtering
+    conversation_activations = map_spans_to_activations_no_code(batch_activations, batch_spans, batch_metadata, tokenizer)
+
+    return conversation_activations

@@ -30,7 +30,7 @@ from tqdm import tqdm
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, process_batch_conversations
+from utils.probing_utils import load_model, process_batch_conversations, process_batch_conversations_no_code
 from transformers import AutoTokenizer
 
 # Set up logging
@@ -54,6 +54,7 @@ class DynamicsActivationExtractor:
         thinking: bool = False,
         target_files: Optional[List[str]] = None,
         interval: Optional[Tuple[int, int]] = None,
+        no_code: bool = False,
     ):
         """
         Initialize the dynamics activation extractor.
@@ -68,6 +69,7 @@ class DynamicsActivationExtractor:
             thinking: Enable thinking mode for chat templates
             target_files: Optional list of specific filenames to process (without .json extension)
             interval: Optional tuple (start, end) for processing files in range [start:end]
+            no_code: Exclude code blocks from activation averaging
         """
         self.model_name = model_name
         self.chat_model_name = chat_model_name
@@ -77,6 +79,7 @@ class DynamicsActivationExtractor:
         self.max_length = max_length
         self.target_files = target_files
         self.interval = interval
+        self.no_code = no_code
 
         # Chat template configuration
         self.chat_kwargs = {}
@@ -319,13 +322,23 @@ class DynamicsActivationExtractor:
                            f"avg_turns={avg_turns:.1f}, effective_batch_size={len(conversations)}")
 
             # Extract batch activations using the new span-based approach
-            batch_activations = process_batch_conversations(
-                model=self.model,
-                tokenizer=self.tokenizer,
-                conversations=conversations,
-                max_length=self.max_length,
-                **self.chat_kwargs
-            )
+            if self.no_code:
+                batch_activations = process_batch_conversations_no_code(
+                    model=self.model,
+                    tokenizer=self.tokenizer,
+                    conversations=conversations,
+                    max_length=self.max_length,
+                    **self.chat_kwargs
+                )
+                logger.info("Using no-code processing (excluding code blocks from averaging)")
+            else:
+                batch_activations = process_batch_conversations(
+                    model=self.model,
+                    tokenizer=self.tokenizer,
+                    conversations=conversations,
+                    max_length=self.max_length,
+                    **self.chat_kwargs
+                )
 
             logger.info(f"Extracted activations for {len(batch_activations)} conversations")
 
@@ -414,6 +427,7 @@ class DynamicsActivationExtractor:
                 max_length=self.max_length,
                 chat_model=self.chat_model_name,
                 thinking=self.chat_kwargs.get('enable_thinking', False),
+                no_code=self.no_code,
                 interval=self.interval
             )
 
@@ -482,7 +496,7 @@ class DynamicsActivationExtractor:
 
 class ExtractorArgs:
     """Args object for multi-GPU processing."""
-    def __init__(self, model_name, target_dir, output_dir, batch_size, max_length, chat_model, thinking, interval=None):
+    def __init__(self, model_name, target_dir, output_dir, batch_size, max_length, chat_model, thinking, no_code=False, interval=None):
         self.model_name = model_name
         self.target_dir = target_dir
         self.output_dir = output_dir
@@ -490,6 +504,7 @@ class ExtractorArgs:
         self.max_length = max_length
         self.chat_model = chat_model
         self.thinking = thinking
+        self.no_code = no_code
         self.interval = interval
 
 
@@ -520,7 +535,8 @@ def process_files_on_gpu(gpu_id, files, args):
             chat_model_name=args.chat_model,
             thinking=args.thinking,
             target_files=[f.stem for f in files],  # Pass just the filenames without .json
-            interval=None  # Interval filtering already applied before GPU distribution
+            interval=None,  # Interval filtering already applied before GPU distribution
+            no_code=args.no_code
         )
 
         # Load model on this specific GPU
@@ -643,6 +659,13 @@ Examples:
         --output-dir dynamics/results/qwen-3-32b/activations \\
         --batch-size 8 \\
         --no-thinking
+
+    # Exclude code blocks from activation averaging
+    python dynamics/activations.py \\
+        --model-name Qwen/Qwen3-32B \\
+        --target-dir dynamics/results/qwen-3-32b/transcripts \\
+        --output-dir dynamics/results/qwen-3-32b/activations \\
+        --no-code
         """
     )
 
@@ -686,6 +709,13 @@ Examples:
         help="Enable thinking mode for chat templates (default: False)"
     )
 
+    parser.add_argument(
+        "--no-code",
+        action="store_true",
+        default=False,
+        help="Exclude code blocks (` and ```) from activation averaging (default: False)"
+    )
+
     args = parser.parse_args()
 
     # Set logging level
@@ -700,6 +730,7 @@ Examples:
     logger.info(f"  Batch size: {args.batch_size}")
     logger.info(f"  Max length: {args.max_length}")
     logger.info(f"  Thinking enabled: {args.thinking}")
+    logger.info(f"  No-code processing: {args.no_code}")
     if args.files:
         logger.info(f"  Specific files: {args.files}")
     else:
@@ -716,7 +747,8 @@ Examples:
             chat_model_name=args.chat_model,
             thinking=args.thinking,
             target_files=args.files,
-            interval=tuple(args.interval) if args.interval else None
+            interval=tuple(args.interval) if args.interval else None,
+            no_code=args.no_code
         )
 
         # Process all transcripts
