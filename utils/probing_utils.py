@@ -10,6 +10,55 @@ class StopForward(Exception):
     """Exception to stop forward pass after target layer."""
     pass
 
+def get_model_layers(model):
+    """
+    Get the transformer layers from a model, handling different architectures.
+
+    Args:
+        model: The loaded model object
+
+    Returns:
+        The layers object (usually a ModuleList) that can be indexed and has len()
+
+    Raises:
+        AttributeError: If no layers can be found with helpful error message
+    """
+    # Try common paths for transformer layers
+    layer_paths = [
+        ('model.model.layers', lambda m: m.model.layers),  # Standard language models (Llama, Gemma 2, Qwen, etc.)
+        ('model.language_model.layers', lambda m: m.language_model.layers),  # Vision-language models (Gemma 3, LLaVA, etc.)
+        ('model.transformer.h', lambda m: m.transformer.h),  # GPT-style models
+        ('model.transformer.layers', lambda m: m.transformer.layers),  # Some transformer variants
+        ('model.gpt_neox.layers', lambda m: m.gpt_neox.layers),  # GPT-NeoX models
+    ]
+
+    for path_name, path_func in layer_paths:
+        try:
+            layers = path_func(model)
+            if layers is not None and hasattr(layers, '__len__') and len(layers) > 0:
+                return layers
+        except AttributeError:
+            continue
+
+    # If we get here, no layers were found
+    model_class = type(model).__name__
+    model_name = getattr(model, 'name_or_path', 'Unknown')
+
+    # Provide specific guidance for known cases
+    error_msg = f"Could not find transformer layers for model '{model_name}' (class: {model_class}). "
+
+    if 'gemma' in model_name.lower() and '3' in model_name:
+        error_msg += "For Gemma 3 vision models, try loading with Gemma3ForConditionalGeneration instead."
+    elif 'llava' in model_name.lower():
+        error_msg += "For LLaVA models, layers should be at model.language_model.layers."
+    else:
+        # Show what paths were tried
+        tried_paths = [path_name for path_name, _ in layer_paths]
+        error_msg += f"Tried paths: {tried_paths}"
+
+    raise AttributeError(error_msg)
+
+
 def load_model(model_name, device=None):
     """Load model and tokenizer"""
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -17,7 +66,7 @@ def load_model(model_name, device=None):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
-    
+
     # Use specific device or auto device mapping
     if device is not None:
         model = AutoModelForCausalLM.from_pretrained(
@@ -101,7 +150,7 @@ def extract_full_activations(model, tokenizer, conversation, layer=None, chat_fo
         layer_list = layer
     else:
         single_layer_mode = False
-        layer_list = list(range(len(model.model.layers)))
+        layer_list = list(range(len(get_model_layers(model))))
     
     if chat_format:
         formatted_prompt = tokenizer.apply_chat_template(
@@ -127,8 +176,9 @@ def extract_full_activations(model, tokenizer, conversation, layer=None, chat_fo
         return hook_fn
     
     # Register hooks for all target layers
+    model_layers = get_model_layers(model)
     for layer_idx in layer_list:
-        target_layer = model.model.layers[layer_idx]
+        target_layer = model_layers[layer_idx]
         handle = target_layer.register_forward_hook(create_hook_fn(layer_idx))
         handles.append(handle)
     
@@ -195,8 +245,9 @@ def extract_activation_at_newline(model, tokenizer, prompt, layer=15, swap=False
         return hook_fn
     
     # Register hooks for all target layers
+    model_layers = get_model_layers(model)
     for layer_idx in layer_list:
-        target_layer = model.model.layers[layer_idx]
+        target_layer = model_layers[layer_idx]
         handle = target_layer.register_forward_hook(create_hook_fn(layer_idx))
         handles.append(handle)
     
@@ -384,7 +435,8 @@ def capture_hidden_state(model, input_ids, layer, position=-1):
         captured_state = hidden_states[0, position, :].clone().cpu()
     
     # Register hook on target layer
-    layer_module = model.model.layers[layer]
+    model_layers = get_model_layers(model)
+    layer_module = model_layers[layer]
     hook_handle = layer_module.register_forward_hook(capture_hook)
     
     try:
@@ -1107,7 +1159,7 @@ def extract_batch_activations(model, tokenizer, conversations, layer=None, max_l
     elif isinstance(layer, list):
         layer_list = layer
     else:
-        layer_list = list(range(len(model.model.layers)))
+        layer_list = list(range(len(get_model_layers(model))))
 
     # Prepare batch tensors
     batch_size = len(batch_full_ids)

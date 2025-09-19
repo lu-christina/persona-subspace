@@ -348,8 +348,8 @@ async def call_judge_model_single(
         response = await client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.0  # For consistent evaluation
+            max_completion_tokens=max_tokens,
+            temperature=1  # For consistent evaluation
         )
         
         if response.choices and response.choices[0].message.content:

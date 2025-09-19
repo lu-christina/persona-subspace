@@ -37,7 +37,7 @@ from tqdm import tqdm
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, get_response_indices
+from utils.probing_utils import load_model, get_response_indices, get_model_layers
 from transformers import AutoTokenizer
 
 # Set up logging
@@ -85,7 +85,7 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
         List of activation tensors, one per conversation
     """
     if layers is None:
-        layers = list(range(len(model.model.layers)))
+        layers = list(range(len(get_model_layers(model))))
     elif isinstance(layers, int):
         layers = [layers]
     
@@ -140,8 +140,9 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
                 return hook_fn
             
             # Register hooks for target layers
+            model_layers = get_model_layers(model)
             for layer_idx in layers:
-                target_layer = model.model.layers[layer_idx]
+                target_layer = model_layers[layer_idx]
                 handle = target_layer.register_forward_hook(create_hook_fn(layer_idx))
                 handles.append(handle)
             
