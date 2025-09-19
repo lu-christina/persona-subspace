@@ -323,7 +323,7 @@ class RoleResponseGenerator:
             "",
             "You are an AI assistant.",
             "You are a large language model.",
-            "You are Llama.",
+            "You are Gemma.",
             "Respond as yourself."
         ] if self.include_default else []
         
