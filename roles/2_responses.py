@@ -248,7 +248,7 @@ class RoleResponseGenerator:
             True if model supports system prompts, False if it requires concatenation
         """
         # Gemma models don't support system prompts properly
-        if self.model_name.startswith("google/"):
+        if self.model_name.startswith("google/gemma-2"):
             return False
         # All other models (Qwen, Llama, etc.) support system prompts
         return True
