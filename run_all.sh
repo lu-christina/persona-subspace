@@ -1,44 +1,71 @@
 #!/usr/bin/env bash
-# run_all.sh — sequential UV jobs, always run, per-job logs, summary at the end
 set -Eeuo pipefail
 
-LOG_DIR="${LOG_DIR:-./logs}"
-SUMMARY="${SUMMARY:-${LOG_DIR}/summary.txt}"
-mkdir -p "$LOG_DIR"
+# If interrupted or if any worker fails, kill the rest.
+trap 'echo "[!] Aborting…"; jobs -pr | xargs -r kill -9; exit 1' INT TERM ERR
 
-declare -a JOBS=(
-'uv run traits/3_response_activations.py --model-name google/gemma-3-27b-it --responses-dir /workspace/gemma-3-27b/traits_240/responses --output-dir /workspace/gemma-3-27b/traits_240/response_activations --multi-gpu --num-gpus 8 --batch-size 32'
-'uv run roles/3_response_activations.py --model-name google/gemma-3-27b-it --responses-dir /workspace/gemma-3-27b/roles_240/responses --output-dir /workspace/gemma-3-27b/roles_240/response_activations --multi-gpu --num-gpus 8 --batch-size 32'
-)
+# Create a place for logs
+mkdir -p logs
 
-printf "" > "$SUMMARY"
+MODEL="google/gemma-3-27b-it"
+QUESTIONS="/root/git/persona-subspace/traits/data/questions_240.jsonl"
+ROLES_RESP_DIR="/workspace/gemma-3-27b/roles_240/responses"
 
-run_job () {
-  local cmd="$1"
-  local stamp; stamp="$(date +'%Y%m%d-%H%M%S')"
-  local tag="job"
-  if [[ "$cmd" =~ --output_jsonl[[:space:]]+([^[:space:]]+) ]]; then
-    tag="$(basename "${BASH_REMATCH[1]}" .jsonl)"
-  fi
-  local log="${LOG_DIR}/${stamp}_${tag}.log"
+# 4 workers: (device pair, roles subset)
+declare -a DEVICES=("0,1" "2,3" "4,5" "6,7")
+declare -a RANGES=("0-70" "70-140" "140-210" "210-275")
 
-  echo "=== $(date -Is) === $cmd" | tee -a "$log"
-  if bash -lc "$cmd" 2>&1 | tee -a "$log"; then
-    echo "[OK] $(date -Is)  ${tag}" | tee -a "$SUMMARY"
-  else
-    echo "[FAIL] $(date -Is) ${tag}  (see $log)" | tee -a "$SUMMARY" >&2
-    return 1
-  fi
-}
+pids=()
 
-overall_rc=0
-for j in "${JOBS[@]}"; do
-  if ! run_job "$j"; then
-    overall_rc=1   # record failure but keep going
-  fi
+echo "[*] Launching 4 role-response workers…"
+for i in "${!DEVICES[@]}"; do
+  d="${DEVICES[$i]}"
+  r="${RANGES[$i]}"
+  log="logs/roles_worker_${i}.log"
+
+  echo "    - Worker $i -> GPUs {$d}, roles {$r} (log: $log)"
+
+  CUDA_VISIBLE_DEVICES="$d" \
+  uv run roles/2_responses.py \
+      --model-name "$MODEL" \
+      --questions-file "$QUESTIONS" \
+      --output-dir "$ROLES_RESP_DIR" \
+      --tensor-parallel-size 2 \
+      --roles-subset "$r" \
+      --no-default \
+      >"$log" 2>&1 &
+  pids+=($!)
 done
 
-echo -e "\n------------- SUMMARY -------------"
-cat "$SUMMARY" || true
-echo "-----------------------------------"
-exit "$overall_rc"
+# Wait for all four to complete
+for pid in "${pids[@]}"; do
+  wait "$pid"
+done
+echo "[*] All 4 workers finished successfully."
+
+# === Follow-up activation passes (sequential) ===
+# NOTE: These use your exact commands/paths.
+#       The first uses TRAITS responses (assumes they already exist);
+#       the second uses the ROLES responses just generated above.
+
+echo "[*] Running traits response activations (8 GPUs)…"
+uv run traits/3_response_activations.py \
+  --model-name "$MODEL" \
+  --responses-dir /workspace/gemma-3-27b/traits_240/responses \
+  --output-dir   /workspace/gemma-3-27b/traits_240/response_activations \
+  --multi-gpu --num-gpus 8 --batch-size 32
+
+echo "[*] Running roles response activations (8 GPUs)…"
+uv run roles/3_response_activations.py \
+  --model-name "$MODEL" \
+  --responses-dir /workspace/gemma-3-27b/roles_240/responses \
+  --output-dir   /workspace/gemma-3-27b/roles_240/response_activations \
+  --multi-gpu --num-gpus 8 --batch-size 32
+
+echo "[*] Running judge"
+uv run roles/4_judge.py \
+	--output-dir /workspace/gemma-3-27b/roles_240/extract_scores \
+	--responses-dir /workspace/gemma-3-27b/roles_240/responses
+
+
+echo "[✓] Pipeline complete."
