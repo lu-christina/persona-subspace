@@ -169,6 +169,7 @@ def load_vllm_model(
         
         logger.info(f"Loading vLLM model: {model_name} with {tensor_parallel_size} GPUs")
         
+        
         # Load the model using vLLM's LLM class
         llm = LLM(
             model=model_name,
