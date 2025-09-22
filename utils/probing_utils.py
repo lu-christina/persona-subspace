@@ -1564,3 +1564,52 @@ def process_batch_conversations_no_code(model, tokenizer, conversations, max_len
     conversation_activations = map_spans_to_activations_no_code(batch_activations, batch_spans, batch_metadata, tokenizer)
 
     return conversation_activations
+
+
+def mean_all_turn_activations(model, tokenizer, conversation, layer=15, **chat_kwargs):
+    """
+    Get mean activations for all turns in a conversation using build_turn_spans and extract_full_activations.
+
+    Args:
+        model: The language model
+        tokenizer: Tokenizer
+        conversation: List of dict with 'role' and 'content' keys
+        layer: Layer index to extract activations from (default 15)
+        **chat_kwargs: additional arguments for apply_chat_template
+
+    Returns:
+        torch.Tensor: Mean activations of shape (num_turns, hidden_size) for all turns in chronological order
+    """
+    import torch
+
+    # Get turn spans for the conversation
+    full_ids, spans = build_turn_spans(conversation, tokenizer, **chat_kwargs)
+
+    # Extract full activations for the conversation
+    activations = extract_full_activations(
+        model, tokenizer, conversation, layer=layer, chat_format=True, **chat_kwargs
+    )
+
+    # Handle the case where extract_full_activations returns multi-layer format
+    if activations.ndim == 3:  # (num_layers, num_tokens, hidden_size)
+        activations = activations[0]  # Take the first (and only) layer
+
+    # Compute mean activation for each turn
+    turn_mean_activations = []
+
+    for span in spans:
+        start_idx = span['start']
+        end_idx = span['end']
+
+        # Extract activations for this turn's tokens
+        if start_idx < end_idx and end_idx <= activations.shape[0]:
+            turn_activations = activations[start_idx:end_idx, :]  # (turn_tokens, hidden_size)
+            mean_activation = turn_activations.mean(dim=0)  # (hidden_size,)
+            turn_mean_activations.append(mean_activation)
+
+    if not turn_mean_activations:
+        # Return empty tensor with correct shape if no valid turns
+        return torch.empty(0, activations.shape[1] if activations.ndim > 1 else 0)
+
+    # Stack to get (num_turns, hidden_size)
+    return torch.stack(turn_mean_activations)
