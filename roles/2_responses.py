@@ -24,7 +24,7 @@ Usage:
         --output-dir /workspace/roles/responses
     
     # Using central questions file
-    uv run roles/2_generate_responses.py \
+    uv run roles/2_responses.py \
         --model-name google/gemma-2-27b-it \
         --questions-file /root/git/persona-subspace/roles/data/questions_240.jsonl \
         --output-dir /workspace/roles/responses

@@ -82,7 +82,8 @@ def load_personas_and_topics(personas_file: str) -> List[Dict[str, Any]]:
     Load personas and topics from file.
     """
     personas_data = []
-    prompt_template = PROMPTS["generate_task"]
+    prompt_template_coding_writing = PROMPTS["generate_coding_writing_task"]
+    prompt_template_therapy_philosophy = PROMPTS["generate_therapy_philosophy_task"]
 
     with open(personas_file, "r") as f:
         for line in f:
@@ -93,6 +94,13 @@ def load_personas_and_topics(personas_file: str) -> List[Dict[str, Any]]:
             persona_id = persona_data["id"]
 
             for i, topic in enumerate(topics):
+                if domain == "coding" or domain == "writing":
+                    prompt_template = prompt_template_coding_writing
+                elif domain == "therapy" or domain == "philosophy":
+                    prompt_template = prompt_template_therapy_philosophy
+                else:
+                    raise ValueError(f"Invalid domain: {domain}")
+
                 system_prompt = prompt_template.format(domain=domain, persona=persona, topic=topic)
                 personas_data.append({
                     "persona_id": persona_id,
@@ -145,7 +153,7 @@ class ConversationRunner:
     def setup_models(self):
         """Initialize both target and auditor models."""
         logger.info(f"Loading target model: {self.target_model_name}")
-        self.target_model = load_vllm_model(self.target_model_name, max_model_len=40960)
+        self.target_model = load_vllm_model(self.target_model_name, max_model_len=8192)
 
         logger.info(f"Setting up auditor model: {self.auditor_model_name}")
         self.auditor_client = openai.OpenAI(

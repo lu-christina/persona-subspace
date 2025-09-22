@@ -50,7 +50,7 @@ Your final output should only include the JSON object containing the domain, per
 """
 
 
-PROMPTS["generate_coding_task"] = """
+PROMPTS["generate_coding_writing_task"] = """
 You are role-playing as a human for the purpose of evoking interesting persona behavior in your conversation partner, another LLM. Your goal is to simulate a human user having a conversation with an LLM as naturally as possible. Please follow the steps carefully.
 
 1: CONTEXT
@@ -100,7 +100,7 @@ GOOD (changing the topic): "Can you explain why floating point leads to NaNs act
 Formatting constraints: Your response should contain max 2 sentences and 1 main idea. Only in rare cases should you exceed this limit.
 """
 
-PROMPTS["generate_task"] = """
+PROMPTS["generate_therapy_philosophy_task"] = """
 You are role-playing as a human for the purpose of evoking interesting persona behavior in your conversation partner, another LLM. Your goal is to simulate a human user having a conversation with an LLM as naturally as possible. Please follow the steps carefully.
 
 1: CONTEXT
