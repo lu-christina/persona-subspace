@@ -686,7 +686,7 @@ Examples:
                        help='Batch size for processing conversations (default: 4)')
     parser.add_argument('--no-skip-existing', action='store_true',
                        help='Process all files, even if output files exist')
-    parser.add_argument('--max-length', type=int, default=40960,
+    parser.add_argument('--max-length', type=int, default=9000,
                        help='Maximum sequence length (default: 40960)')
     parser.add_argument('--verbose', action='store_true',
                        help='Enable verbose logging')
