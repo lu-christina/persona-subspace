@@ -32,7 +32,7 @@ logging.getLogger("openai").setLevel(logging.WARNING)
 logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 # Constants
-DEFAULT_JUDGE_PROMPT_FILE = Path(__file__).parent / "jailbreak" / "judge.json"
+DEFAULT_JUDGE_PROMPT_FILE = "/root/git/persona-subspace/evals/jailbreak/judge.json"
 DEFAULT_JUDGE_MODEL = "deepseek/deepseek-chat"
 
 
