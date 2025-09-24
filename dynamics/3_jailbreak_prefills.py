@@ -284,14 +284,29 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
                 skipped_count += 1
                 continue
 
-            row_data = prompt_data.copy()  # Copy all original fields
-            row_data['response'] = response
-            row_data['magnitude'] = prompt_data.get('pc1', 0.0)
+            # Build row_data with only specific fields
+            row_data = {}
 
-            # Remove underscore fields from output
-            fields_to_remove = [k for k in row_data.keys() if k.startswith('_')]
-            for field in fields_to_remove:
-                del row_data[field]
+            # From questions file
+            if 'id' in prompt_data:
+                row_data['id'] = prompt_data['id']
+            if 'question' in prompt_data:
+                row_data['prompt'] = prompt_data['question']
+            if 'harm_category' in prompt_data:
+                row_data['harm_category'] = prompt_data['harm_category']
+            if 'persona' in prompt_data:
+                row_data['persona'] = prompt_data['persona']
+
+            # From prefills file
+            if 'pc1' in prompt_data:
+                row_data['magnitude'] = prompt_data['pc1']
+            if 'prefill_id' in prompt_data:
+                row_data['prefill_id'] = prompt_data['prefill_id']
+            if 'role' in prompt_data:
+                row_data['role'] = prompt_data['role']
+
+            # Generated response
+            row_data['response'] = response
 
             f.write(json.dumps(row_data) + '\n')
             written_count += 1
