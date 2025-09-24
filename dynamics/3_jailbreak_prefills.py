@@ -144,15 +144,11 @@ def load_questions(questions_file: str) -> List[Dict[str, Any]]:
                 question_obj = json.loads(line.strip())
 
                 # Only validate presence of question field
-                question_text = None
-                for field in ['question', 'text', 'prompt']:
-                    if field in question_obj:
-                        question_text = question_obj[field]
-                        break
-
-                if question_text is None:
-                    print(f"Warning: No question text found on line {line_num}")
+                if 'question' not in question_obj:
+                    print(f"Warning: No 'question' field found on line {line_num}")
                     continue
+
+                question_text = question_obj['question']
 
                 # Store the original object with the identified text field
                 question_obj['_question_text'] = question_text
