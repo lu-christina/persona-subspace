@@ -156,7 +156,7 @@ def load_input_data(input_files: List[str]) -> List[Dict[str, Any]]:
                 try:
                     data = json.loads(line)
                     # Validate required fields for jailbreak data
-                    required_fields = ['id', 'prompt', 'question', 'harm_category', 'persona', 'response']
+                    required_fields = ['id', 'prompt', 'harm_category', 'persona', 'response']
                     missing_fields = [field for field in required_fields if field not in data]
                     if missing_fields:
                         logger.warning(f"Missing required fields {missing_fields} on line {line_num} in {input_file}")
