@@ -219,6 +219,8 @@ def generate_all_prompts(prefills: List[Dict[str, Any]], questions: List[Dict[st
                 prompt_data['_user_message'] = question_text
                 prompt_data['_conversation_prefill'] = prefill['conversation']
                 prompt_data['prefill_id'] = prefill['id']
+                # Ensure role comes from prefill, not question
+                prompt_data['role'] = prefill.get('role')
 
                 # Add sample_id if multiple samples per prompt
                 if samples_per_prompt > 1:
