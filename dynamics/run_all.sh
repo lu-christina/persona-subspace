@@ -5,7 +5,7 @@ set -Eeuo pipefail
 # ---- Config (override via env) ----
 MODEL="${MODEL:-Qwen/Qwen3-32B}"
 TRANSCRIPTS_ROOT="${TRANSCRIPTS_ROOT:-/root/git/persona-subspace/dynamics/results/qwen-3-32b/transcripts}"
-OUTPUT_ROOT="${OUTPUT_ROOT:-/workspace/qwen-3-32b/dynamics}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-/root/git/persona-subspace/dynamics/results/qwen-3-32b/activations}"
 LOG_DIR="${LOG_DIR:-./logs}"
 SUMMARY="${SUMMARY:-${LOG_DIR}/summary.txt}"
 
