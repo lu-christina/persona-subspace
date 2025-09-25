@@ -306,6 +306,12 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
                 row_data['prefill_id'] = prompt_data['prefill_id']
             if 'role' in prompt_data:
                 row_data['role'] = prompt_data['role']
+            if 'label' in prompt_data:
+                row_data['label'] = prompt_data['label']
+            if 'question_index' in prompt_data:
+                row_data['question_index'] = prompt_data['question_index']
+            if 'prompt_index' in prompt_data:
+                row_data['prompt_index'] = prompt_data['prompt_index']
 
             # Generated response
             row_data['response'] = response
