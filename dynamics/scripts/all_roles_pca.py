@@ -166,6 +166,7 @@ def process_role(role, question_ids, roles_basedir, layer, role_pca_results, tra
                     'question_index': question_id,
                     'prompt_index': 0,
                     'label': label,
+                    'activation': activations_to_project[i],
                     'role_pca_transformed': role_pca_transformed,
                     'trait_pca_transformed': trait_pca_transformed,
                     'conversation': conversation
