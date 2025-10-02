@@ -127,6 +127,12 @@ def parse_arguments():
         help="Number of samples to generate for each unique question x prefill combination"
     )
 
+    parser.add_argument(
+        "--extra-role-prompt",
+        action="store_true",
+        help="Include the prompt field from questions file before the question"
+    )
+
     return parser.parse_args()
 
 
@@ -238,7 +244,7 @@ def generate_all_prompts(prefills: List[Dict[str, Any]], questions: List[Dict[st
     return prompts_data
 
 
-def format_messages_for_chat(prompts_data: List[Dict[str, Any]], model_name: str) -> List[List[Dict[str, str]]]:
+def format_messages_for_chat(prompts_data: List[Dict[str, Any]], model_name: str, extra_role_prompt: bool = False) -> List[List[Dict[str, str]]]:
     """Format prompts into chat messages for vLLM batch processing."""
     formatted_messages = []
 
@@ -246,20 +252,26 @@ def format_messages_for_chat(prompts_data: List[Dict[str, Any]], model_name: str
         user_message = prompt_data.get('_user_message', '')
         conversation_prefill = prompt_data.get('_conversation_prefill', [])
 
+        # If extra_role_prompt is enabled, prepend the prompt field to the user message
+        if extra_role_prompt and 'prompt' in prompt_data:
+            combined_message = prompt_data['prompt'] + "\n\n" + user_message
+        else:
+            combined_message = user_message
+
         # Start with conversation prefill
         messages = []
         if conversation_prefill:
             messages.extend(conversation_prefill)
 
         # Add the current question as a user message
-        messages.append({"role": "user", "content": user_message})
+        messages.append({"role": "user", "content": combined_message})
 
         formatted_messages.append(messages)
 
     return formatted_messages
 
 
-def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[str], samples_per_prompt: int = 1):
+def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[str], samples_per_prompt: int = 1, extra_role_prompt: bool = False):
     """Write results to JSONL file, appending new results only."""
     print(f"Writing results to {output_jsonl}")
 
@@ -293,7 +305,11 @@ def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[s
             if 'id' in prompt_data:
                 row_data['id'] = prompt_data['id']
             if 'question' in prompt_data:
-                row_data['prompt'] = prompt_data['question']
+                # If extra_role_prompt is enabled, combine prompt + question
+                if extra_role_prompt and 'prompt' in prompt_data:
+                    row_data['prompt'] = prompt_data['prompt'] + "\n\n" + prompt_data['question']
+                else:
+                    row_data['prompt'] = prompt_data['question']
             if 'harm_category' in prompt_data:
                 row_data['harm_category'] = prompt_data['harm_category']
             if 'persona' in prompt_data:
@@ -360,7 +376,7 @@ def main():
         return
 
     # Format messages for chat-based processing with conversation prefill
-    messages_list = format_messages_for_chat(prompts_data, args.model_name)
+    messages_list = format_messages_for_chat(prompts_data, args.model_name, args.extra_role_prompt)
 
     # Load vLLM model with GPU configuration
     print(f"Loading vLLM model: {args.model_name}")
@@ -396,7 +412,7 @@ def main():
         )
 
         # Write results to JSONL
-        write_results_to_jsonl(prompts_data, responses, args.output_jsonl, existing_results, args.samples_per_prompt)
+        write_results_to_jsonl(prompts_data, responses, args.output_jsonl, existing_results, args.samples_per_prompt, args.extra_role_prompt)
 
         print(f"\nJailbreak evaluation completed!")
         print(f"Results saved to: {args.output_jsonl}")
