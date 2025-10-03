@@ -99,33 +99,41 @@ class DynamicsActivationExtractor:
         logger.info(f"Target directory: {self.target_dir}")
         logger.info(f"Output directory: {self.output_dir}")
 
+    def load_tokenizer(self):
+        """Load only the tokenizer (for bucketing without loading the full model)."""
+        if self.tokenizer is None:
+            tokenizer_name = self.chat_model_name if self.chat_model_name else self.model_name
+            logger.info(f"Loading tokenizer from: {tokenizer_name}")
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+            # Set padding token if not set
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.tokenizer.padding_side = "right"
+            logger.info("Tokenizer loaded successfully")
+
     def load_model(self, device=None):
         """Load model and tokenizer."""
         if self.model is None:
+            # Load tokenizer first if not already loaded
+            if self.tokenizer is None:
+                self.load_tokenizer()
+            
             if self.chat_model_name is not None:
-                # Load tokenizer from chat model, model from activation model
+                # Load model from activation model (tokenizer already loaded)
                 logger.info(f"Loading model from: {self.model_name}")
-                logger.info(f"Loading tokenizer from: {self.chat_model_name}")
                 self.model, _ = load_model(self.model_name, device=device)
-                self.tokenizer = AutoTokenizer.from_pretrained(self.chat_model_name)
-                # Set padding token if not set
-                if self.tokenizer.pad_token is None:
-                    self.tokenizer.pad_token = self.tokenizer.eos_token
-                self.tokenizer.padding_side = "right"
             else:
-                # Load both from same model
+                # Load model (tokenizer already loaded)
                 logger.info(f"Loading model: {self.model_name}")
-                self.model, self.tokenizer = load_model(self.model_name, device=device)
+                self.model, _ = load_model(self.model_name, device=device)
             logger.info("Model loaded successfully")
 
     def close_model(self):
-        """Clean up model resources."""
+        """Clean up model resources (keeps tokenizer loaded)."""
         if self.model is not None:
             logger.info("Cleaning up model resources")
             del self.model
-            del self.tokenizer
             self.model = None
-            self.tokenizer = None
 
             # Clear GPU cache
             if torch.cuda.is_available():
@@ -134,6 +142,13 @@ class DynamicsActivationExtractor:
 
             # Force garbage collection
             gc.collect()
+    
+    def close_all(self):
+        """Clean up all resources including tokenizer."""
+        self.close_model()
+        if self.tokenizer is not None:
+            del self.tokenizer
+            self.tokenizer = None
 
     def get_transcript_files(self) -> List[Path]:
         """Get JSON transcript files in the target directory, optionally filtered by target_files and interval."""
@@ -408,14 +423,24 @@ class DynamicsActivationExtractor:
 
         # Sort files by conversation length for efficient batching (preserving this critical optimization)
         logger.info("Preparing files for processing with length bucketing...")
-        self.load_model()  # Need model loaded for length bucketing
+        self.load_tokenizer()  # Only need tokenizer for length bucketing
         try:
             files_to_process = self.bucket_conversations_by_length(files_to_process)
         finally:
-            self.close_model()  # Close model after bucketing, will be reloaded per-GPU
+            # Tokenizer is lightweight, keep it loaded for later use
+            pass
 
         # Check if we can use multi-GPU processing
-        if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        # NOTE: For very large models (like 70B+), multi-GPU file distribution doesn't work well
+        # because each process tries to load a full copy of the model on each GPU.
+        # For such models, use single-process mode with device_map="auto" to shard across GPUs.
+        model_is_large = is_large_model(self.model_name)
+        if model_is_large:
+            logger.info(f"Model {self.model_name} detected as large model (70B+) - using single-process mode with GPU sharding")
+        
+        use_multi_gpu_file_processing = not model_is_large
+        
+        if use_multi_gpu_file_processing and torch.cuda.is_available() and torch.cuda.device_count() > 1:
             logger.info(f"Multi-GPU processing available with {torch.cuda.device_count()} GPUs")
 
             # Create args object for multi-GPU processing
@@ -492,6 +517,35 @@ class DynamicsActivationExtractor:
             # Final cleanup
             self.close_model()
             logger.info("Final cleanup completed")
+
+
+def is_large_model(model_name: str) -> bool:
+    """
+    Detect if a model is too large to fit on a single GPU.
+    
+    Large models (70B+) should use device_map="auto" sharding instead of 
+    multi-GPU file distribution where each worker loads a full model copy.
+    
+    Args:
+        model_name: HuggingFace model identifier
+        
+    Returns:
+        True if the model is large (70B+), False otherwise
+    """
+    model_lower = model_name.lower()
+    
+    # Check for explicit size indicators in model name
+    large_size_patterns = [
+        '70b', '72b', '90b', '100b', '110b', '120b', '140b', '180b', '200b',
+        '300b', '400b', '500b', '600b', '700b', '800b', '900b', '1000b',
+        '405b',  # Llama 3.1 405B
+    ]
+    
+    for pattern in large_size_patterns:
+        if pattern in model_lower:
+            return True
+    
+    return False
 
 
 class ExtractorArgs:

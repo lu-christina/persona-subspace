@@ -59,27 +59,54 @@ def get_model_layers(model):
     raise AttributeError(error_msg)
 
 
-def load_model(model_name, device=None):
-    """Load model and tokenizer"""
+def load_model(model_name, device=None, max_memory_per_gpu=None):
+    """Load model and tokenizer
+    
+    Args:
+        model_name: HuggingFace model identifier
+        device: Device specification - can be:
+            - None: use all available GPUs with device_map="auto"
+            - "cuda:X": use single GPU (will auto-shard if model is too large)
+            - dict: custom device_map
+        max_memory_per_gpu: Optional dict mapping GPU ids to max memory (e.g. {0: "40GiB", 1: "40GiB"})
+    """
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     # Set padding token if not set
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
-    # Use specific device or auto device mapping
-    if device is not None:
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.bfloat16,
-            device_map=device
-        )
+    # Build model loading kwargs
+    model_kwargs = {
+        "torch_dtype": torch.bfloat16,
+    }
+    
+    if max_memory_per_gpu is not None:
+        # Use custom memory limits (for multi-worker setups)
+        model_kwargs["device_map"] = "auto"
+        model_kwargs["max_memory"] = max_memory_per_gpu
+    elif device is None or device == "auto":
+        # Use all available GPUs automatically
+        model_kwargs["device_map"] = "auto"
+    elif isinstance(device, dict):
+        # Custom device map provided
+        model_kwargs["device_map"] = device
+    elif isinstance(device, str) and device.startswith("cuda:"):
+        # Single GPU specified - try to use it, but allow sharding if needed
+        model_kwargs["device_map"] = "auto"
+        gpu_id = int(device.split(":")[-1])
+        # Limit to just this GPU
+        model_kwargs["max_memory"] = {gpu_id: "139GiB"}
+        # Set other GPUs to 0 to prevent usage
+        if torch.cuda.is_available():
+            for i in range(torch.cuda.device_count()):
+                if i != gpu_id and i not in model_kwargs["max_memory"]:
+                    model_kwargs["max_memory"][i] = "0GiB"
     else:
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.bfloat16,
-            device_map="auto"  # Use all GPUs
-        )
+        # Fallback to auto
+        model_kwargs["device_map"] = "auto"
+    
+    model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
     model.eval()
     return model, tokenizer
 
