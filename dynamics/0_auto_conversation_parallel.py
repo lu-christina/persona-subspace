@@ -694,7 +694,7 @@ def parse_arguments() -> argparse.Namespace:
         "--vllm-batch-size",
         type=int,
         default=100,
-        help="Maximum batch size for vLLM worker - will adapt down based on conversation length (default: 100)"
+        help="Maximum batch size for vLLM worker - will adapt down based on conversation length (default: 200)"
     )
     parser.add_argument(
         "--vllm-timeout",
