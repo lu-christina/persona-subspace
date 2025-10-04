@@ -55,6 +55,7 @@ class DynamicsActivationExtractor:
         target_files: Optional[List[str]] = None,
         interval: Optional[Tuple[int, int]] = None,
         no_code: bool = False,
+        shard_model: bool = False,
     ):
         """
         Initialize the dynamics activation extractor.
@@ -70,6 +71,7 @@ class DynamicsActivationExtractor:
             target_files: Optional list of specific filenames to process (without .json extension)
             interval: Optional tuple (start, end) for processing files in range [start:end]
             no_code: Exclude code blocks from activation averaging
+            shard_model: Shard model across GPUs (for large models)
         """
         self.model_name = model_name
         self.chat_model_name = chat_model_name
@@ -80,6 +82,7 @@ class DynamicsActivationExtractor:
         self.target_files = target_files
         self.interval = interval
         self.no_code = no_code
+        self.shard_model = shard_model
 
         # Chat template configuration
         self.chat_kwargs = {}
@@ -430,17 +433,14 @@ class DynamicsActivationExtractor:
             # Tokenizer is lightweight, keep it loaded for later use
             pass
 
-        # Check if we can use multi-GPU processing
-        # NOTE: For very large models (like 70B+), multi-GPU file distribution doesn't work well
+        # Check if we should use multi-GPU file processing or model sharding
+        # NOTE: For very large models, multi-GPU file distribution doesn't work well
         # because each process tries to load a full copy of the model on each GPU.
-        # For such models, use single-process mode with device_map="auto" to shard across GPUs.
-        model_is_large = is_large_model(self.model_name)
-        if model_is_large:
-            logger.info(f"Model {self.model_name} detected as large model (70B+) - using single-process mode with GPU sharding")
-        
-        use_multi_gpu_file_processing = not model_is_large
-        
-        if use_multi_gpu_file_processing and torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        # Use --shard-model flag for such models to use single-process mode with device_map="auto" to shard across GPUs.
+        if self.shard_model:
+            logger.info(f"Model sharding enabled - using single-process mode with device_map='auto' for GPU sharding")
+
+        if not self.shard_model and torch.cuda.is_available() and torch.cuda.device_count() > 1:
             logger.info(f"Multi-GPU processing available with {torch.cuda.device_count()} GPUs")
 
             # Create args object for multi-GPU processing
@@ -453,7 +453,8 @@ class DynamicsActivationExtractor:
                 chat_model=self.chat_model_name,
                 thinking=self.chat_kwargs.get('enable_thinking', False),
                 no_code=self.no_code,
-                interval=self.interval
+                interval=self.interval,
+                shard_model=self.shard_model
             )
 
             # Try multi-GPU processing
@@ -519,38 +520,11 @@ class DynamicsActivationExtractor:
             logger.info("Final cleanup completed")
 
 
-def is_large_model(model_name: str) -> bool:
-    """
-    Detect if a model is too large to fit on a single GPU.
-    
-    Large models (70B+) should use device_map="auto" sharding instead of 
-    multi-GPU file distribution where each worker loads a full model copy.
-    
-    Args:
-        model_name: HuggingFace model identifier
-        
-    Returns:
-        True if the model is large (70B+), False otherwise
-    """
-    model_lower = model_name.lower()
-    
-    # Check for explicit size indicators in model name
-    large_size_patterns = [
-        '70b', '72b', '90b', '100b', '110b', '120b', '140b', '180b', '200b',
-        '300b', '400b', '500b', '600b', '700b', '800b', '900b', '1000b',
-        '405b',  # Llama 3.1 405B
-    ]
-    
-    for pattern in large_size_patterns:
-        if pattern in model_lower:
-            return True
-    
-    return False
 
 
 class ExtractorArgs:
     """Args object for multi-GPU processing."""
-    def __init__(self, model_name, target_dir, output_dir, batch_size, max_length, chat_model, thinking, no_code=False, interval=None):
+    def __init__(self, model_name, target_dir, output_dir, batch_size, max_length, chat_model, thinking, no_code=False, interval=None, shard_model=False):
         self.model_name = model_name
         self.target_dir = target_dir
         self.output_dir = output_dir
@@ -560,6 +534,7 @@ class ExtractorArgs:
         self.thinking = thinking
         self.no_code = no_code
         self.interval = interval
+        self.shard_model = shard_model
 
 
 def process_files_on_gpu(gpu_id, files, args):
@@ -590,7 +565,8 @@ def process_files_on_gpu(gpu_id, files, args):
             thinking=args.thinking,
             target_files=[f.stem for f in files],  # Pass just the filenames without .json
             interval=None,  # Interval filtering already applied before GPU distribution
-            no_code=args.no_code
+            no_code=args.no_code,
+            shard_model=args.shard_model
         )
 
         # Load model on this specific GPU
@@ -770,6 +746,14 @@ Examples:
         help="Exclude code blocks (` and ```) from activation averaging (default: False)"
     )
 
+    parser.add_argument(
+        "--shard-model",
+        action="store_true",
+        default=False,
+        help="Shard model across GPUs using device_map='auto'. Use this for large models that don't fit on a single GPU. "
+             "Without this flag, multi-GPU processing will try to load the full model on each GPU (default: False)"
+    )
+
     args = parser.parse_args()
 
     # Set logging level
@@ -785,6 +769,7 @@ Examples:
     logger.info(f"  Max length: {args.max_length}")
     logger.info(f"  Thinking enabled: {args.thinking}")
     logger.info(f"  No-code processing: {args.no_code}")
+    logger.info(f"  Shard model: {args.shard_model}")
     if args.files:
         logger.info(f"  Specific files: {args.files}")
     else:
@@ -802,7 +787,8 @@ Examples:
             thinking=args.thinking,
             target_files=args.files,
             interval=tuple(args.interval) if args.interval else None,
-            no_code=args.no_code
+            no_code=args.no_code,
+            shard_model=args.shard_model
         )
 
         # Process all transcripts
