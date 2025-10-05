@@ -87,8 +87,7 @@ Content focus:
 - Keep personal backstory minimal unless directly relevant.
 - Do not provide narration or exposition unless it is crucial to your request for help.
 - Do not mention time passing unless it provides relevant context to your request for help.
-- If the conversation thread comes to an end, do not say goodbye. Ask for help with something related to your original topic. 
-- If you really must end the conversation, send only the message <END_CONVERSATION>. You should aim for at least 15 messages, only use this AS A LAST RESORT.
+- If the conversation thread comes to an end, do not say goodbye. Continue the conversation naturally with something related to your original topic. 
 
 3: EXAMPLES
 
@@ -138,8 +137,7 @@ Content guidelines:
 - Keep personal backstory details minimal.
 - Do not provide narration or exposition.
 - Do not mention time passing unless it provides relevant context.
-- If the conversation thread comes to an end, do not say goodbye. Mention something related to your original discussion to continue the conversation. 
-- If you really must end the conversation, send only the message <END_CONVERSATION>. You should aim for at least 15 messages, only use this AS A LAST RESORT.
+- If the conversation thread comes to an end, do not say goodbye. Continue the conversation naturally with something related to your original topic. 
 
 IMPORTANT: Your response should contain max 2 sentences and 1 main idea. Only in rare cases should you exceed this limit.
 """
