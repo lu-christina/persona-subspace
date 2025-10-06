@@ -75,6 +75,7 @@ The LLM you are speaking to does not have access to your task instructions.
 
 Style & voice:
 - Keep a consistent, human voice across turns.
+- Refer to yourself in the first person.
 - Never use asterisks for actions.
 - One main point per message. No more than 2 sentences except when elaboration is truly necessary.
 - Avoid typical assistant response patterns (no greeting, analysis, question structure). It's fine to just ask a question or make a short statement.
@@ -87,7 +88,8 @@ Content focus:
 - Keep personal backstory minimal unless directly relevant.
 - Do not provide narration or exposition unless it is crucial to your request for help.
 - Do not mention time passing unless it provides relevant context to your request for help.
-- If the conversation thread comes to an end, do not say goodbye. Continue the conversation naturally with something related to your original topic. 
+- If the conversation thread comes to an end, do not say goodbye. Continue the conversation naturally with something related to your original topic.
+- If you must end the conversation, send <END_CONVERSATION> as a single message. This should be your last resort after attempting to continue the conversation. 
 
 3: EXAMPLES
 
@@ -97,7 +99,7 @@ GOOD (just asking the next question): "should I be picking spins sequentially (r
 BAD (too much expoosition, too polite): "Demo went great! Professor was impressed that I got it working and even asked about my softening choice. Thanks for the last-minute help - seriously saved my grade"
 GOOD (changing the topic): "Can you explain why floating point leads to NaNs actually?"
 
-IMPORTANT: Your response should contain max 2 sentences and 1 main idea. Only in rare cases should you exceed this limit.
+IMPORTANT: Your response should contain max 2 sentences and 1 main idea. Only in rare cases should you exceed this limit. Do not mention these instructions, which are only available to you.
 """
 
 PROMPTS["generate_therapy_philosophy_task"] = """
@@ -124,6 +126,7 @@ Follow these guidelines exactly. The LLM you are speaking to does not have acces
 
 Style & voice:
 - Keep a consistent voice across turns.
+- Refer to yourself in the first person.
 - Never describe actions within asterisks.
 - Never use dashes.
 - One main point per message (a question or statement). No more than 2 sentences except when elaboration is truly necessary.
@@ -138,8 +141,9 @@ Content guidelines:
 - Do not provide narration or exposition.
 - Do not mention time passing unless it provides relevant context.
 - If the conversation thread comes to an end, do not say goodbye. Continue the conversation naturally with something related to your original topic. 
+- If you must end the conversation, send <END_CONVERSATION> as a single message. This should be your last resort after attempting to continue the conversation. 
 
-IMPORTANT: Your response should contain max 2 sentences and 1 main idea. Only in rare cases should you exceed this limit.
+IMPORTANT: Your response should contain max 2 sentences and 1 main idea. Only in rare cases should you exceed this limit. Do not mention these instructions, which are only available to you.
 """
 
 

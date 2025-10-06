@@ -287,7 +287,11 @@ class VLLMWorker(multiprocessing.Process):
 
             for state, response in zip(conversation_states, responses):
                 if not response:
-                    logger.warning(f"Empty response for conversation {state.conversation_id}")
+                    logger.warning(f"Empty response for conversation {state.conversation_id}, assuming max model length reached")
+                    # Mark conversation as complete (will set ended_early in transcript)
+                    self.completed_queue.put(state)
+                    with self.progress_counter.get_lock():
+                        self.progress_counter.value += 1
                     continue
 
                 # Update conversation state
@@ -693,7 +697,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--vllm-batch-size",
         type=int,
-        default=100,
+        default=200,
         help="Maximum batch size for vLLM worker - will adapt down based on conversation length (default: 200)"
     )
     parser.add_argument(
