@@ -259,6 +259,8 @@ class ActivationSteering:
 
     def _apply_addition(self, activations, vector, coeff):
         """Apply standard activation addition: x + coeff * vector"""
+        # Ensure vector is on the same device as activations
+        vector = vector.to(activations.device)
         steer = coeff * vector  # (hidden_size,)
 
         if self.positions == "all":
@@ -270,38 +272,45 @@ class ActivationSteering:
 
     def _apply_ablation(self, activations, vector, coeff):
         """Apply ablation: project out direction, then add back with coefficient."""
+        # Ensure vector is on the same device as activations
+        vector = vector.to(activations.device)
+
         # Normalize the vector to unit length for projection
         vector_norm = vector / (vector.norm() + 1e-8)  # Add small epsilon to prevent division by zero
-        
+
         if self.positions == "all":
             # Project out the direction: x - (x · v) * v
             projections = torch.einsum('bld,d->bl', activations, vector_norm)  # (batch, seq_len)
             projected_out = activations - torch.einsum('bl,d->bld', projections, vector_norm)
-            
+
             # Add back with coefficient
             return projected_out + coeff * vector
         else:  # last position only
             result = activations.clone()
             last_pos = result[:, -1, :]  # (batch, hidden)
-            
+
             # Project out
             projection = torch.einsum('bd,d->b', last_pos, vector_norm)  # (batch,)
             projected_out = last_pos - torch.einsum('b,d->bd', projection, vector_norm)
-            
+
             # Add back with coefficient
             result[:, -1, :] = projected_out + coeff * vector
             return result
 
     def _apply_mean_ablation(self, activations, vector, mean_activation):
         """Apply mean ablation: project out direction, then add mean activation."""
+        # Ensure vector and mean_activation are on the same device as activations
+        vector = vector.to(activations.device)
+        mean_activation = mean_activation.to(activations.device)
+
         # Normalize the vector to unit length for projection
         vector_norm = vector / (vector.norm() + 1e-8)  # Add small epsilon to prevent division by zero
-        
+
         # Only supports "all" positions (validated in constructor)
         # Project out the direction: x - (x · v) * v
         projections = torch.einsum('bld,d->bl', activations, vector_norm)  # (batch, seq_len)
         projected_out = activations - torch.einsum('bl,d->bld', projections, vector_norm)
-        
+
         # Add mean activation instead of coefficient * vector
         return projected_out + mean_activation
 

@@ -521,9 +521,11 @@ def generate_text(model, tokenizer, prompt, max_new_tokens=300, temperature=0.7,
             formatted_prompt = format_as_chat(tokenizer, prompt, **chat_kwargs)
     else:
         formatted_prompt = prompt
-    
-    # Tokenize
-    inputs = tokenizer(formatted_prompt, return_tensors="pt").to(model.device)
+
+    # Tokenize and move to the device of the first model parameter
+    # This handles multi-GPU models correctly
+    device = next(model.parameters()).device
+    inputs = tokenizer(formatted_prompt, return_tensors="pt").to(device)
     
     # Generate
     with torch.no_grad():
