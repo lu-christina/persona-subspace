@@ -73,6 +73,12 @@ class ActivationSteering:
             if mean_activations is None:
                 raise ValueError("mean_activations is required for mean_ablation")
 
+        # Normalize inputs to lists
+        self.steering_vectors = self._normalize_vectors(steering_vectors)
+        self.coefficients = self._normalize_coefficients(coefficients)
+        self.layer_indices = self._normalize_layers(layer_indices)
+        self.mean_activations = self._normalize_mean_activations(mean_activations) if mean_activations is not None else None
+
         if self.intervention_type == "capping":
             if cap_thresholds is None:
                 raise ValueError("cap_thresholds is required when intervention_type='capping'")
@@ -85,12 +91,6 @@ class ActivationSteering:
                 raise ValueError(
                     f"Number of cap_thresholds ({len(self.cap_thresholds)}) must match number of vectors ({len(self.steering_vectors)})"
                 )
-
-        # Normalize inputs to lists
-        self.steering_vectors = self._normalize_vectors(steering_vectors)
-        self.coefficients = self._normalize_coefficients(coefficients)
-        self.layer_indices = self._normalize_layers(layer_indices)
-        self.mean_activations = self._normalize_mean_activations(mean_activations) if mean_activations is not None else None
 
         # Validate dimensions match
         if self.intervention_type != "mean_ablation" and len(self.coefficients) != len(self.steering_vectors):
