@@ -696,6 +696,10 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     vectors = torch.stack(pca_results['vectors']['pos_neg_50'])[:, layer, :].float().numpy()
     if scaled:
         scaled_vectors = pca_results['scaler'].transform(vectors)
+
+        # change to numpy if not
+        if not isinstance(scaled_vectors, np.ndarray):
+            scaled_vectors = scaled_vectors.numpy()
     else:
         scaled_vectors = vectors
     pc_direction_norm = pc_direction / np.linalg.norm(pc_direction)
@@ -1039,7 +1043,7 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     # Update layout
     fig.update_layout(
         height=800,
-        width=1200,
+        width=1000,
         title=dict(
             text=title,
             subtitle={"text": subtitle},
@@ -1056,8 +1060,8 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     proj_max_abs = max(abs(min(projections)), abs(max(projections)))
     proj_x_width = proj_max_abs * 1.1
     
-    fig.update_xaxes(range=[-cosine_x_width, cosine_x_width], row=1, col=1)
-    fig.update_xaxes(range=[-proj_x_width, proj_x_width], row=2, col=1)
+    fig.update_xaxes(range=[-1.1, 1.1], row=1, col=1)
+    fig.update_xaxes(range=[-1.1, 1.1], row=2, col=1)
     
     # Update y-axes
     fig.update_yaxes(

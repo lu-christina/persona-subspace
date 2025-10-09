@@ -1041,6 +1041,10 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
     vectors = torch.stack(role_info['vectors'])[:, layer, :].float().numpy()
     if scaled:
         scaled_vectors = pca_results['scaler'].transform(vectors)
+
+        # change to numpy if not
+        if not isinstance(scaled_vectors, np.ndarray):
+            scaled_vectors = scaled_vectors.numpy()
     else:
         scaled_vectors = vectors
     pc_direction_norm = pc_direction / np.linalg.norm(pc_direction)
@@ -1727,7 +1731,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
     # Update layout
     fig.update_layout(
         height=800,
-        width=1200,
+        width=1000,
         title=dict(
             text=title,
             subtitle={"text": subtitle},

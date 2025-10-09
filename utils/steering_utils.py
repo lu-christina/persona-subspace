@@ -33,6 +33,7 @@ class ActivationSteering:
         intervention_type: str = "addition",  # "addition", "ablation", or "mean_ablation"
         positions: str = "all",  # "all" or "last"
         mean_activations: Union[torch.Tensor, List[torch.Tensor], List[Sequence[float]], None] = None,
+        cap_thresholds: Union[float, List[float], None] = None,
         debug: bool = False,
     ):
         """
@@ -44,6 +45,7 @@ class ActivationSteering:
             intervention_type: "addition" (standard steering), "ablation" (project out then add back), or "mean_ablation"
             positions: "all" (steer all positions) or "last" (steer only last position)
             mean_activations: For mean_ablation only - replacement activations to add after projection (one per vector)
+            cap_thresholds: For capping only - threshold values to cap projected activations at (one per vector)
             debug: Whether to print debugging information
             
         Note: For 1:1 mapping, steering_vectors, coefficients, and layer_indices must all have same length.
@@ -58,8 +60,8 @@ class ActivationSteering:
         self._handles = []
 
         # Validate intervention type
-        if self.intervention_type not in {"addition", "ablation", "mean_ablation"}:
-            raise ValueError("intervention_type must be 'addition', 'ablation', or 'mean_ablation'")
+        if self.intervention_type not in {"addition", "ablation", "mean_ablation", "capping"}:
+            raise ValueError("intervention_type must be 'addition', 'ablation', 'mean_ablation', or 'capping'")
         
         if self.positions not in {"all", "last"}:
             raise ValueError("positions must be 'all' or 'last'")
@@ -70,6 +72,19 @@ class ActivationSteering:
                 raise ValueError("mean_ablation only supports positions='all'")
             if mean_activations is None:
                 raise ValueError("mean_activations is required for mean_ablation")
+
+        if self.intervention_type == "capping":
+            if cap_thresholds is None:
+                raise ValueError("cap_thresholds is required when intervention_type='capping'")
+            # normalize to list of floats
+            self.cap_thresholds = (
+                [float(cap_thresholds)] if isinstance(cap_thresholds, (int, float))
+                else [float(t) for t in cap_thresholds]
+            )
+            if len(self.cap_thresholds) != len(self.steering_vectors):
+                raise ValueError(
+                    f"Number of cap_thresholds ({len(self.cap_thresholds)}) must match number of vectors ({len(self.steering_vectors)})"
+                )
 
         # Normalize inputs to lists
         self.steering_vectors = self._normalize_vectors(steering_vectors)
@@ -92,11 +107,14 @@ class ActivationSteering:
 
         # Group vectors by layer for efficient application
         self.vectors_by_layer = {}
+        # grouping vectors by layer (in __init__)
         for i, (vector, coeff, layer_idx) in enumerate(zip(self.steering_vectors, self.coefficients, self.layer_indices)):
             if layer_idx not in self.vectors_by_layer:
                 self.vectors_by_layer[layer_idx] = []
             mean_act = self.mean_activations[i] if self.mean_activations is not None else None
-            self.vectors_by_layer[layer_idx].append((vector, coeff, i, mean_act))
+            tau = self.cap_thresholds[i] if self.cap_thresholds is not None else None
+            self.vectors_by_layer[layer_idx].append((vector, coeff, i, mean_act, tau))
+
 
         if self.debug:
             print(f"[ActivationSteering] Initialized with:")
@@ -238,13 +256,15 @@ class ActivationSteering:
         # Apply each intervention assigned to this layer
         modified_out = tensor_out
         
-        for vector, coeff, vector_idx, mean_act in self.vectors_by_layer[layer_idx]:
+        for vector, coeff, vector_idx, mean_act, tau in self.vectors_by_layer[layer_idx]:
             if self.intervention_type == "addition":
                 modified_out = self._apply_addition(modified_out, vector, coeff)
             elif self.intervention_type == "ablation":
                 modified_out = self._apply_ablation(modified_out, vector, coeff)
             elif self.intervention_type == "mean_ablation":
                 modified_out = self._apply_mean_ablation(modified_out, vector, mean_act)
+            elif self.intervention_type == "capping":
+                modified_out = self._apply_cap(modified_out, vector, tau)
             
             if self.debug:
                 delta = modified_out - tensor_out
@@ -313,6 +333,26 @@ class ActivationSteering:
 
         # Add mean activation instead of coefficient * vector
         return projected_out + mean_activation
+
+    def _apply_cap(self, activations, vector, tau):
+        # Ensure vector on correct device and normalize
+        vector = vector.to(activations.device)
+        v = vector / (vector.norm() + 1e-8)
+
+        if self.positions == "all":
+            # projections: (batch, seq_len)
+            proj = torch.einsum('bld,d->bl', activations, v)
+            # excess above tau
+            excess = (proj - tau).clamp(min=0.0)
+            # subtract only the excess along v
+            return activations - torch.einsum('bl,d->bld', excess, v)
+        else:  # last position only
+            result = activations.clone()
+            last = result[:, -1, :]                         # (batch, hidden)
+            proj = torch.einsum('bd,d->b', last, v)         # (batch,)
+            excess = (proj - tau).clamp(min=0.0)            # (batch,)
+            result[:, -1, :] = last - torch.einsum('b,d->bd', excess, v)
+            return result
 
     def __enter__(self):
         """Register hooks on all unique layers."""
@@ -453,5 +493,24 @@ def create_multi_layer_mean_ablation_steerer(
         feature_directions=expanded_directions,
         mean_activations=expanded_means,
         layer_indices=expanded_layers,
+        **kwargs
+    )
+
+def create_projection_cap_steerer(
+    model: torch.nn.Module,
+    feature_directions: List[torch.Tensor],
+    cap_thresholds: Union[float, List[float]],
+    layer_indices: Union[int, List[int]],
+    positions: str = "all",
+    **kwargs
+) -> ActivationSteering:
+    return ActivationSteering(
+        model=model,
+        steering_vectors=feature_directions,
+        coefficients=[0.0]*len(feature_directions),  # unused by "cap" but keeps 1:1 shape
+        layer_indices=layer_indices,
+        intervention_type="capping",
+        positions=positions,
+        cap_thresholds=cap_thresholds,
         **kwargs
     )
