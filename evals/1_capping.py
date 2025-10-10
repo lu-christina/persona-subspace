@@ -2,15 +2,17 @@
 """
 Capping Script
 
-This script steers prompts by projecting out an activation onto a PC and capping it:
-- Work units created in batches of the same magnitude
-- Parallelized across all available GPU
+This script steers prompts by projecting out an activation onto steering vectors and capping them:
+- Experiments run across multiple vectors with both scaled and unscaled activations
+- Work units created in batches for efficient processing
+- Parallelized across all available GPUs
 - Won't repeat work on restart
 
+Example usage:
 uv run 1_capping.py \
-    --pca_filepath /workspace/roles_traits/pca/layer22_roles_pos23_traits_pos40-100.pt \
+    --vectors_filepath /workspace/qwen-3-32b/evals/capping_vectors.pt \
     --prompts_file /root/git/persona-subspace/evals/data/default_20.jsonl \
-    --output_jsonl /root/git/persona-subspace/evals/results/roles_traits/default_20.jsonl
+    --output_jsonl /root/git/persona-subspace/evals/results/capping_experiment.jsonl
 
 """
 
@@ -59,27 +61,37 @@ class JSONLHandler:
         existing = set()
         if not os.path.exists(self.jsonl_path):
             return existing
-            
+
         try:
             with open(self.jsonl_path, 'r', encoding='utf-8') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
                 for line in f:
                     try:
                         data = json.loads(line.strip())
-                        # Create unique key from id, cap, and sample_id
+                        # Create unique key from id, vector_name, standardized, cap, and sample_id
                         if self.samples_per_prompt > 1:
-                            # When multiple samples per prompt, use (id, cap, sample_id) as key
-                            sample_id = data.get('sample_id', 0)
-                            key = (data['id'], float(data['cap']), sample_id)
+                            # When multiple samples per prompt, use full key
+                            key = (
+                                data.get('id'),
+                                data.get('vector_name'),
+                                bool(data.get('standardized', False)),
+                                float(round(data.get('cap'), 8)),
+                                data.get('sample_id', 0)
+                            )
                         else:
-                            # Backwards compatibility: just use (id, cap) for single samples
-                            key = (data['id'], float(data['cap']))
+                            # Single sample: omit sample_id
+                            key = (
+                                data.get('id'),
+                                data.get('vector_name'),
+                                bool(data.get('standardized', False)),
+                                float(round(data.get('cap'), 8))
+                            )
                         existing.add(key)
                     except (json.JSONDecodeError, KeyError):
                         continue
         except Exception as e:
             print(f"Warning: Could not read existing JSONL: {e}")
-            
+
         return existing
     
     def write_rows(self, row_data_list: List[Dict[str, Any]]) -> bool:
@@ -121,26 +133,39 @@ class WorkQueueManager:
         for work_unit in work_units:
             # Create combination key that matches JSONLHandler logic
             if 'sample_id' in work_unit:
-                combination_key = (work_unit['id'], work_unit['cap'], work_unit['sample_id'])
+                combination_key = (
+                    work_unit['id'],
+                    work_unit['vector_name'],
+                    bool(work_unit['standardized']),
+                    float(round(work_unit['cap'], 8)),
+                    work_unit['sample_id']
+                )
             else:
-                combination_key = (work_unit['id'], work_unit['cap'])
+                combination_key = (
+                    work_unit['id'],
+                    work_unit['vector_name'],
+                    bool(work_unit['standardized']),
+                    float(round(work_unit['cap'], 8))
+                )
 
             if combination_key not in existing_combinations:
                 filtered_work_units.append(work_unit)
 
         logger.info(f"Filtered {len(work_units)} work units to {len(filtered_work_units)} new units")
 
-        # Group by cap for more efficient processing
-        work_by_cap = defaultdict(list)
+        # Group by (vector_name, standardized, cap) for more efficient processing
+        # This prevents unnecessary hook registration/removal within batches
+        work_by_cfg = defaultdict(list)
         for work_unit in filtered_work_units:
-            work_by_cap[work_unit['cap']].append(work_unit)
+            cfg_key = (work_unit['vector_name'], work_unit['standardized'], work_unit['cap'])
+            work_by_cfg[cfg_key].append(work_unit)
 
-        # Create batches within each cap group
+        # Create batches within each configuration group
         all_batches = []
-        for cap, cap_work_units in work_by_cap.items():
+        for cfg_key, cfg_work_units in work_by_cfg.items():
             # Create batches of the specified size
-            for i in range(0, len(cap_work_units), batch_size):
-                batch = cap_work_units[i:i + batch_size]
+            for i in range(0, len(cfg_work_units), batch_size):
+                batch = cfg_work_units[i:i + batch_size]
                 all_batches.append(batch)
         
         logger.info(f"Created {len(all_batches)} work batches from {len(filtered_work_units)} work units")
@@ -187,9 +212,9 @@ class WorkQueueManager:
 
 
 def generate_batched_responses(
-    model, 
-    tokenizer, 
-    work_units: List[Dict[str, Any]], 
+    model,
+    tokenizer,
+    work_units: List[Dict[str, Any]],
     max_new_tokens: int = 1024,
     temperature: float = 0.7,
     max_length: int = 2048,
@@ -198,7 +223,7 @@ def generate_batched_responses(
 ) -> List[str]:
     """
     Generate responses for a batch of work units efficiently using real batch inference.
-    All work units in the batch should have the same steering magnitude for safety.
+    All work units in the batch should have the same config (vector, standardized, cap) for efficiency.
     """
     try:
         if not work_units:
@@ -254,7 +279,7 @@ def generate_batched_responses(
         }
         
         # Generate responses for entire batch at once
-        with torch.no_grad():
+        with torch.inference_mode():
             batch_outputs = model.generate(
                 input_ids=batch_inputs.input_ids,
                 attention_mask=batch_inputs.attention_mask,
@@ -303,24 +328,24 @@ def parse_arguments():
     )
     
     parser.add_argument(
-        "--pca_filepath",
+        "--vectors_filepath",
         type=str,
         required=True,
-        help="Path to PCA results file (.pt format)"
+        help="Path to capping vectors file (.pt format) containing vectors with caps"
     )
-    
+
     parser.add_argument(
         "--questions_file",
         type=str,
         help="Path to questions JSONL file with id and semantic_category fields"
     )
-    
+
     parser.add_argument(
-        "--roles_file", 
+        "--roles_file",
         type=str,
         help="Path to roles JSONL file with id and type fields"
     )
-    
+
     parser.add_argument(
         "--prompts_file",
         type=str,
@@ -328,25 +353,10 @@ def parse_arguments():
     )
     
     parser.add_argument(
-        "--component",
-        type=int,
-        default=0,
-        help="PC component index to process (0-indexed)"
-    )
-    
-    parser.add_argument(
-        "--caps",
-        type=float,
-        nargs="+",
-        default=[2000.0, 4000.0],
-        help="List of projection caps (tau)"
-    )
-    
-    parser.add_argument(
         "--layer",
         type=int,
-        default=22,
-        help="Layer index for steering"
+        default=None,
+        help="Layer index for steering (if None, uses layer from vector file)"
     )
     
     parser.add_argument(
@@ -456,29 +466,43 @@ def parse_arguments():
     return args
 
 
-def load_pca_results(pca_filepath: str) -> Dict[str, Any]:
-    """Load and validate PCA results file."""
-    print(f"Loading PCA results from {pca_filepath}")
-    
-    if not os.path.exists(pca_filepath):
-        raise FileNotFoundError(f"PCA results file not found: {pca_filepath}")
-    
+def load_vectors(vectors_filepath: str) -> List[Dict[str, Any]]:
+    """Load and validate capping vectors file."""
+    print(f"Loading vectors from {vectors_filepath}")
+
+    if not os.path.exists(vectors_filepath):
+        raise FileNotFoundError(f"Vectors file not found: {vectors_filepath}")
+
     try:
-        pca_results = torch.load(pca_filepath, weights_only=False)
+        vectors = torch.load(vectors_filepath, weights_only=False)
     except Exception as e:
-        raise ValueError(f"Failed to load PCA results: {e}")
-    
-    # Validate PCA structure
-    if 'pca' not in pca_results:
-        raise ValueError("PCA results must contain 'pca' key")
-    
-    if not hasattr(pca_results['pca'], 'components_'):
-        raise ValueError("PCA object must have 'components_' attribute")
-    
-    n_components = pca_results['pca'].components_.shape[0]
-    print(f"Found PCA with {n_components} components")
-    
-    return pca_results
+        raise ValueError(f"Failed to load vectors: {e}")
+
+    # Validate vectors structure
+    if not isinstance(vectors, list):
+        raise ValueError("Vectors file must contain a list of vector dictionaries")
+
+    for i, vec in enumerate(vectors):
+        required_keys = ['name', 'vector', 'layer']
+        for key in required_keys:
+            if key not in vec:
+                raise ValueError(f"Vector {i} missing required key: {key}")
+
+        # Check if caps exist
+        if 'caps' not in vec:
+            print(f"Warning: Vector {i} ({vec['name']}) missing 'caps' field")
+
+    print(f"Found {len(vectors)} vectors")
+    for vec in vectors:
+        has_scaled = vec.get('caps', {}).get('scaled') is not None if 'caps' in vec else False
+        has_unscaled = vec.get('caps', {}).get('unscaled') is not None if 'caps' in vec else False
+        print(f"  - {vec['name']} (layer {vec['layer']}): scaled caps={has_scaled}, unscaled caps={has_unscaled}")
+
+        # Warn if vector has neither scaled nor unscaled caps
+        if not has_scaled and not has_unscaled:
+            print(f"    WARNING: Vector '{vec['name']}' has neither scaled nor unscaled caps - will be skipped")
+
+    return vectors
 
 
 def load_questions(questions_file: str) -> List[Dict[str, Any]]:
@@ -583,95 +607,130 @@ def load_prompts_file(prompts_file: str) -> List[Dict[str, Any]]:
     return prompts
 
 
-def create_work_units(prompts_data, caps, company_name="Acme Corp", name_value="Alex", is_combined_format=False, no_system_prompt=False, samples_per_prompt=1):
-    """Create work units from prompts and caps."""
+def create_work_units(prompts_data, vectors, company_name="Acme Corp", name_value="Alex", is_combined_format=False, no_system_prompt=False, samples_per_prompt=1):
+    """Create work units from prompts and vectors with caps.
+
+    Creates: n_vectors × {scaled, unscaled} × n_caps_per_vector × n_prompts × n_samples work units
+    """
     work_units = []
 
     if is_combined_format:
         # prompts_data contains combined prompts
         for prompt_data in prompts_data:
-            for cap in caps:
-                # Generate multiple samples for this prompt x cap combination
-                for sample_id in range(samples_per_prompt):
-                    work_unit = prompt_data.copy()  # Copy all original fields
+            # Iterate through vectors
+            for vector in vectors:
+                vector_name = vector['name']
+                caps_dict = vector.get('caps', {})
 
-                    # Format company name and name in prompts
-                    system_prompt_text = prompt_data.get('prompt', '').format(company=company_name, name=name_value)
-                    user_message = prompt_data.get('question', '').format(company=company_name, name=name_value)
+                # Iterate through scaled and unscaled
+                for use_scaler in [False, True]:
+                    cap_type = 'scaled' if use_scaler else 'unscaled'
+                    caps_list = caps_dict.get(cap_type)
 
-                    if no_system_prompt:
-                        # In no-system-prompt mode, only use the question text
-                        formatted_combined = user_message
-                        system_prompt = ''
-                    else:
-                        # Normal mode: combine system prompt and question
-                        formatted_combined = f"{system_prompt_text} {user_message}".strip() if system_prompt_text else user_message
-                        system_prompt = system_prompt_text
+                    if caps_list is None:
+                        continue  # Skip if this cap type doesn't exist for this vector
 
-                    # Keep separate fields for system/user message handling
-                    work_unit['_system_prompt'] = system_prompt
-                    work_unit['_user_message'] = user_message
+                    # Iterate through caps for this vector
+                    for cap in caps_list:
+                        # Generate multiple samples for this combination
+                        for sample_id in range(samples_per_prompt):
+                            work_unit = prompt_data.copy()  # Copy all original fields
 
-                    # Create formatted combined prompt
-                    work_unit['prompt'] = formatted_combined
-                    work_unit['cap'] = float(cap)
+                            # Format company name and name in prompts
+                            system_prompt_text = prompt_data.get('prompt', '').format(company=company_name, name=name_value)
+                            user_message = prompt_data.get('question', '').format(company=company_name, name=name_value)
 
-                    # Add sample_id if multiple samples per prompt
-                    if samples_per_prompt > 1:
-                        work_unit['sample_id'] = sample_id
+                            if no_system_prompt:
+                                # In no-system-prompt mode, only use the question text
+                                formatted_combined = user_message
+                                system_prompt = ''
+                            else:
+                                # Normal mode: combine system prompt and question
+                                formatted_combined = f"{system_prompt_text} {user_message}".strip() if system_prompt_text else user_message
+                                system_prompt = system_prompt_text
 
-                    # Clean up temporary fields
-                    if '_combined_prompt' in work_unit:
-                        del work_unit['_combined_prompt']
+                            # Keep separate fields for system/user message handling
+                            work_unit['_system_prompt'] = system_prompt
+                            work_unit['_user_message'] = user_message
 
-                    work_units.append(work_unit)
+                            # Create formatted combined prompt
+                            work_unit['prompt'] = formatted_combined
+                            work_unit['cap'] = float(cap)
+                            work_unit['vector_name'] = vector_name
+                            work_unit['standardized'] = use_scaler
+
+                            # Add sample_id if multiple samples per prompt
+                            if samples_per_prompt > 1:
+                                work_unit['sample_id'] = sample_id
+
+                            # Clean up temporary fields
+                            if '_combined_prompt' in work_unit:
+                                del work_unit['_combined_prompt']
+
+                            work_units.append(work_unit)
     else:
         # prompts_data contains [questions, roles]
         questions, roles = prompts_data
         for role in roles:
             for question in questions:
-                for cap in caps:
-                    # Generate multiple samples for this prompt x cap combination
-                    for sample_id in range(samples_per_prompt):
-                        work_unit = {}
-                        # Copy all fields from both role and question
-                        work_unit.update(role)
-                        work_unit.update(question)
+                # Iterate through vectors
+                for vector in vectors:
+                    vector_name = vector['name']
+                    caps_dict = vector.get('caps', {})
 
-                        # Format company name and name in prompts
-                        role_text = role['_role_text'].format(company=company_name, name=name_value)
-                        question_text = question['_question_text'].format(company=company_name, name=name_value)
+                    # Iterate through scaled and unscaled
+                    for use_scaler in [False, True]:
+                        cap_type = 'scaled' if use_scaler else 'unscaled'
+                        caps_list = caps_dict.get(cap_type)
 
-                        if no_system_prompt:
-                            # In no-system-prompt mode, only use the question text
-                            formatted_combined = question_text
-                            system_prompt = ''
-                            user_message = question_text
-                        else:
-                            # Normal mode: combine role and question
-                            formatted_combined = f"{role_text} {question_text}".strip() if role_text else question_text
-                            system_prompt = role_text
-                            user_message = question_text
+                        if caps_list is None:
+                            continue  # Skip if this cap type doesn't exist for this vector
 
-                        # Keep separate fields for system/user message handling
-                        work_unit['_system_prompt'] = system_prompt
-                        work_unit['_user_message'] = user_message
+                        # Iterate through caps for this vector
+                        for cap in caps_list:
+                            # Generate multiple samples for this combination
+                            for sample_id in range(samples_per_prompt):
+                                work_unit = {}
+                                # Copy all fields from both role and question
+                                work_unit.update(role)
+                                work_unit.update(question)
 
-                        # Create formatted combined prompt
-                        work_unit['prompt'] = formatted_combined
-                        work_unit['cap'] = float(cap)
+                                # Format company name and name in prompts
+                                role_text = role['_role_text'].format(company=company_name, name=name_value)
+                                question_text = question['_question_text'].format(company=company_name, name=name_value)
 
-                        # Add sample_id if multiple samples per prompt
-                        if samples_per_prompt > 1:
-                            work_unit['sample_id'] = sample_id
+                                if no_system_prompt:
+                                    # In no-system-prompt mode, only use the question text
+                                    formatted_combined = question_text
+                                    system_prompt = ''
+                                    user_message = question_text
+                                else:
+                                    # Normal mode: combine role and question
+                                    formatted_combined = f"{role_text} {question_text}".strip() if role_text else question_text
+                                    system_prompt = role_text
+                                    user_message = question_text
 
-                        # Clean up temporary fields
-                        if '_role_text' in work_unit:
-                            del work_unit['_role_text']
-                        if '_question_text' in work_unit:
-                            del work_unit['_question_text']
+                                # Keep separate fields for system/user message handling
+                                work_unit['_system_prompt'] = system_prompt
+                                work_unit['_user_message'] = user_message
 
-                        work_units.append(work_unit)
+                                # Create formatted combined prompt
+                                work_unit['prompt'] = formatted_combined
+                                work_unit['cap'] = float(cap)
+                                work_unit['vector_name'] = vector_name
+                                work_unit['standardized'] = use_scaler
+
+                                # Add sample_id if multiple samples per prompt
+                                if samples_per_prompt > 1:
+                                    work_unit['sample_id'] = sample_id
+
+                                # Clean up temporary fields
+                                if '_role_text' in work_unit:
+                                    del work_unit['_role_text']
+                                if '_question_text' in work_unit:
+                                    del work_unit['_question_text']
+
+                                work_units.append(work_unit)
 
     return work_units
 
@@ -680,9 +739,7 @@ def worker_process(
     gpu_id: int,
     work_queue: mp.Queue,
     results_queue: mp.Queue,
-    pca_filepath: str,
-    component: int,
-    layer: int,
+    vectors_filepath: str,
     model_name: str,
     output_jsonl: str,
     max_new_tokens: int,
@@ -696,7 +753,11 @@ def worker_process(
     Optimized worker process that pulls work batches from queue and processes them with batch efficiency.
     """
     torch.set_float32_matmul_precision('high')
-    
+
+    # Performance optimizations
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.benchmark = True
+
     try:
         logger = logging.getLogger(f"GPU-{gpu_id}")
         handler = logging.StreamHandler()
@@ -712,15 +773,20 @@ def worker_process(
         model, tokenizer = load_model(model_name, device=device)
         model.eval()  # Set to evaluation mode for inference
         logger.info(f"Model loaded on {device}")
-        
-        # Load PCA results
-        pca_results = torch.load(pca_filepath, weights_only=False)
-        
-        # Get steering vector for the specified component
-        steering_vector = torch.from_numpy(pca_results['pca'].components_[component])
-        steering_vector = steering_vector.to(device=device, dtype=model.dtype)
-        
-        logger.info(f"Using PC{component+1}, steering vector shape: {steering_vector.shape}")
+
+        # Load vectors
+        vectors = torch.load(vectors_filepath, weights_only=False)
+
+        # Create a dictionary for fast vector lookup by name
+        vectors_dict = {v['name']: v for v in vectors}
+
+        # Cache tensors per vector on device
+        tensor_cache = {}
+        for v in vectors:
+            t = torch.as_tensor(v['vector'], dtype=model.dtype, device=device)
+            tensor_cache[v['name']] = t
+
+        logger.info(f"Loaded {len(vectors)} steering vectors and cached tensors")
         
         # Initialize JSONL handler
         jsonl_handler = JSONLHandler(output_jsonl, samples_per_prompt)
@@ -749,16 +815,31 @@ def worker_process(
                 
                 logger.info(f"Processing batch {processed_batches + 1} ({len(work_batch)} work units)")
 
-                # Group work units by cap for efficient processing
-                work_by_cap = defaultdict(list)
+                # Group work units by (vector_name, standardized, cap) for efficient processing
+                work_by_config = defaultdict(list)
                 for work_unit in work_batch:
-                    work_by_cap[work_unit['cap']].append(work_unit)
+                    config_key = (work_unit['vector_name'], work_unit['standardized'], work_unit['cap'])
+                    work_by_config[config_key].append(work_unit)
 
                 batch_processed_count = 0
 
-                # Process each cap group
-                for cap_value, cap_work_units in work_by_cap.items():
+                # Process each configuration group
+                for (vector_name, use_scaler, cap_value), config_work_units in work_by_config.items():
                     try:
+                        # Get vector configuration
+                        vector_config = vectors_dict[vector_name]
+                        layer = vector_config['layer']
+
+                        # Get cached steering vector
+                        steering_vector = tensor_cache[vector_name]
+
+                        logger.info(f"Processing {len(config_work_units)} work units: vector={vector_name}, standardized={use_scaler}, cap={cap_value}, layer={layer}")
+
+                        # Note: scaled vs unscaled refers to which caps we use:
+                        # - unscaled: caps computed on raw projection values
+                        # - scaled: caps computed on projections after standardizing with scaler
+                        # The vector itself is the same; only the cap threshold changes
+
                         with create_projection_cap_steerer(
                             model=model,
                             feature_directions=[steering_vector],
@@ -769,7 +850,7 @@ def worker_process(
 
                             # Generate responses for the batch using work units
                             batch_responses = generate_batched_responses(
-                                model, tokenizer, cap_work_units,
+                                model, tokenizer, config_work_units,
                                 max_new_tokens=max_new_tokens,
                                 temperature=temperature,
                                 max_length=max_length,
@@ -779,11 +860,11 @@ def worker_process(
 
                             # Prepare row data for batch (skip empty responses)
                             batch_row_data = []
-                            for work_unit, response in zip(cap_work_units, batch_responses):
+                            for work_unit, response in zip(config_work_units, batch_responses):
                                 if response.strip():  # Only save non-empty responses
                                     row_data = work_unit.copy()  # Copy all original fields
                                     row_data['response'] = response
-                                    # cap is already in work_unit
+                                    # cap, vector_name, and standardized are already in work_unit
 
                                     # Remove underscore fields from output
                                     fields_to_remove = [k for k in row_data.keys() if k.startswith('_')]
@@ -791,7 +872,7 @@ def worker_process(
                                         del row_data[field]
                                     batch_row_data.append(row_data)
                                 else:
-                                    logger.warning(f"Skipping empty response for id={work_unit['id']}, cap={work_unit['cap']}")
+                                    logger.warning(f"Skipping empty response for id={work_unit['id']}, vector={vector_name}, cap={cap_value}")
                             
                             # Write batch to JSONL
                             if batch_row_data:  # Only write if there's data to write
@@ -801,10 +882,10 @@ def worker_process(
                                     logger.error(f"Failed to write batch of {len(batch_row_data)} work units")
                             else:
                                 logger.info("No valid responses to write for this batch")
-                                batch_processed_count += len(cap_work_units)  # Still count as processed
+                                batch_processed_count += len(config_work_units)  # Still count as processed
 
                     except Exception as e:
-                        logger.error(f"Error processing cap {cap_value}: {e}")
+                        logger.error(f"Error processing vector={vector_name}, standardized={use_scaler}, cap={cap_value}: {e}")
                         continue
                     finally:
                         # Clear cache after each cap
@@ -895,7 +976,7 @@ def main():
     queue_manager = WorkQueueManager(args.queue_state_file)
     
     # Load and validate inputs
-    pca_results = load_pca_results(args.pca_filepath)
+    vectors = load_vectors(args.vectors_filepath)
     
     if args.prompts_file:
         # Load combined prompts file
@@ -932,19 +1013,24 @@ def main():
         prompts_data = [questions, roles]
         n_unique_roles = len(roles)
         n_unique_questions = len(questions)
-    
-    # Validate component index
-    n_components = pca_results['pca'].components_.shape[0]
-    if args.component < 0 or args.component >= n_components:
-        raise ValueError(f"Component index {args.component} out of range [0, {n_components-1}]")
-    
-    # Create work units
-    work_units = create_work_units(prompts_data, args.caps, args.company, args.name, is_combined_format, args.no_system_prompt, args.samples_per_prompt)
+
+    # Create work units (now includes vectors × {scaled, unscaled} × caps)
+    work_units = create_work_units(prompts_data, vectors, args.company, args.name, is_combined_format, args.no_system_prompt, args.samples_per_prompt)
 
     mode_str = "TEST MODE - " if args.test_mode else ""
     format_str = "combined prompts" if is_combined_format else f"{n_unique_questions} questions and {n_unique_roles} roles"
-    print(f"{mode_str}Using PC{args.component+1} with {format_str}")
-    print(f"Total work units: {len(work_units)} ({len(args.caps)} caps)")
+
+    # Count total caps across all vectors
+    total_caps = 0
+    for vec in vectors:
+        caps_dict = vec.get('caps', {})
+        if caps_dict.get('unscaled'):
+            total_caps += len(caps_dict['unscaled'])
+        if caps_dict.get('scaled'):
+            total_caps += len(caps_dict['scaled'])
+
+    print(f"{mode_str}Using {len(vectors)} vectors with {format_str}")
+    print(f"Total work units: {len(work_units)} ({len(vectors)} vectors × {total_caps // len(vectors) if len(vectors) > 0 else 0} caps)")
     print(f"Batch size: {args.batch_size}")
     
     # Get existing combinations to filter work units
@@ -1008,9 +1094,7 @@ def main():
                 gpu_id,
                 work_queue,
                 results_queue,
-                args.pca_filepath,
-                args.component,
-                args.layer,
+                args.vectors_filepath,
                 args.model_name,
                 args.output_jsonl,
                 args.max_new_tokens,
