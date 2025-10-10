@@ -46,7 +46,7 @@ def load_transcript(filepath):
         transcript = json.load(f)
     
     # Validate required fields
-    required_fields = ['model', 'role', 'conversation']
+    required_fields = ['model', 'conversation']
     for field in required_fields:
         if field not in transcript:
             raise KeyError(f"Required field '{field}' missing from transcript")

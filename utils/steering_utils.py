@@ -78,6 +78,7 @@ class ActivationSteering:
         self.coefficients = self._normalize_coefficients(coefficients)
         self.layer_indices = self._normalize_layers(layer_indices)
         self.mean_activations = self._normalize_mean_activations(mean_activations) if mean_activations is not None else None
+        self.cap_thresholds = None  # Initialize to None, will be set if intervention_type is "capping"
 
         if self.intervention_type == "capping":
             if cap_thresholds is None:

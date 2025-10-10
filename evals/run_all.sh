@@ -36,3 +36,17 @@ uv run 1_capping.py \
   --batch_size 32 \
   --company Google \
   --model google/gemma-2-27b-it
+
+uv run compute_projections.py \
+    --input_jsonl /workspace/gemma-2-27b/evals/unsteered/unsteered_default_scores.jsonl \
+    --target_vectors /workspace/gemma-2-27b/evals/capping_vectors.pt \
+    --model_name google/gemma-2-27b-it \
+    --output_jsonl /workspace/gemma-2-27b/evals/unsteered/unsteered_default_projections.jsonl \
+    --batch_size 4
+
+uv run compute_projections.py \
+    --input_jsonl /workspace/gemma-2-27b/evals/unsteered/unsteered_scores.jsonl \
+    --target_vectors /workspace/gemma-2-27b/evals/capping_vectors.pt \
+    --model_name google/gemma-2-27b-it \
+    --output_jsonl /workspace/gemma-2-27b/evals/unsteered/unsteered_projections.jsonl \
+    --batch_size 4
