@@ -42,6 +42,7 @@ torch.set_float32_matmul_precision('high')
 
 from utils.steering_utils import ActivationSteering, create_projection_cap_steerer
 from utils.probing_utils import load_model, generate_text
+from utils.pca_utils import L2MeanScaler, MeanScaler
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
