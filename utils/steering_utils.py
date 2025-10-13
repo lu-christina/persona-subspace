@@ -267,10 +267,20 @@ class ActivationSteering:
             elif self.intervention_type == "capping":
                 modified_out = self._apply_cap(modified_out, vector, tau)
             
+            # if self.debug:
+            #     delta = modified_out - tensor_out
+            #     print(f"[ActivationSteering] Layer {layer_idx}, vector {vector_idx}: "
+            #           f"|delta| (mean ± std): {delta.norm(dim=-1).abs().mean():.4g} ± {delta.norm(dim=-1).std():.4g}")
+
             if self.debug:
-                delta = modified_out - tensor_out
-                print(f"[ActivationSteering] Layer {layer_idx}, vector {vector_idx}: "
-                      f"|delta| (mean ± std): {delta.norm(dim=-1).abs().mean():.4g} ± {delta.norm(dim=-1).std():.4g}")
+                v = vector / (vector.norm() + 1e-8)
+                pre = torch.einsum('bld,d->bl', tensor_out, v)
+                post = torch.einsum('bld,d->bl', modified_out, v)
+
+                print(f"[ActivationSteering] Layer {layer_idx}, vec {vector_idx}: "
+                    f"pre⟨x,v⟩ mean={pre.mean():.3f} min={pre.min():.3f} max={pre.max():.3f} | "
+                    f"post⟨x,v⟩ mean={post.mean():.3f} min={post.min():.3f} max={post.max():.3f}")
+
 
         # Return in original format
         if was_tuple:
