@@ -171,12 +171,12 @@ def load_input_data(input_files: List[str]) -> List[Dict[str, Any]]:
     return all_data
 
 
-def load_existing_results(output_file: Path) -> Set[Tuple[int, float, int]]:
+def load_existing_results(output_file: Path) -> Set[Tuple[int, str, int]]:
     """
     Load existing results from output file to support restart.
-    Returns set of (id, magnitude_or_cap, sample_id) tuples that were already processed.
+    Returns set of (id, identifier, sample_id) tuples that were already processed.
     For backwards compatibility, entries without sample_id are treated as sample_id=0.
-    Tries 'magnitude' first, then falls back to 'cap' if magnitude is not available.
+    Tries 'experiment_id' first, then 'magnitude', then falls back to 'cap'.
     """
     if not output_file.exists():
         return set()
@@ -192,12 +192,19 @@ def load_existing_results(output_file: Path) -> Set[Tuple[int, float, int]]:
                 data = json.loads(line)
                 if 'id' in data:
                     request_key = data['id']
-                    # Try magnitude first, then fall back to cap
-                    magnitude_or_cap = data.get('magnitude', data.get('cap'))
-                    if magnitude_or_cap is not None:
-                        # For backwards compatibility, treat missing sample_id as 0
-                        sample_id = data.get('sample_id', 0)
-                        existing.add((request_key, float(magnitude_or_cap), sample_id))
+                    # Try experiment_id first, then magnitude, then fall back to cap
+                    if 'experiment_id' in data:
+                        identifier = data['experiment_id']
+                    else:
+                        magnitude_or_cap = data.get('magnitude', data.get('cap'))
+                        if magnitude_or_cap is not None:
+                            identifier = str(float(magnitude_or_cap))
+                        else:
+                            continue  # Skip if no identifier found
+
+                    # For backwards compatibility, treat missing sample_id as 0
+                    sample_id = data.get('sample_id', 0)
+                    existing.add((request_key, identifier, sample_id))
             except json.JSONDecodeError as e:
                 logger.warning(f"Invalid JSON in existing output on line {line_num}: {e}")
                 continue
@@ -220,7 +227,7 @@ async def write_result_to_file(
 def create_evaluation_prompts(
     input_data: List[Dict[str, Any]],
     judge_template: Dict[str, Any],
-    existing_results: Set[Tuple[int, float, int]]
+    existing_results: Set[Tuple[int, str, int]]
 ) -> List[Tuple[Dict[str, Any], List[Dict[str, str]]]]:
     """
     Create evaluation prompts for the judge model from input data.
@@ -234,11 +241,15 @@ def create_evaluation_prompts(
     for data_item in input_data:
         # Check if this item was already processed
         request_key = data_item['id']
-        # Try magnitude first, then fall back to cap
-        magnitude_or_cap = data_item.get('magnitude', data_item.get('cap', 0.0))
+        # Try experiment_id first, then magnitude, then fall back to cap
+        if 'experiment_id' in data_item:
+            identifier = data_item['experiment_id']
+        else:
+            magnitude_or_cap = data_item.get('magnitude', data_item.get('cap', 0.0))
+            identifier = str(float(magnitude_or_cap))
         # For backwards compatibility, treat missing sample_id as 0
         sample_id = data_item.get('sample_id', 0)
-        if (request_key, float(magnitude_or_cap), sample_id) in existing_results:
+        if (request_key, identifier, sample_id) in existing_results:
             skipped_count += 1
             continue
         
@@ -275,14 +286,18 @@ def parse_judge_response(response_text: str, input_data: Dict[str, Any]) -> Tupl
     Returns:
         Tuple of (score, analysis) or (None, None) if parsing fails
     """
-    # Get magnitude or cap for logging
-    magnitude_or_cap = input_data.get('magnitude', input_data.get('cap', 'N/A'))
+    # Get identifier for logging (experiment_id, magnitude, or cap)
+    if 'experiment_id' in input_data:
+        identifier = input_data['experiment_id']
+    else:
+        magnitude_or_cap = input_data.get('magnitude', input_data.get('cap', 'N/A'))
+        identifier = magnitude_or_cap
 
     if not response_text:
         logger.error(
             f"Empty response from judge model - "
             f"id: {input_data.get('id')}, "
-            f"magnitude/cap: {magnitude_or_cap}"
+            f"identifier: {identifier}"
         )
         return None, None
 
@@ -308,7 +323,7 @@ def parse_judge_response(response_text: str, input_data: Dict[str, Any]) -> Tupl
             logger.error(
                 f"Missing score or analysis in judge response: {response_text} - "
                 f"id: {input_data.get('id')}, "
-                f"magnitude/cap: {magnitude_or_cap}"
+                f"identifier: {identifier}"
             )
             return None, None
 
@@ -324,7 +339,7 @@ def parse_judge_response(response_text: str, input_data: Dict[str, Any]) -> Tupl
                 logger.error(
                     f"Missing score or analysis in judge response: {response_text} - "
                     f"id: {input_data.get('id')}, "
-                    f"magnitude/cap: {magnitude_or_cap}"
+                    f"identifier: {identifier}"
                 )
                 return None, None
 
@@ -334,7 +349,7 @@ def parse_judge_response(response_text: str, input_data: Dict[str, Any]) -> Tupl
             logger.error(
                 f"Could not parse JSON response from judge: {response_text} - "
                 f"id: {input_data.get('id')}, "
-                f"magnitude/cap: {magnitude_or_cap}, "
+                f"identifier: {identifier}, "
                 f"error: {e}"
             )
             return None, None
@@ -477,11 +492,17 @@ async def process_batch(
                 successful_count += 1
             # If parsing failed, error was already logged in parse_judge_response
         else:
-            magnitude_or_cap = input_data.get('magnitude', input_data.get('cap', 'N/A'))
+            # Get identifier for logging
+            if 'experiment_id' in input_data:
+                identifier = input_data['experiment_id']
+            else:
+                magnitude_or_cap = input_data.get('magnitude', input_data.get('cap', 'N/A'))
+                identifier = magnitude_or_cap
+
             logger.error(
                 f"No response received from judge model - "
                 f"id: {input_data.get('id')}, "
-                f"magnitude/cap: {magnitude_or_cap}"
+                f"identifier: {identifier}"
             )
     
     logger.info(f"Successfully processed {successful_count}/{len(batch_data)} items in batch")
