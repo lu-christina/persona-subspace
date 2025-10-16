@@ -81,14 +81,11 @@ class SteeredHFLM(HFLM):
 
         print(f"Setting up steering with {len(self.steering_vectors)} vectors across layers {sorted(set(self.layer_indices))}")
 
-        # Move vectors to model device
-        device = next(self.model.parameters()).device
-        vectors_on_device = [v.to(device) for v in self.steering_vectors]
-
-        # Create and register steerer
+        # Note: The steerer will handle moving vectors to the correct device for each layer
+        # This is important for multi-GPU setups where layers may be on different devices
         self._steerer = create_projection_cap_steerer(
             model=self.model,
-            feature_directions=vectors_on_device,
+            feature_directions=self.steering_vectors,
             cap_thresholds=self.cap_thresholds,
             layer_indices=self.layer_indices,
             positions="all"
@@ -192,12 +189,12 @@ def run_evaluation(
     layer_indices: Optional[List[int]],
     batch_size: int = 8,
     num_fewshot: int = 0,
-    device: str = "cuda",
     limit: Optional[int] = 1000,
     random_seed: int = 42,
     numpy_random_seed: int = 42,
     torch_random_seed: int = 42,
-    fewshot_random_seed: int = 42
+    fewshot_random_seed: int = 42,
+    model_parallel: bool = False
 ) -> Dict[str, Any]:
     """Run evaluation on specified tasks with optional steering.
 
@@ -210,12 +207,12 @@ def run_evaluation(
         layer_indices: List of layer indices (None for baseline)
         batch_size: Batch size for evaluation
         num_fewshot: Number of few-shot examples
-        device: Device to run on
         limit: Limit number of examples per task (for testing, uses all if limit > task size)
         random_seed: Random seed for python's random module
         numpy_random_seed: Random seed for numpy
         torch_random_seed: Random seed for torch
         fewshot_random_seed: Random seed for fewshot example sampling
+        model_parallel: Use model parallelism (default is data parallelism)
 
     Returns:
         Dictionary of evaluation results
@@ -226,15 +223,25 @@ def run_evaluation(
     print(f"Model: {model_name}")
     print(f"{'='*60}\n")
 
-    # Create model wrapper
-    lm = SteeredHFLM(
-        pretrained=model_name,
-        steering_vectors=steering_vectors,
-        cap_thresholds=cap_thresholds,
-        layer_indices=layer_indices,
-        device=device,
-        batch_size=batch_size
-    )
+    # Create model wrapper with multi-GPU support
+    model_kwargs = {
+        'pretrained': model_name,
+        'steering_vectors': steering_vectors,
+        'cap_thresholds': cap_thresholds,
+        'layer_indices': layer_indices,
+        'batch_size': batch_size
+    }
+
+    if model_parallel:
+        # Use model parallelism (split model layers across GPUs)
+        print(f"Using model parallelism (device_map='auto') across {torch.cuda.device_count()} GPUs")
+        model_kwargs['device_map'] = 'auto'
+    else:
+        # Use data parallelism (split batches across GPUs) - default
+        print(f"Using data parallelism across {torch.cuda.device_count()} GPUs")
+        model_kwargs['parallelize'] = True
+
+    lm = SteeredHFLM(**model_kwargs)
 
     # Run evaluation
     results = lm_eval.simple_evaluate(
@@ -361,10 +368,9 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="Device to run on"
+        "--model_parallel",
+        action="store_true",
+        help="Use model parallelism (split model across GPUs). Default is data parallelism (split batches)."
     )
 
     parser.add_argument(
@@ -452,12 +458,12 @@ def main():
                 layer_indices=layer_indices,
                 batch_size=args.batch_size,
                 num_fewshot=args.num_fewshot,
-                device=args.device,
                 limit=args.limit,
                 random_seed=args.random_seed,
                 numpy_random_seed=args.numpy_random_seed,
                 torch_random_seed=args.torch_random_seed,
-                fewshot_random_seed=args.fewshot_random_seed
+                fewshot_random_seed=args.fewshot_random_seed,
+                model_parallel=args.model_parallel
             )
 
             # Load existing results for this experiment
