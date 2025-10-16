@@ -37,6 +37,8 @@ import lm_eval
 from lm_eval.models.huggingface import HFLM
 from lm_eval.api.model import LM
 
+os.environ['HF_ALLOW_CODE_EVAL'] = '1'
+
 
 class SteeredHFLM(HFLM):
     """
@@ -244,7 +246,8 @@ def run_evaluation(
         random_seed=random_seed,
         numpy_random_seed=numpy_random_seed,
         torch_random_seed=torch_random_seed,
-        fewshot_random_seed=fewshot_random_seed
+        fewshot_random_seed=fewshot_random_seed,
+        confirm_run_unsafe_code=True
     )
 
     # Cleanup steering
