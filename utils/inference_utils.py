@@ -170,19 +170,26 @@ def load_vllm_model(
             logger.info(f"Using specified tensor_parallel_size: {tensor_parallel_size}")
         
         logger.info(f"Loading vLLM model: {model_name} with {tensor_parallel_size} GPUs")
-        
-        
+
+
         # Load the model using vLLM's LLM class
-        llm = LLM(
-            model=model_name,
-            max_model_len=max_model_len,
-            tensor_parallel_size=tensor_parallel_size,
-            gpu_memory_utilization=gpu_memory_utilization,
-            dtype=dtype,
-            distributed_executor_backend="mp",
-            trust_remote_code=True,
+        # Only use distributed backend for multi-GPU setups to avoid NCCL issues
+        llm_kwargs = {
+            "model": model_name,
+            "max_model_len": max_model_len,
+            "tensor_parallel_size": tensor_parallel_size,
+            "gpu_memory_utilization": gpu_memory_utilization,
+            "dtype": dtype,
+            "trust_remote_code": True,
             **kwargs
-        )
+        }
+
+        # Only add distributed backend if using multiple GPUs
+        if tensor_parallel_size > 1:
+            llm_kwargs["distributed_executor_backend"] = "mp"
+            logger.info(f"Using multiprocessing distributed backend for {tensor_parallel_size} GPUs")
+
+        llm = LLM(**llm_kwargs)
 
         # Load the tokenizer separately for chat template support
         # Use chat_model_name if provided, otherwise use model_name
