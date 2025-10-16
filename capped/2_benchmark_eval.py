@@ -24,6 +24,10 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 import torch
 
+# Set environment variables before importing tokenizers/transformers
+os.environ['HF_ALLOW_CODE_EVAL'] = '1'
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
 # Add project paths
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
@@ -36,8 +40,6 @@ from utils.probing_utils import load_model
 import lm_eval
 from lm_eval.models.huggingface import HFLM
 from lm_eval.api.model import LM
-
-os.environ['HF_ALLOW_CODE_EVAL'] = '1'
 
 
 class SteeredHFLM(HFLM):
@@ -172,7 +174,12 @@ def get_experiment_config(
             raise ValueError(f"Vector '{vec_name}' not found in config")
 
         vec_data = vectors_dict[vec_name]
-        steering_vectors.append(torch.tensor(vec_data['vector']))
+        # Clone tensor if already a tensor, otherwise create from data
+        vec = vec_data['vector']
+        if isinstance(vec, torch.Tensor):
+            steering_vectors.append(vec.clone().detach())
+        else:
+            steering_vectors.append(torch.tensor(vec))
         cap_thresholds.append(float(cap_value))
         layer_indices.append(vec_data['layer'])
 
@@ -299,7 +306,7 @@ def merge_results(existing_results: Dict[str, Any], new_results: Dict[str, Any])
 
 
 def load_existing_all_results(output_dir: str) -> Dict[str, Any]:
-    """Load existing all_results.json if it exists."""
+    """Load existing all_results.json if it exists, or .pt format as fallback."""
     combined_output = os.path.join(output_dir, "all_results.json")
     if os.path.exists(combined_output):
         try:
@@ -307,7 +314,94 @@ def load_existing_all_results(output_dir: str) -> Dict[str, Any]:
                 return json.load(f)
         except Exception as e:
             print(f"Warning: Could not load existing all_results.json: {e}")
+
+    # Try torch format as fallback
+    combined_output_pt = os.path.join(output_dir, "all_results.pt")
+    if os.path.exists(combined_output_pt):
+        try:
+            return torch.load(combined_output_pt, weights_only=False)
+        except Exception as e:
+            print(f"Warning: Could not load existing all_results.pt: {e}")
+
     return {}
+
+
+def clean_for_serialization(obj: Any) -> Any:
+    """Recursively clean objects to make them serializable.
+
+    Removes or converts non-serializable objects like functions, complex objects, etc.
+
+    Args:
+        obj: Object to clean
+
+    Returns:
+        Cleaned object that can be serialized
+    """
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    elif isinstance(obj, dict):
+        return {k: clean_for_serialization(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [clean_for_serialization(item) for item in obj]
+    elif isinstance(obj, set):
+        return [clean_for_serialization(item) for item in sorted(obj)]
+    elif callable(obj):
+        # Skip functions
+        return f"<function {getattr(obj, '__name__', 'unknown')}>"
+    elif hasattr(obj, '__dict__'):
+        # Try to convert objects to dict, but skip if it fails
+        try:
+            return clean_for_serialization(obj.__dict__)
+        except:
+            return str(obj)
+    else:
+        # Try to serialize to check if it's compatible
+        try:
+            json.dumps(obj)
+            return obj
+        except (TypeError, ValueError):
+            # Convert to string as last resort
+            return str(obj)
+
+
+def save_results_with_fallback(results: Dict[str, Any], filepath: str) -> None:
+    """Save results to file, trying JSON first and falling back to torch .pt if needed.
+
+    Args:
+        results: Dictionary of results to save
+        filepath: Path to save file (without extension)
+    """
+    # Try JSON first
+    try:
+        json_path = f"{filepath}.json" if not filepath.endswith('.json') else filepath
+        with open(json_path, 'w') as f:
+            json.dump(results, f, indent=2)
+        print(f"Saved results to {json_path} (JSON format)")
+        return
+    except (TypeError, ValueError) as e:
+        print(f"Warning: JSON serialization failed: {e}")
+        print("Falling back to torch .pt format...")
+
+    # Fall back to torch .pt
+    try:
+        pt_path = filepath.replace('.json', '.pt') if filepath.endswith('.json') else f"{filepath}.pt"
+        torch.save(results, pt_path)
+        print(f"Saved results to {pt_path} (torch format)")
+        return
+    except Exception as e:
+        print(f"Warning: Torch serialization also failed: {e}")
+        print("Cleaning results and trying again...")
+
+    # Final fallback: clean the results and save as JSON
+    try:
+        cleaned_results = clean_for_serialization(results)
+        json_path = f"{filepath}.json" if not filepath.endswith('.json') else filepath
+        with open(json_path, 'w') as f:
+            json.dump(cleaned_results, f, indent=2)
+        print(f"Saved cleaned results to {json_path} (JSON format, some objects converted to strings)")
+    except Exception as e:
+        print(f"Error: Failed to save results even after cleaning: {e}")
+        raise
 
 
 def parse_arguments():
@@ -492,10 +586,8 @@ def main():
             all_results[experiment_id] = results
 
             # Save individual results (now merged)
-            output_file = os.path.join(args.output_dir, f"{experiment_id}_results.json")
-            with open(output_file, 'w') as f:
-                json.dump(results, f, indent=2)
-            print(f"Saved results for {experiment_id} to {output_file}")
+            output_file = os.path.join(args.output_dir, f"{experiment_id}_results")
+            save_results_with_fallback(results, output_file)
 
             # Print summary
             print(f"\nResults for {experiment_id}:")
@@ -526,11 +618,10 @@ def main():
             existing_all_results[experiment_id] = new_exp_results
 
     # Save merged combined results
-    combined_output = os.path.join(args.output_dir, "all_results.json")
-    with open(combined_output, 'w') as f:
-        json.dump(existing_all_results, f, indent=2)
+    combined_output = os.path.join(args.output_dir, "all_results")
+    save_results_with_fallback(existing_all_results, combined_output)
 
-    print(f"\nSaved combined results to {combined_output}")
+    print(f"\nSaved combined results")
     print(f"  Total experiments in file: {len(existing_all_results)}")
     print(f"  Updated in this run: {len(all_results)}")
 
