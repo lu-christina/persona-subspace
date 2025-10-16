@@ -333,7 +333,7 @@ def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, 
 def format_messages_for_chat(prompts_data: List[Dict[str, Any]], model_name: str, no_system_prompt: bool = False) -> List[List[Dict[str, str]]]:
     """Format prompts into chat messages for vLLM batch processing."""
     # Determine if this is a Gemma model (no system prompt support)
-    is_gemma = 'gemma' in model_name.lower()
+    is_gemma = 'gemma-2' in model_name.lower()
     
     formatted_messages = []
     for prompt_data in prompts_data:
@@ -527,7 +527,8 @@ def main():
         args.model_name,
         max_model_len=8192,
         tensor_parallel_size=tensor_parallel_size,
-        gpu_memory_utilization=0.9
+        gpu_memory_utilization=0.9,
+        enforce_eager=True
     )
     
     try:
