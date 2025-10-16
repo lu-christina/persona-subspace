@@ -30,7 +30,7 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 sys.path.append(str(project_root / 'utils'))
 
-from utils.inference_utils import load_vllm_model, batch_conversation_chat, close_vllm_model
+from utils.inference_utils import load_vllm_model, batch_conversation, close_vllm_model
 
 
 def read_existing_results(output_jsonl: str, samples_per_prompt: int = 1) -> Set[str]:
@@ -38,26 +38,34 @@ def read_existing_results(output_jsonl: str, samples_per_prompt: int = 1) -> Set
     existing = set()
     if not os.path.exists(output_jsonl):
         return existing
-        
+
     try:
         with open(output_jsonl, 'r', encoding='utf-8') as f:
             for line in f:
                 try:
                     data = json.loads(line.strip())
-                    # Create unique key from id, magnitude, and sample_id
-                    if samples_per_prompt > 1:
-                        # When multiple samples per prompt, use (id, magnitude, sample_id) as key
-                        sample_id = data.get('sample_id', 0)
-                        key = (data['id'], data.get('magnitude', 0.0), sample_id)
+                    # Create unique key from role_id, question_id, magnitude, and sample_id
+                    # Handle both old format (id) and new format (role_id + question_id)
+                    if 'role_id' in data and 'question_id' in data:
+                        role_id = data['role_id']
+                        question_id = data['question_id']
                     else:
-                        # Backwards compatibility: just use (id, magnitude) for single samples
-                        key = (data['id'], data.get('magnitude', 0.0))
+                        # Backwards compatibility: old format with single 'id'
+                        role_id = question_id = data.get('id', 0)
+
+                    if samples_per_prompt > 1:
+                        # When multiple samples per prompt, use (role_id, question_id, magnitude, sample_id) as key
+                        sample_id = data.get('sample_id', 0)
+                        key = (role_id, question_id, data.get('magnitude', 0.0), sample_id)
+                    else:
+                        # Just use (role_id, question_id, magnitude) for single samples
+                        key = (role_id, question_id, data.get('magnitude', 0.0))
                     existing.add(key)
                 except (json.JSONDecodeError, KeyError):
                     continue
     except Exception as e:
         print(f"Warning: Could not read existing results: {e}")
-        
+
     return existing
 
 
@@ -92,7 +100,14 @@ def parse_arguments():
         default="google/gemma-2-27b-it",
         help="Model name for inference"
     )
-    
+
+    parser.add_argument(
+        "--chat_model",
+        type=str,
+        default=None,
+        help="Model to load tokenizer from (if different from base model)"
+    )
+
     parser.add_argument(
         "--output_jsonl",
         type=str,
@@ -153,7 +168,13 @@ def parse_arguments():
         default=1,
         help="Number of samples to generate for each unique id x magnitude combination"
     )
-    
+
+    parser.add_argument(
+        "--no_chat_format",
+        action="store_true",
+        help="Skip chat template formatting and use raw prompts directly"
+    )
+
     args = parser.parse_args()
     
     # Validate mutually exclusive arguments
@@ -161,8 +182,8 @@ def parse_arguments():
         if args.questions_file or args.roles_file:
             parser.error("--prompts_file cannot be used with --questions_file or --roles_file")
     else:
-        if not args.questions_file or not args.roles_file:
-            parser.error("Either --prompts_file OR both --questions_file and --roles_file must be provided")
+        if not args.questions_file:
+            parser.error("Either --prompts_file OR --questions_file (with optional --roles_file) must be provided")
     
     return args
 
@@ -273,13 +294,13 @@ def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, 
     """Generate all role-question combination prompts, filtering out existing ones."""
     prompts_data = []
     skipped_count = 0
-    
+
     for role in roles:
         for question in questions:
             # Format company name and name in role and question text
             role_text = role['_role_text'].format(company=company_name, name=name_value)
             question_text = question['_question_text'].format(company=company_name, name=name_value)
-            
+
             if no_system_prompt:
                 # In no-system-prompt mode, only use the question text
                 prompt = question_text
@@ -290,43 +311,59 @@ def generate_all_prompts(roles: List[Dict[str, Any]], questions: List[Dict[str, 
                 prompt = f"{role_text} {question_text}".strip() if role_text else question_text
                 system_prompt = role_text
                 user_message = question_text
-            
+
             # Generate multiple samples for this prompt
             for sample_id in range(samples_per_prompt):
                 # Create unique key for this sample
+                role_id = role.get('id', 0)
+                question_id = question.get('id', 0)
+
                 if samples_per_prompt > 1:
-                    unique_key = (role.get('id', 0), 0.0, sample_id)
+                    unique_key = (role_id, question_id, 0.0, sample_id)
                 else:
-                    unique_key = (role.get('id', 0), 0.0)
-                
+                    unique_key = (role_id, question_id, 0.0)
+
                 # Check if this specific sample already exists
                 if unique_key in existing_results:
                     skipped_count += 1
                     continue
-                
-                # Combine all fields from both role and question
+
+                # Combine all fields from both role and question, renaming 'id' fields
                 prompt_data = {}
-                prompt_data.update(role)
-                prompt_data.update(question)
+
+                # Copy all fields from role, renaming 'id' to 'role_id'
+                for key, value in role.items():
+                    if key == 'id':
+                        prompt_data['role_id'] = value
+                    else:
+                        prompt_data[key] = value
+
+                # Copy all fields from question, renaming 'id' to 'question_id'
+                for key, value in question.items():
+                    if key == 'id':
+                        prompt_data['question_id'] = value
+                    else:
+                        prompt_data[key] = value
+
                 prompt_data['prompt'] = prompt  # Formatted version for output
                 prompt_data['_system_prompt'] = system_prompt
                 prompt_data['_user_message'] = user_message
-                
+
                 # Add sample_id if multiple samples per prompt
                 if samples_per_prompt > 1:
                     prompt_data['sample_id'] = sample_id
-                
+
                 # Clean up temporary fields
                 if '_role_text' in prompt_data:
                     del prompt_data['_role_text']
                 if '_question_text' in prompt_data:
                     del prompt_data['_question_text']
-                
+
                 prompts_data.append(prompt_data)
-    
+
     if skipped_count > 0:
         print(f"Filtered out {skipped_count} existing combinations")
-    
+
     return prompts_data
 
 
@@ -359,42 +396,50 @@ def format_messages_for_chat(prompts_data: List[Dict[str, Any]], model_name: str
 def write_results_to_jsonl(prompts_data: List[Dict[str, Any]], responses: List[str], output_jsonl: str, existing_results: Set[str], samples_per_prompt: int = 1):
     """Write results to JSONL file, appending new results only."""
     print(f"Writing results to {output_jsonl}")
-    
+
     # Create output directory if it doesn't exist
     output_dir = os.path.dirname(output_jsonl)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
-    
+
     written_count = 0
     skipped_count = 0
-    
+
     # Use append mode to add new results
     with open(output_jsonl, 'a', encoding='utf-8') as f:
         for prompt_data, response in zip(prompts_data, responses):
             # Create unique key for this sample (matching logic in read_existing_results)
+            # Handle both old and new ID formats
+            if 'role_id' in prompt_data and 'question_id' in prompt_data:
+                role_id = prompt_data['role_id']
+                question_id = prompt_data['question_id']
+            else:
+                # Backwards compatibility: old format with single 'id'
+                role_id = question_id = prompt_data.get('id', 0)
+
             if samples_per_prompt > 1:
                 sample_id = prompt_data.get('sample_id', 0)
-                unique_key = (prompt_data['id'], prompt_data.get('magnitude', 0.0), sample_id)
+                unique_key = (role_id, question_id, prompt_data.get('magnitude', 0.0), sample_id)
             else:
-                unique_key = (prompt_data['id'], prompt_data.get('magnitude', 0.0))
-            
+                unique_key = (role_id, question_id, prompt_data.get('magnitude', 0.0))
+
             # Check if this specific sample already exists
             if unique_key in existing_results:
                 skipped_count += 1
                 continue
-                
+
             row_data = prompt_data.copy()  # Copy all original fields
             row_data['response'] = response
             row_data['magnitude'] = 0.0
-            
+
             # Remove underscore fields from output
             fields_to_remove = [k for k in row_data.keys() if k.startswith('_')]
             for field in fields_to_remove:
                 del row_data[field]
-            
+
             f.write(json.dumps(row_data) + '\n')
             written_count += 1
-    
+
     print(f"Successfully wrote {written_count} new results to {output_jsonl}")
     if skipped_count > 0:
         print(f"Skipped {skipped_count} existing results")
@@ -485,8 +530,15 @@ def main():
     else:
         # Load separate questions and roles files
         questions = load_questions(args.questions_file)
-        roles = load_roles(args.roles_file)
-        
+
+        # Load roles file if provided, otherwise create a dummy role with empty text
+        if args.roles_file:
+            roles = load_roles(args.roles_file)
+        else:
+            # Create a single dummy role with empty text (no system prompt)
+            roles = [{'id': 0, '_role_text': ''}]
+            print("No roles file provided - using questions only (no system prompt)")
+
         # Apply test mode filtering
         if args.test_mode:
             if len(questions) > 0:
@@ -494,7 +546,7 @@ def main():
                 print(f"TEST MODE: Using only first 10 questions ({len(questions)} questions)")
             else:
                 print("Warning: No questions available for test mode")
-        
+
         # Generate all prompts
         print(f"Generating prompts for {len(questions)} questions and {len(roles)} roles")
         prompts_data = generate_all_prompts(roles, questions, existing_results, args.company, args.name, args.no_system_prompt, args.samples_per_prompt)
@@ -504,9 +556,14 @@ def main():
     if len(prompts_data) == 0:
         print("No new prompts to process - all combinations already exist!")
         return
-        
-    # Format messages for chat-based processing
-    messages_list = format_messages_for_chat(prompts_data, args.model_name, args.no_system_prompt)
+
+    # Format messages for chat-based processing (or use raw prompts if no_chat_format is set)
+    if args.no_chat_format:
+        # Use raw prompts directly without chat formatting
+        raw_prompts = [prompt_data['prompt'] for prompt_data in prompts_data]
+    else:
+        # Format messages for chat
+        messages_list = format_messages_for_chat(prompts_data, args.model_name, args.no_system_prompt)
     
     # Load vLLM model with GPU configuration
     print(f"Loading vLLM model: {args.model_name}")
@@ -528,19 +585,42 @@ def main():
         max_model_len=8192,
         tensor_parallel_size=tensor_parallel_size,
         gpu_memory_utilization=0.9,
-        enforce_eager=True
+        chat_model_name=args.chat_model
     )
     
     try:
-        # Generate responses using batch processing with formatted messages
+        # Generate responses using batch processing
         print(f"Generating responses with batch processing...")
-        responses = batch_conversation_chat(
-            model_wrapper=model_wrapper,
-            conversations=messages_list,
-            temperature=args.temperature,
-            max_tokens=args.max_new_tokens,
-            progress=True
-        )
+
+        if args.no_chat_format:
+            # Use raw prompts directly without chat formatting
+            from vllm import SamplingParams
+
+            sampling_params = SamplingParams(
+                temperature=args.temperature,
+                max_tokens=args.max_new_tokens,
+                top_p=0.9
+            )
+
+            outputs = model_wrapper.llm.generate(raw_prompts, sampling_params)
+
+            # Extract generated texts
+            responses = []
+            for output in outputs:
+                if output.outputs:
+                    generated_text = output.outputs[0].text.strip()
+                    responses.append(generated_text)
+                else:
+                    responses.append("")
+        else:
+            # Use formatted chat messages
+            responses = batch_conversation(
+                model_wrapper=model_wrapper,
+                conversations=messages_list,
+                temperature=args.temperature,
+                max_tokens=args.max_new_tokens,
+                progress=True
+            )
         
         # Write results to JSONL
         write_results_to_jsonl(prompts_data, responses, args.output_jsonl, existing_results, args.samples_per_prompt)

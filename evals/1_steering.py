@@ -85,27 +85,35 @@ class JSONLHandler:
         existing = set()
         if not os.path.exists(self.jsonl_path):
             return existing
-            
+
         try:
             with open(self.jsonl_path, 'r', encoding='utf-8') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
                 for line in f:
                     try:
                         data = json.loads(line.strip())
-                        # Create unique key from id, magnitude, and sample_id
-                        if self.samples_per_prompt > 1:
-                            # When multiple samples per prompt, use (id, magnitude, sample_id) as key
-                            sample_id = data.get('sample_id', 0)
-                            key = (data['id'], float(data['magnitude']), sample_id)
+                        # Create unique key from role_id, question_id, magnitude, and sample_id
+                        # Handle both old format (id) and new format (role_id + question_id)
+                        if 'role_id' in data and 'question_id' in data:
+                            role_id = data['role_id']
+                            question_id = data['question_id']
                         else:
-                            # Backwards compatibility: just use (id, magnitude) for single samples
-                            key = (data['id'], float(data['magnitude']))
+                            # Backwards compatibility: old format with single 'id'
+                            role_id = question_id = data.get('id', 0)
+
+                        if self.samples_per_prompt > 1:
+                            # When multiple samples per prompt, use (role_id, question_id, magnitude, sample_id) as key
+                            sample_id = data.get('sample_id', 0)
+                            key = (role_id, question_id, float(data['magnitude']), sample_id)
+                        else:
+                            # Just use (role_id, question_id, magnitude) for single samples
+                            key = (role_id, question_id, float(data['magnitude']))
                         existing.add(key)
                     except (json.JSONDecodeError, KeyError):
                         continue
         except Exception as e:
             print(f"Warning: Could not read existing JSONL: {e}")
-            
+
         return existing
     
     def write_rows(self, row_data_list: List[Dict[str, Any]]) -> bool:
@@ -146,11 +154,19 @@ class WorkQueueManager:
         filtered_work_units = []
         for work_unit in work_units:
             # Create combination key that matches JSONLHandler logic
-            if 'sample_id' in work_unit:
-                combination_key = (work_unit['id'], work_unit['magnitude'], work_unit['sample_id'])
+            # Handle both old format (id) and new format (role_id + question_id)
+            if 'role_id' in work_unit and 'question_id' in work_unit:
+                role_id = work_unit['role_id']
+                question_id = work_unit['question_id']
             else:
-                combination_key = (work_unit['id'], work_unit['magnitude'])
-                
+                # Backwards compatibility: old format with single 'id'
+                role_id = question_id = work_unit.get('id', 0)
+
+            if 'sample_id' in work_unit:
+                combination_key = (role_id, question_id, work_unit['magnitude'], work_unit['sample_id'])
+            else:
+                combination_key = (role_id, question_id, work_unit['magnitude'])
+
             if combination_key not in existing_combinations:
                 filtered_work_units.append(work_unit)
         
@@ -213,14 +229,15 @@ class WorkQueueManager:
 
 
 def generate_batched_responses(
-    model, 
-    tokenizer, 
-    work_units: List[Dict[str, Any]], 
+    model,
+    tokenizer,
+    work_units: List[Dict[str, Any]],
     max_new_tokens: int = 1024,
     temperature: float = 0.7,
     max_length: int = 2048,
     no_system_prompt: bool = False,
-    thinking: bool = True
+    thinking: bool = True,
+    no_chat_format: bool = False
 ) -> List[str]:
     """
     Generate responses for a batch of work units efficiently using real batch inference.
@@ -230,35 +247,40 @@ def generate_batched_responses(
         if not work_units:
             return []
         
-        # Determine if this is a Gemma model (no system prompt support)
-        is_gemma = 'gemma' in model.config.name_or_path.lower() if hasattr(model.config, 'name_or_path') else False
-        
-        # Format prompts for chat
-        formatted_prompts = []
-        for work_unit in work_units:
-            system_prompt = work_unit.get('_system_prompt', '')
-            user_message = work_unit.get('_user_message', '')
-            
-            if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
-                if no_system_prompt or is_gemma or not system_prompt:
-                    # No system prompt mode, Gemma model, or no system prompt: only use user message
-                    content = user_message if no_system_prompt else (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
-                    messages = [{"role": "user", "content": content}]
+        # Format prompts for chat (or use raw prompts if no_chat_format is set)
+        if no_chat_format:
+            # Skip chat formatting and use raw prompts directly
+            formatted_prompts = [work_unit['prompt'] for work_unit in work_units]
+        else:
+            # Determine if this is a Gemma model (no system prompt support)
+            is_gemma = 'gemma-2' in model.config.name_or_path.lower() if hasattr(model.config, 'name_or_path') else False
+
+            # Format prompts for chat
+            formatted_prompts = []
+            for work_unit in work_units:
+                system_prompt = work_unit.get('_system_prompt', '')
+                user_message = work_unit.get('_user_message', '')
+
+                if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
+                    if no_system_prompt or is_gemma or not system_prompt:
+                        # No system prompt mode, Gemma model, or no system prompt: only use user message
+                        content = user_message if no_system_prompt else (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
+                        messages = [{"role": "user", "content": content}]
+                    else:
+                        # Use system prompt + user message
+                        messages = [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message}
+                        ]
+
+                    formatted_prompt = tokenizer.apply_chat_template(
+                        messages, tokenize=False, add_generation_prompt=True, enable_thinking=thinking
+                    )
+                    formatted_prompts.append(formatted_prompt)
                 else:
-                    # Use system prompt + user message
-                    messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message}
-                    ]
-                
-                formatted_prompt = tokenizer.apply_chat_template(
-                    messages, tokenize=False, add_generation_prompt=True, enable_thinking=thinking
-                )
-                formatted_prompts.append(formatted_prompt)
-            else:
-                # Fallback to simple concatenation
-                content = user_message if no_system_prompt else (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
-                formatted_prompts.append(content)
+                    # Fallback to simple concatenation
+                    content = user_message if no_system_prompt else (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
+                    formatted_prompts.append(content)
         
         # Tokenize all prompts at once
         batch_inputs = tokenizer(
@@ -381,7 +403,14 @@ def parse_arguments():
         default="google/gemma-2-27b-it",
         help="Model name for steering"
     )
-    
+
+    parser.add_argument(
+        "--chat_model",
+        type=str,
+        default=None,
+        help="Model to load tokenizer from (if different from base model)"
+    )
+
     parser.add_argument(
         "--output_jsonl",
         type=str,
@@ -468,7 +497,13 @@ def parse_arguments():
         default=1,
         help="Number of samples to generate for each unique prompt x magnitude combination"
     )
-    
+
+    parser.add_argument(
+        "--no_chat_format",
+        action="store_true",
+        help="Skip chat template formatting and use raw prompts directly"
+    )
+
     args = parser.parse_args()
     
     # Validate mutually exclusive arguments
@@ -476,8 +511,8 @@ def parse_arguments():
         if args.questions_file or args.roles_file:
             parser.error("--prompts_file cannot be used with --questions_file or --roles_file")
     else:
-        if not args.questions_file or not args.roles_file:
-            parser.error("Either --prompts_file OR both --questions_file and --roles_file must be provided")
+        if not args.questions_file:
+            parser.error("Either --prompts_file OR --questions_file (with optional --roles_file) must be provided")
     
     return args
 
@@ -660,14 +695,25 @@ def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", name_v
                     # Generate multiple samples for this prompt x magnitude combination
                     for sample_id in range(samples_per_prompt):
                         work_unit = {}
-                        # Copy all fields from both role and question
-                        work_unit.update(role)
-                        work_unit.update(question)
-                        
+
+                        # Copy all fields from role, renaming 'id' to 'role_id'
+                        for key, value in role.items():
+                            if key == 'id':
+                                work_unit['role_id'] = value
+                            else:
+                                work_unit[key] = value
+
+                        # Copy all fields from question, renaming 'id' to 'question_id'
+                        for key, value in question.items():
+                            if key == 'id':
+                                work_unit['question_id'] = value
+                            else:
+                                work_unit[key] = value
+
                         # Format company name and name in prompts
                         role_text = role['_role_text'].format(company=company_name, name=name_value)
                         question_text = question['_question_text'].format(company=company_name, name=name_value)
-                        
+
                         if no_system_prompt:
                             # In no-system-prompt mode, only use the question text
                             formatted_combined = question_text
@@ -678,25 +724,25 @@ def create_work_units(prompts_data, magnitudes, company_name="Acme Corp", name_v
                             formatted_combined = f"{role_text} {question_text}".strip() if role_text else question_text
                             system_prompt = role_text
                             user_message = question_text
-                        
+
                         # Keep separate fields for system/user message handling
                         work_unit['_system_prompt'] = system_prompt
                         work_unit['_user_message'] = user_message
-                        
+
                         # Create formatted combined prompt
                         work_unit['prompt'] = formatted_combined
                         work_unit['magnitude'] = magnitude
-                        
+
                         # Add sample_id if multiple samples per prompt
                         if samples_per_prompt > 1:
                             work_unit['sample_id'] = sample_id
-                        
+
                         # Clean up temporary fields
                         if '_role_text' in work_unit:
                             del work_unit['_role_text']
                         if '_question_text' in work_unit:
                             del work_unit['_question_text']
-                            
+
                         work_units.append(work_unit)
     
     return work_units
@@ -716,7 +762,9 @@ def worker_process(
     max_length: int,
     no_system_prompt: bool = False,
     thinking: bool = True,
-    samples_per_prompt: int = 1
+    samples_per_prompt: int = 1,
+    chat_model: str = None,
+    no_chat_format: bool = False
 ):
     """
     Optimized worker process that pulls work batches from queue and processes them with batch efficiency.
@@ -735,7 +783,7 @@ def worker_process(
         
         # Load model on assigned GPU
         device = f"cuda:{gpu_id}"
-        model, tokenizer = load_model(model_name, device=device)
+        model, tokenizer = load_model(model_name, device=device, chat_model_name=chat_model)
         model.eval()  # Set to evaluation mode for inference
         logger.info(f"Model loaded on {device}")
         
@@ -801,7 +849,8 @@ def worker_process(
                                 temperature=temperature,
                                 max_length=max_length,
                                 no_system_prompt=no_system_prompt,
-                                thinking=thinking
+                                thinking=thinking,
+                                no_chat_format=no_chat_format
                             )
                             
                             # Prepare row data for batch (skip empty responses)
@@ -818,7 +867,12 @@ def worker_process(
                                         del row_data[field]
                                     batch_row_data.append(row_data)
                                 else:
-                                    logger.warning(f"Skipping empty response for id={work_unit['id']}, magnitude={work_unit['magnitude']}")
+                                    # Handle both old and new ID formats for logging
+                                    if 'role_id' in work_unit and 'question_id' in work_unit:
+                                        id_str = f"role_id={work_unit['role_id']}, question_id={work_unit['question_id']}"
+                                    else:
+                                        id_str = f"id={work_unit.get('id', 'unknown')}"
+                                    logger.warning(f"Skipping empty response for {id_str}, magnitude={work_unit['magnitude']}")
                             
                             # Write batch to JSONL
                             if batch_row_data:  # Only write if there's data to write
@@ -945,9 +999,17 @@ def main():
     else:
         # Load separate questions and roles files
         questions = load_questions(args.questions_file)
-        roles = load_roles(args.roles_file)
+
+        # Load roles file if provided, otherwise create a dummy role with empty text
+        if args.roles_file:
+            roles = load_roles(args.roles_file)
+        else:
+            # Create a single dummy role with empty text (no system prompt)
+            roles = [{'id': 0, '_role_text': ''}]
+            print("No roles file provided - using questions only (no system prompt)")
+
         is_combined_format = False
-        
+
         # Apply test mode filtering
         if args.test_mode:
             if len(questions) > 0:
@@ -955,7 +1017,7 @@ def main():
                 print(f"TEST MODE: Using only first 10 questions ({len(questions)} questions)")
             else:
                 print("Warning: No questions available for test mode")
-        
+
         prompts_data = [questions, roles]
         n_unique_roles = len(roles)
         n_unique_questions = len(questions)
@@ -1045,7 +1107,9 @@ def main():
                 args.max_length,
                 args.no_system_prompt,
                 args.thinking,
-                args.samples_per_prompt
+                args.samples_per_prompt,
+                args.chat_model,
+                args.no_chat_format
             )
         )
         p.start()

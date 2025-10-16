@@ -18,7 +18,8 @@ class ActivationSteering:
     _POSSIBLE_LAYER_ATTRS: Iterable[str] = (
         "transformer.h",       # GPT‑2/Neo, Bloom, etc.
         "encoder.layer",       # BERT/RoBERTa
-        "model.layers",        # Llama/Mistral
+        "model.layers",        # Llama/Mistral/Gemma 2/Qwen
+        "language_model.layers",  # Gemma 3 (vision-language models)
         "gpt_neox.layers",     # GPT‑NeoX
         "block",               # Flan‑T5
     )

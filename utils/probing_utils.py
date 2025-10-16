@@ -59,18 +59,21 @@ def get_model_layers(model):
     raise AttributeError(error_msg)
 
 
-def load_model(model_name, device=None, max_memory_per_gpu=None):
+def load_model(model_name, device=None, max_memory_per_gpu=None, chat_model_name=None):
     """Load model and tokenizer
-    
+
     Args:
-        model_name: HuggingFace model identifier
+        model_name: HuggingFace model identifier for the base model
         device: Device specification - can be:
             - None: use all available GPUs with device_map="auto"
             - "cuda:X": use single GPU (will auto-shard if model is too large)
             - dict: custom device_map
         max_memory_per_gpu: Optional dict mapping GPU ids to max memory (e.g. {0: "40GiB", 1: "40GiB"})
+        chat_model_name: Optional HuggingFace model identifier for tokenizer (if different from base model)
     """
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # Load tokenizer from chat_model_name if provided, otherwise from model_name
+    tokenizer_source = chat_model_name if chat_model_name else model_name
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source)
     # Set padding token if not set
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token

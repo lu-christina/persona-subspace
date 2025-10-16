@@ -126,22 +126,24 @@ def load_vllm_model(
     tensor_parallel_size: Optional[int] = None,
     gpu_memory_utilization: float = 0.9,
     dtype: str = "auto",
+    chat_model_name: Optional[str] = None,
     **kwargs
 ) -> VLLMModelWrapper:
     """
     Load a HuggingFace model directly using vLLM's LLM class.
-    
+
     Args:
-        model_name: HuggingFace model identifier (e.g., "meta-llama/Llama-3.1-8B-Instruct")
+        model_name: HuggingFace model identifier for the base model (e.g., "meta-llama/Llama-3.1-8B-Instruct")
         max_model_len: Maximum sequence length (default: 8192)
         tensor_parallel_size: Number of GPUs to use (default: auto-detect)
         gpu_memory_utilization: GPU memory utilization ratio (default: 0.9)
         dtype: Model data type (default: "auto")
+        chat_model_name: Optional HuggingFace model identifier for tokenizer (if different from base model)
         **kwargs: Additional arguments passed to vLLM LLM constructor
-    
+
     Returns:
         VLLMModelWrapper: Wrapper object for the loaded model
-        
+
     Raises:
         RuntimeError: If model loading fails or vLLM not properly installed
     """
@@ -181,9 +183,11 @@ def load_vllm_model(
             trust_remote_code=True,
             **kwargs
         )
-        
+
         # Load the tokenizer separately for chat template support
-        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        # Use chat_model_name if provided, otherwise use model_name
+        tokenizer_source = chat_model_name if chat_model_name else model_name
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, trust_remote_code=True)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
         
@@ -617,7 +621,7 @@ def batch_chat_with_system(
     )
 
 
-def batch_conversation_chat(
+def batch_conversation(
     model_wrapper: VLLMModelWrapper,
     conversations: List[List[Dict[str, str]]],
     temperature: float = 0.7,
@@ -629,10 +633,10 @@ def batch_conversation_chat(
 ) -> List[str]:
     """
     Process multiple conversations with history efficiently using vLLM's native batch generation.
-    
+
     Args:
         model_wrapper: VLLMModelWrapper instance
-        conversations: List of conversation histories, where each conversation is a list of 
+        conversations: List of conversation histories, where each conversation is a list of
                       message dicts with keys "role" ("user"/"assistant"/"system") and "content"
         temperature: Sampling temperature (default: 0.7)
         max_tokens: Maximum response tokens (default: 512)
@@ -640,7 +644,7 @@ def batch_conversation_chat(
         progress: Show progress bar (default: True)
         enable_thinking: Enable thinking/reasoning mode (default: False)
         **kwargs: Additional generation parameters
-        
+
     Returns:
         List of response strings (same order as input conversations)
     """
@@ -722,8 +726,8 @@ def batch_conversation_chat(
         return responses
         
     except Exception as e:
-        logger.error(f"Error in batch_conversation_chat: {e}")
-        raise RuntimeError(f"Batch conversation chat inference failed: {e}")
+        logger.error(f"Error in batch_conversation: {e}")
+        raise RuntimeError(f"Batch conversation inference failed: {e}")
 
 
 def batch_continue_conversations(
@@ -772,13 +776,13 @@ def batch_continue_conversations(
         updated_conversations.append(updated_history)
     
     # Get responses using batch processing
-    responses = batch_conversation_chat(
-        model_wrapper, 
-        updated_conversations, 
-        temperature, 
-        max_tokens, 
-        top_p, 
-        progress, 
+    responses = batch_conversation(
+        model_wrapper,
+        updated_conversations,
+        temperature,
+        max_tokens,
+        top_p,
+        progress,
         enable_thinking,
         **kwargs
     )
@@ -978,7 +982,7 @@ if __name__ == "__main__":
             ]
         ]
         
-        responses = batch_conversation_chat(
+        responses = batch_conversation(
             model,
             conversations,
             temperature=0.7,
