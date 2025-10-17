@@ -230,21 +230,6 @@ def clean_for_serialization(obj: Any) -> Any:
 
 def save_results_with_fallback(results: Dict[str, Any], filepath: str) -> None:
     # Try JSON first
-    try:
-        path = filepath if filepath.endswith('.json') else f"{filepath}.json"
-        with open(path, 'w') as f:
-            json.dump(results, f, indent=2)
-        print(f"[save] Wrote {path}")
-        return
-    except Exception as e:
-        print(f"[save] JSON failed ({e}); falling back to torch .pt")
-    try:
-        pt_path = filepath.replace('.json', '.pt') if filepath.endswith('.json') else f"{filepath}.pt"
-        torch.save(results, pt_path)
-        print(f"[save] Wrote {pt_path}")
-        return
-    except Exception as e:
-        print(f"[save] Torch save failed ({e}); cleaning and retrying JSON…")
     cleaned = clean_for_serialization(results)
     path = filepath if filepath.endswith('.json') else f"{filepath}.json"
     with open(path, 'w') as f:
@@ -255,7 +240,6 @@ def save_results_with_fallback(results: Dict[str, Any], filepath: str) -> None:
 def load_existing_all_results(output_dir: str) -> Dict[str, Any]:
     merged: Dict[str, Any] = {}
     p_json = Path(output_dir) / "all_results.json"
-    p_pt = Path(output_dir) / "all_results.pt"
     if p_json.exists():
         try:
             merged = json.loads(p_json.read_text())
@@ -263,13 +247,6 @@ def load_existing_all_results(output_dir: str) -> Dict[str, Any]:
             return merged
         except Exception as e:
             print(f"[load] Failed to read {p_json}: {e}")
-    if p_pt.exists():
-        try:
-            merged = torch.load(p_pt, weights_only=False)
-            print(f"[load] Loaded {p_pt}")
-            return merged
-        except Exception as e:
-            print(f"[load] Failed to read {p_pt}: {e}")
     return {}
 
 

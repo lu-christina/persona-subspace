@@ -19,8 +19,8 @@ SEED=42
 FEWSHOT=0
 DTYPE="bfloat16"
 
-# MMLU-Pro is MC ranking (short decode) — this is a safe, fast default
-BATCH=48
+# MMLU-Pro is MC ranking
+BATCH=36
 
 # ===== Read steered experiment IDs (exclude 'baseline') =====
 readarray -t STEERED_IDS < <(python - "$CFG" <<'PY'
