@@ -28,87 +28,41 @@ print("\n".join([e.get("id","") for e in cfg.get("experiments", []) if e.get("id
 PY
 )
 
-# Filter STEERED_IDS to only include experiments containing "0:64"
+# Filter STEERED_IDS to only include experiments containing "16:24"
 SELECTED_IDS=()
 for exp_id in "${STEERED_IDS[@]}"; do
-  if [[ "$exp_id" == *"0:64"* ]]; then
-    SELECTED_IDS+=("$exp_id")
-  fi
+  [[ "$exp_id" == *"16:24"* ]] && SELECTED_IDS+=("$exp_id")
 done
 
-# Build queue: selected steered experiments
-QUEUE=( "${SELECTED_IDS[@]}" )
-echo "Queue (${#QUEUE[@]} jobs): ${QUEUE[*]}"
+if ((${#SELECTED_IDS[@]} == 0)); then
+  echo "No experiments matched filter \"16:24\"."
+  exit 1
+fi
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
 export NVIDIA_TF32_OVERRIDE=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-GPU_COUNT=4
-GPU_MAP=(0 1 4 6)  # Map logical GPU indices to physical devices
-declare -A PIDS JOBS
+# Queue one task per experiment
+for EXP in "${SELECTED_IDS[@]}"; do
+  OUTDIR="${BASEDIR_ROLE_TRAIT}/${EXP}"
+  mkdir -p "$OUTDIR"
 
-pop() {
-  if ((${#QUEUE[@]}==0)); then return 1; fi
-  EXP="${QUEUE[0]}"; QUEUE=("${QUEUE[@]:1}"); return 0
-}
+  echo ">>> Queue ${EXP} : MMLU-Pro (batch=${BATCH}) -> ${OUTDIR}"
 
-launch_job () {
-  local GPU="$1" EXP="$2"
-  local PHYSICAL_GPU="${GPU_MAP[$GPU]}"
-
-  # choose outdir based on baseline vs steered
-  local OUTDIR
-  OUTDIR="$BASEDIR_ROLE_TRAIT"
-
-  echo ">>> [GPU ${PHYSICAL_GPU}] Launch ${EXP} : MMLU-Pro (batch=${BATCH}) -> ${OUTDIR}"
-
-  ARGS_COMMON=(
-    --config_filepath "$CFG"
-    --experiment_ids "$EXP"
-    --model_name "$MODEL"
-    --tasks "$TASKS"
-    --output_dir "$OUTDIR"
-    --batch_size "$BATCH"
-    --device_strategy replicate
-    --torch_dtype "$DTYPE"
-    --limit "$LIMIT"
-    --random_seed "$SEED"
+  ts -G 1 uv run 2_benchmark_eval.py \
+    --config_filepath "$CFG" \
+    --experiment_ids "$EXP" \
+    --model_name "$MODEL" \
+    --tasks "$TASKS" \
+    --output_dir "$OUTDIR" \
+    --batch_size "$BATCH" \
+    --device_strategy replicate \
+    --torch_dtype "$DTYPE" \
+    --limit "$LIMIT" \
+    --random_seed "$SEED" \
     --num_fewshot "$FEWSHOT"
-  )
-
-  CUDA_VISIBLE_DEVICES="${PHYSICAL_GPU}" uv run 2_benchmark_eval.py \
-    "${ARGS_COMMON[@]}" &
-
-  PIDS[$GPU]=$!
-  JOBS[$GPU]="$EXP"
-}
-
-trap 'echo "Stopping..."; for p in "${PIDS[@]}"; do [[ -n "${p}" ]] && kill -9 "$p" 2>/dev/null || true; done' INT TERM
-
-# ===== Fill GPUs initially =====
-for ((g=0; g<GPU_COUNT; g++)); do
-  if pop; then launch_job "$g" "$EXP"; fi
-done
-
-# ===== Scheduler loop =====
-while :; do
-  for ((g=0; g<GPU_COUNT; g++)); do
-    pid="${PIDS[$g]:-}"
-    if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
-      echo "<<< [GPU ${g}] Done: ${JOBS[$g]}"
-      unset PIDS[$g] JOBS[$g]
-      if pop; then launch_job "$g" "$EXP"; fi
-    fi
-  done
-
-  # Exit when queue empty and no running jobs
-  if ((${#QUEUE[@]}==0 && ${#PIDS[@]}==0)); then
-    echo "✅ All MMLU-Pro runs finished."
-    break
-  fi
-  sleep 3
 done
 
 echo "Results:"

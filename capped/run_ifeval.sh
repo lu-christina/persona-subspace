@@ -19,14 +19,12 @@ BATCH=48              # good default for 32B on one H200
 MAXTOK=256             # set to e.g. 192 or 256 if your Python script accepts --max_gen_toks
 
 # ===== Read experiment IDs =====
-readarray -t QUEUE < <(python - "$CFG" <<'PY'
+readarray -t STEERED_IDS < <(python - "$CFG" <<'PY'
 import sys, torch
 cfg = torch.load(sys.argv[1], weights_only=False)
 print("\n".join([e.get("id","") for e in cfg.get("experiments", []) if e.get("id","").lower()!="baseline" and e.get("id","")]))
 PY
 )
-
-echo "Queue (${#QUEUE[@]} jobs): ${QUEUE[*]}"
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
@@ -34,20 +32,10 @@ export NVIDIA_TF32_OVERRIDE=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 mkdir -p "$CACHE_DIR"
 
-GPU_COUNT=4
-GPU_MAP=(0 1 4 6)  # Map logical GPU indices to physical devices
-declare -A PIDS JOBS
+# Queue one task per experiment
+for EXP in "${STEERED_IDS[@]}"; do
+  echo ">>> Queue ${EXP} : IFEval (batch=${BATCH}${MAXTOK:+, maxtok=${MAXTOK}}) -> ${ROLE_TRAIT_DIR}"
 
-pop() {
-  if ((${#QUEUE[@]}==0)); then return 1; fi
-  EXP="${QUEUE[0]}"; QUEUE=("${QUEUE[@]:1}"); return 0
-}
-
-launch_job () {
-  local GPU="$1" EXP="$2"
-  local PHYSICAL_GPU="${GPU_MAP[$GPU]}"
-
-  echo ">>> [GPU ${PHYSICAL_GPU}] Launch ${EXP} : IFEval (batch=${BATCH}${MAXTOK:+, maxtok=${MAXTOK}}) -> ${ROLE_TRAIT_DIR}"
   # Build args (conditionally include max_gen_toks if set)
   ARGS_COMMON=(
     --config_filepath "$CFG"
@@ -66,37 +54,7 @@ launch_job () {
     ARGS_COMMON+=( --max_gen_toks "$MAXTOK" )
   fi
 
-  CUDA_VISIBLE_DEVICES="${PHYSICAL_GPU}" uv run 2_benchmark_eval.py \
-    "${ARGS_COMMON[@]}" &
-
-  PIDS[$GPU]=$!
-  JOBS[$GPU]="$EXP"
-}
-
-trap 'echo "Stopping..."; for p in "${PIDS[@]}"; do [[ -n "${p}" ]] && kill -9 "$p" 2>/dev/null || true; done' INT TERM
-
-# ===== Fill GPUs initially =====
-for ((g=0; g<GPU_COUNT; g++)); do
-  if pop; then launch_job "$g" "$EXP"; fi
+  ts -G 1 uv run 2_benchmark_eval.py "${ARGS_COMMON[@]}"
 done
 
-# ===== Scheduler loop =====
-while :; do
-  for ((g=0; g<GPU_COUNT; g++)); do
-    pid="${PIDS[$g]:-}"
-    if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
-      echo "<<< [GPU ${g}] Done: ${JOBS[$g]}"
-      unset PIDS[$g] JOBS[$g]
-      if pop; then launch_job "$g" "$EXP"; fi
-    fi
-  done
-
-  # Exit when queue empty and no running jobs
-  if ((${#QUEUE[@]}==0 && ${#PIDS[@]}==0)); then
-    echo "✅ All IFEval runs finished."
-    break
-  fi
-  sleep 3
-done
-
-echo "✅ Results saved to: ${ROLE_TRAIT_DIR}/{experiment_id}/"
+echo "Results saved to: ${ROLE_TRAIT_DIR}/<experiment_id>/ifeval/"
