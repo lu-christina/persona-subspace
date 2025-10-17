@@ -137,6 +137,7 @@ class SteeredHFLM(HFLM):
             cap_thresholds=self.cap_thresholds,
             layer_indices=self.layer_indices,
             positions="all",
+            debug=True,
         )
         self._steerer.__enter__()
         print("[steer] Hooks registered")
