@@ -3,8 +3,8 @@ set -euo pipefail
 
 # ===== Paths & model =====
 MODEL="Qwen/Qwen3-32B"
-CFG="/workspace/qwen-3-32b/capped/configs/multi_contrast_layers_config.pt"
-ROLE_TRAIT_DIR="/workspace/qwen-3-32b/capped/benchmarks/jailbreak"
+CFG="/workspace/qwen-3-32b/capped/configs/lmsys_10000_config.pt"
+ROLE_TRAIT_DIR="/workspace/qwen-3-32b/capped/benchmarks/lmsys_10000"
 CACHE_DIR="/workspace/qwen-3-32b/capped/.lm_eval_cache"
 
 # ===== Eval settings =====
@@ -34,7 +34,8 @@ export NVIDIA_TF32_OVERRIDE=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 mkdir -p "$CACHE_DIR"
 
-GPU_COUNT=8
+GPU_COUNT=4
+GPU_MAP=(0 1 4 6)  # Map logical GPU indices to physical devices
 declare -A PIDS JOBS
 
 pop() {
@@ -44,8 +45,9 @@ pop() {
 
 launch_job () {
   local GPU="$1" EXP="$2"
+  local PHYSICAL_GPU="${GPU_MAP[$GPU]}"
 
-  echo ">>> [GPU ${GPU}] Launch ${EXP} : IFEval (batch=${BATCH}${MAXTOK:+, maxtok=${MAXTOK}}) -> ${ROLE_TRAIT_DIR}"
+  echo ">>> [GPU ${PHYSICAL_GPU}] Launch ${EXP} : IFEval (batch=${BATCH}${MAXTOK:+, maxtok=${MAXTOK}}) -> ${ROLE_TRAIT_DIR}"
   # Build args (conditionally include max_gen_toks if set)
   ARGS_COMMON=(
     --config_filepath "$CFG"
@@ -64,7 +66,7 @@ launch_job () {
     ARGS_COMMON+=( --max_gen_toks "$MAXTOK" )
   fi
 
-  CUDA_VISIBLE_DEVICES="${GPU}" uv run 2_benchmark_eval.py \
+  CUDA_VISIBLE_DEVICES="${PHYSICAL_GPU}" uv run 2_benchmark_eval.py \
     "${ARGS_COMMON[@]}" &
 
   PIDS[$GPU]=$!

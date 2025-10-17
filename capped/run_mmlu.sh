@@ -3,14 +3,12 @@ set -euo pipefail
 
 # ===== Paths & model =====
 MODEL="Qwen/Qwen3-32B"
-CFG="/workspace/qwen-3-32b/capped/configs/role_trait_config.pt"
+CFG="/workspace/qwen-3-32b/capped/configs/lmsys_10000_config.pt"
 
 # Send baseline runs here:
 BASEDIR_BASELINE="/workspace/qwen-3-32b/capped/benchmarks/baseline"
 # Send all steered runs here:
-BASEDIR_ROLE_TRAIT="/workspace/qwen-3-32b/capped/benchmarks/role_trait"
-
-CACHE_DIR="/workspace/qwen-3-32b/capped/.lm_eval_cache"
+BASEDIR_ROLE_TRAIT="/workspace/qwen-3-32b/capped/benchmarks/lmsys_10000"
 
 # ===== Eval settings =====
 TASKS="mmlu_pro"
@@ -30,17 +28,25 @@ print("\n".join([e.get("id","") for e in cfg.get("experiments", []) if e.get("id
 PY
 )
 
-# Build queue: baseline first, then all steered
-QUEUE=( "baseline" "${STEERED_IDS[@]}" )
+# Filter STEERED_IDS to only include experiments containing "0:64"
+SELECTED_IDS=()
+for exp_id in "${STEERED_IDS[@]}"; do
+  if [[ "$exp_id" == *"0:64"* ]]; then
+    SELECTED_IDS+=("$exp_id")
+  fi
+done
+
+# Build queue: selected steered experiments
+QUEUE=( "${SELECTED_IDS[@]}" )
 echo "Queue (${#QUEUE[@]} jobs): ${QUEUE[*]}"
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
 export NVIDIA_TF32_OVERRIDE=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-mkdir -p "$CACHE_DIR" /tmp/qwen_runs
 
-GPU_COUNT=8
+GPU_COUNT=4
+GPU_MAP=(0 1 4 6)  # Map logical GPU indices to physical devices
 declare -A PIDS JOBS
 
 pop() {
@@ -50,17 +56,13 @@ pop() {
 
 launch_job () {
   local GPU="$1" EXP="$2"
+  local PHYSICAL_GPU="${GPU_MAP[$GPU]}"
 
   # choose outdir based on baseline vs steered
   local OUTDIR
-  if [[ "$EXP" == "baseline" || "$EXP" == "unsteered" || "$EXP" == "control" ]]; then
-    OUTDIR="$BASEDIR_BASELINE"
-  else
-    OUTDIR="$BASEDIR_ROLE_TRAIT"
-  fi
+  OUTDIR="$BASEDIR_ROLE_TRAIT"
 
-  local LOG="/tmp/qwen_runs/${EXP//\//_}_mmlu_gpu${GPU}.log"
-  echo ">>> [GPU ${GPU}] Launch ${EXP} : MMLU-Pro (batch=${BATCH}) -> ${OUTDIR}"
+  echo ">>> [GPU ${PHYSICAL_GPU}] Launch ${EXP} : MMLU-Pro (batch=${BATCH}) -> ${OUTDIR}"
 
   ARGS_COMMON=(
     --config_filepath "$CFG"
@@ -71,15 +73,13 @@ launch_job () {
     --batch_size "$BATCH"
     --device_strategy replicate
     --torch_dtype "$DTYPE"
-    --use_cache "$CACHE_DIR" --cache_requests
     --limit "$LIMIT"
     --random_seed "$SEED"
     --num_fewshot "$FEWSHOT"
   )
 
-  CUDA_VISIBLE_DEVICES="${GPU}" uv run 2_benchmark_eval.py \
-    "${ARGS_COMMON[@]}" \
-    >"$LOG" 2>&1 &
+  CUDA_VISIBLE_DEVICES="${PHYSICAL_GPU}" uv run 2_benchmark_eval.py \
+    "${ARGS_COMMON[@]}" &
 
   PIDS[$GPU]=$!
   JOBS[$GPU]="$EXP"
@@ -112,6 +112,4 @@ while :; do
 done
 
 echo "Results:"
-echo "  baseline -> ${BASEDIR_BASELINE}/mmlu_pro/<timestamp_seed_limit_shots>/"
 echo "  steered  -> ${BASEDIR_ROLE_TRAIT}/<experiment_id>/mmlu_pro/<timestamp_seed_limit_shots>/"
-echo "Logs in /tmp/qwen_runs/"
