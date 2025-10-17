@@ -15,30 +15,6 @@ projection-cap capping logic, and adds practical speed knobs for large GPUs
 - Result merging and robust JSON/PT saving.
 - Tiny live throughput report.
 
-Example (baseline, fast MMLU-Pro on a single H200 with a big batch):
-
-  uv run 2_benchmark_eval.py \
-    --config_filepath /workspace/qwen-3-32b/evals/multi_capping_config.pt \
-    --experiment_ids baseline \
-    --model_name google/gemma-2-27b-it \
-    --tasks mmlu_pro \
-    --output_dir /root/git/persona-subspace/evals/benchmark_results \
-    --batch_size 256 \
-    --device_strategy replicate \
-    --limit 1000 \
-    --use_cache .lm_eval_cache --cache_requests
-
-Example (shard the model when needed, e.g., very large checkpoints or long ctx):
-
-  uv run 2_benchmark_eval.py \
-    --config_filepath /workspace/qwen-3-32b/evals/multi_capping_config.pt \
-    --experiment_ids baseline cap_1.0 \
-    --model_name google/gemma-2-27b-it \
-    --tasks mmlu_pro,gsm8k \
-    --output_dir /root/git/persona-subspace/evals/benchmark_results \
-    --batch_size 64 \
-    --device_strategy shard \
-    --limit 1000
 
 """
 
@@ -353,6 +329,13 @@ def run_evaluation(
     gen_kwargs = {}
     if max_gen_toks is not None:
         gen_kwargs["max_gen_toks"] = max_gen_toks
+
+    # Fix eq_bench: remove default "\n\n" until constraint to allow model's EOS token
+    # to naturally stop generation. The default fewshot_delimiter of "\n\n" prevents
+    # eq_bench from generating proper responses.
+    if any("eq_bench" in task.lower() for task in tasks):
+        gen_kwargs["until"] = None
+        print("[config] Detected eq_bench task, setting until=None to use model's EOS token")
 
     results = lm_eval.simple_evaluate(
         model=lm,
