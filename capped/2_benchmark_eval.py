@@ -395,6 +395,8 @@ def parse_arguments() -> argparse.Namespace:
 
     p.add_argument("--config_filepath", type=str, required=True,
                    help="Path to multi-capping config .pt")
+    p.add_argument("--cap_from", type=str, required=True,
+                   help="Folder for the cap experiment")
     p.add_argument("--experiment_ids", type=str, nargs="+", required=True,
                    help="Experiment IDs to run; use 'baseline' for no steering; 'all' to expand all in config")
     p.add_argument("--model_name", type=str, default="google/gemma-2-27b-it")
@@ -470,16 +472,14 @@ def main() -> None:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             run_suffix = f"{timestamp}_seed{args.random_seed}_limit{args.limit}_shots{args.num_fewshot}"
 
-            # baseline → /baseline/{task}/{run_suffix}
-            # others   → /role_trait/{exp_id}/{task}/{run_suffix}
             if exp_id.lower() in {"baseline", "unsteered", "control"}:
-                exp_root = out_dir
+                cfg_dir = "baseline"
             else:
-                exp_root = out_dir / exp_id
+                cfg_dir = args.cap_from
 
             run_dirs = {}
             for task in tasks:
-                task_dir = exp_root / task / run_suffix
+                task_dir = out_dir / task / cfg_dir / exp_id / run_suffix
                 task_dir.mkdir(parents=True, exist_ok=True)
                 run_dirs[task] = task_dir
 
