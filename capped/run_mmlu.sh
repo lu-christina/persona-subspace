@@ -7,7 +7,7 @@ BASEDIR="/workspace/qwen-3-32b/capped/benchmarks"
 
 # Associative array: cap_from -> config_path
 declare -A CONFIGS=(
-  ["lmsys_10000"]="/workspace/qwen-3-32b/capped/configs/lmsys_10000_config.pt"
+  ["role_trait"]="/workspace/qwen-3-32b/capped/configs/role_trait_eighths_config.pt"
 )
 
 # ===== Eval settings =====
@@ -16,10 +16,10 @@ LIMIT=100
 SEED=42
 FEWSHOT=0
 DTYPE="bfloat16"
-BATCH=36
+BATCH=16
 
 # Filter pattern for experiment IDs (set to empty string to disable filtering)
-FILTER_PATTERN="16:24"
+FILTER_PATTERN="40:48"
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
