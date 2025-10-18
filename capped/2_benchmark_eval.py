@@ -53,78 +53,6 @@ import lm_eval
 from lm_eval.models.huggingface import HFLM
 
 
-class SteeredHFLM(HFLM):
-    """HuggingFace backend with optional multi-vector projection-cap steering."""
-
-    def __init__(
-        self,
-        pretrained: str,
-        steering_vectors: Optional[List[torch.Tensor]] = None,
-        cap_thresholds: Optional[List[float]] = None,
-        layer_indices: Optional[List[int]] = None,
-        # common speed/model kwargs forwarded to HF under the hood
-        torch_dtype: Optional[torch.dtype] = None,
-        attn_implementation: Optional[str] = None,
-        low_cpu_mem_usage: bool = True,
-        trust_remote_code: bool = True,
-        device_map: Optional[str] = None,  # 'auto' -> shard layers across GPUs
-        parallelize: Optional[bool] = None, # legacy path (not recommended here)
-        **kwargs,
-    ):
-        # Build the kwargs for HFLM (these get passed to from_pretrained internally)
-        hf_kwargs = dict(
-            pretrained=pretrained,
-            trust_remote_code=trust_remote_code,
-            low_cpu_mem_usage=low_cpu_mem_usage,
-        )
-        if torch_dtype is not None:
-            hf_kwargs["dtype"] = torch_dtype  # HFLM accepts 'dtype' alias
-        if attn_implementation is not None:
-            hf_kwargs["attn_implementation"] = attn_implementation
-        if device_map is not None:
-            hf_kwargs["device_map"] = device_map
-        if parallelize is not None:
-            hf_kwargs["parallelize"] = parallelize
-        hf_kwargs.update(kwargs)
-
-        super().__init__(**hf_kwargs)
-
-        # Steering config
-        self.steering_vectors = steering_vectors
-        self.cap_thresholds = cap_thresholds
-        self.layer_indices = layer_indices
-        self._steerer = None
-
-        if (
-            self.steering_vectors is not None
-            and self.cap_thresholds is not None
-            and self.layer_indices is not None
-        ):
-            self._setup_steering()
-
-    def _setup_steering(self) -> None:
-        if self.steering_vectors is None:
-            return
-        unique_layers = sorted(set(self.layer_indices))
-        print(f"[steer] Registering {len(self.steering_vectors)} vectors across layers {unique_layers}")
-        self._steerer = create_projection_cap_steerer(
-            model=self.model,
-            feature_directions=self.steering_vectors,
-            cap_thresholds=self.cap_thresholds,
-            layer_indices=self.layer_indices,
-            positions="all",
-        )
-        self._steerer.__enter__()
-        print("[steer] Hooks registered")
-
-    def _cleanup_steering(self) -> None:
-        if self._steerer is not None:
-            self._steerer.__exit__(None, None, None)
-            self._steerer = None
-            print("[steer] Hooks removed")
-
-
-
 # -----------------------------
 # Config loading helpers
 # -----------------------------
@@ -252,22 +180,16 @@ def merge_results(existing: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, An
 # -----------------------------
 
 def run_evaluation(
+    lm: HFLM,
     model_name: str,
     tasks: List[str],
     experiment_id: str,
-    steering_vectors: Optional[List[torch.Tensor]],
-    cap_thresholds: Optional[List[float]],
-    layer_indices: Optional[List[int]],
-    batch_size: int = 8,
     num_fewshot: int = 0,
     limit: Optional[int] = 1000,
     random_seed: int = 42,
     numpy_random_seed: int = 42,
     torch_random_seed: int = 42,
     fewshot_random_seed: int = 42,
-    device_strategy: str = "replicate",  # 'replicate' | 'shard'
-    torch_dtype_str: str = "bfloat16",
-    attn_impl: Optional[str] = None,      # e.g., 'flash_attention_2'
     use_cache: Optional[str] = None,
     cache_requests: bool = False,
     max_gen_toks: Optional[int] = None,
@@ -277,8 +199,7 @@ def run_evaluation(
     print("\n" + "=" * 70)
     print(f"Experiment: {experiment_id}")
     print(f"Model:      {model_name}")
-    print(f"Tasks:      {tasks}")
-    print(f"Strategy:   {device_strategy}\n")
+    print(f"Tasks:      {tasks}\n")
 
     # Auto-detect Qwen models and set thinking default via system instruction
     system_instruction = None
@@ -291,38 +212,6 @@ def run_evaluation(
     elif thinking is True:
         system_instruction = ""
         print(f"[config] Using system_instruction with thinking enabled")
-
-    # Map dtype string → torch dtype
-    dtype_map = {
-        'bfloat16': torch.bfloat16,
-        'float16': torch.float16,
-        'float32': torch.float32,
-    }
-    torch_dtype = dtype_map.get(torch_dtype_str, torch.bfloat16)
-
-    # Build model kwargs
-    model_kwargs: Dict[str, Any] = dict(
-        pretrained=model_name,
-        steering_vectors=steering_vectors,
-        cap_thresholds=cap_thresholds,
-        layer_indices=layer_indices,
-        batch_size=batch_size,
-        torch_dtype=torch_dtype,
-        low_cpu_mem_usage=True,
-        trust_remote_code=True,
-    )
-    if attn_impl:
-        model_kwargs['attn_implementation'] = attn_impl
-
-    if device_strategy == "shard":
-        ngpu = torch.cuda.device_count()
-        print(f"[init] Sharding with device_map='auto' across {ngpu} GPUs")
-        model_kwargs['device_map'] = 'auto'
-    else:
-        print("[init] Replication (single-process). Tip: launch multiple processes on different GPUs to parallelize tasks.")
-
-    # Init model
-    lm = SteeredHFLM(**model_kwargs)
 
     # Run eval with a timer
     t0 = time.time()
@@ -341,7 +230,6 @@ def run_evaluation(
         model=lm,
         tasks=tasks,
         num_fewshot=num_fewshot,
-        batch_size=batch_size,
         limit=limit,
         random_seed=random_seed,
         numpy_random_seed=numpy_random_seed,
@@ -355,9 +243,6 @@ def run_evaluation(
         gen_kwargs=gen_kwargs,
     )
     elapsed = time.time() - t0
-
-    # Cleanup hooks
-    lm._cleanup_steering()
 
     # Attach metadata + timing
     results['experiment_id'] = experiment_id
@@ -395,7 +280,7 @@ def parse_arguments() -> argparse.Namespace:
 
     p.add_argument("--config_filepath", type=str, required=True,
                    help="Path to multi-capping config .pt")
-    p.add_argument("--cap_from", type=str, required=True,
+    p.add_argument("--cap_from", type=str, default="",
                    help="Folder for the cap experiment")
     p.add_argument("--experiment_ids", type=str, nargs="+", required=True,
                    help="Experiment IDs to run; use 'baseline' for no steering; 'all' to expand all in config")
@@ -464,6 +349,42 @@ def main() -> None:
 
     print(f"[cli] Total experiments to run: {len(exp_ids)} -> {exp_ids}")
 
+    # === Load model once for all experiments ===
+    print("\n" + "=" * 70)
+    print("[init] Loading model once for all experiments")
+    print("=" * 70)
+
+    # Map dtype string → torch dtype
+    dtype_map = {
+        'bfloat16': torch.bfloat16,
+        'float16': torch.float16,
+        'float32': torch.float32,
+    }
+    torch_dtype = dtype_map.get(args.torch_dtype, torch.bfloat16)
+
+    # Build model kwargs
+    model_kwargs: Dict[str, Any] = dict(
+        pretrained=args.model_name,
+        batch_size=args.batch_size,
+        dtype=torch_dtype,  # HFLM accepts 'dtype' alias
+        low_cpu_mem_usage=True,
+        trust_remote_code=True,
+    )
+
+    if args.attn_implementation:
+        model_kwargs['attn_implementation'] = args.attn_implementation
+
+    if args.device_strategy == "shard":
+        ngpu = torch.cuda.device_count()
+        print(f"[init] Sharding with device_map='auto' across {ngpu} GPUs")
+        model_kwargs['device_map'] = 'auto'
+    else:
+        print("[init] Replication (single-process). Tip: launch multiple processes on different GPUs to parallelize tasks.")
+
+    # Create base HFLM instance once
+    base_lm = HFLM(**model_kwargs)
+    print(f"[init] Model loaded: {args.model_name}\n")
+
     for exp_id in exp_ids:
         try:
             steering_vectors, caps, layers = get_experiment_config(exp_id, vectors_dict, experiments_list)
@@ -472,43 +393,71 @@ def main() -> None:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             run_suffix = f"{timestamp}_seed{args.random_seed}_limit{args.limit}_shots{args.num_fewshot}"
 
-            if exp_id.lower() in {"baseline", "unsteered", "control"}:
-                cfg_dir = "baseline"
-            else:
-                cfg_dir = args.cap_from
-
             run_dirs = {}
             for task in tasks:
-                task_dir = out_dir / task / cfg_dir / exp_id / run_suffix
+                if exp_id.lower() in {"baseline", "unsteered", "control"}:
+                    # Baseline: out_dir/task/baseline/run_suffix (no exp_id)
+                    task_dir = out_dir / task / "baseline" / run_suffix
+                else:
+                    # Steered: out_dir/task/cap_from/exp_id/run_suffix
+                    task_dir = out_dir / task / args.cap_from / exp_id / run_suffix
                 task_dir.mkdir(parents=True, exist_ok=True)
                 run_dirs[task] = task_dir
 
             print(f"\n[run] experiment={exp_id}\n[run] dirs={run_dirs}\n")
 
-            # === Run evaluation ===
-            results = run_evaluation(
-                model_name=args.model_name,
-                tasks=tasks,
-                experiment_id=exp_id,
-                steering_vectors=steering_vectors,
-                cap_thresholds=caps,
-                layer_indices=layers,
-                batch_size=args.batch_size,
-                num_fewshot=args.num_fewshot,
-                limit=(None if args.limit is None or int(args.limit) <= 0 else int(args.limit)),
-                random_seed=args.random_seed,
-                numpy_random_seed=args.numpy_random_seed,
-                torch_random_seed=args.torch_random_seed,
-                fewshot_random_seed=args.fewshot_random_seed,
-                device_strategy=args.device_strategy,
-                torch_dtype_str=args.torch_dtype,
-                attn_impl=args.attn_implementation,
-                use_cache=args.use_cache,
-                cache_requests=args.cache_requests,
-                max_gen_toks=args.max_gen_toks,
-                thinking=args.thinking,
-                apply_chat_template=args.apply_chat_template,
-            )
+            # === Run evaluation with steering context manager ===
+            if steering_vectors is not None and caps is not None and layers is not None:
+                # Apply steering via context manager
+                unique_layers = sorted(set(layers))
+                print(f"[steer] Applying {len(steering_vectors)} vectors across layers {unique_layers}")
+
+                with create_projection_cap_steerer(
+                    model=base_lm.model,  # Access underlying transformer
+                    feature_directions=steering_vectors,
+                    cap_thresholds=caps,
+                    layer_indices=layers,
+                    positions="all"
+                ):
+                    print("[steer] Hooks registered")
+                    results = run_evaluation(
+                        lm=base_lm,
+                        model_name=args.model_name,
+                        tasks=tasks,
+                        experiment_id=exp_id,
+                        num_fewshot=args.num_fewshot,
+                        limit=(None if args.limit is None or int(args.limit) <= 0 else int(args.limit)),
+                        random_seed=args.random_seed,
+                        numpy_random_seed=args.numpy_random_seed,
+                        torch_random_seed=args.torch_random_seed,
+                        fewshot_random_seed=args.fewshot_random_seed,
+                        use_cache=args.use_cache,
+                        cache_requests=args.cache_requests,
+                        max_gen_toks=args.max_gen_toks,
+                        thinking=args.thinking,
+                        apply_chat_template=args.apply_chat_template,
+                    )
+                print("[steer] Hooks removed")
+            else:
+                # Baseline: no steering
+                print("[baseline] Running without steering")
+                results = run_evaluation(
+                    lm=base_lm,
+                    model_name=args.model_name,
+                    tasks=tasks,
+                    experiment_id=exp_id,
+                    num_fewshot=args.num_fewshot,
+                    limit=(None if args.limit is None or int(args.limit) <= 0 else int(args.limit)),
+                    random_seed=args.random_seed,
+                    numpy_random_seed=args.numpy_random_seed,
+                    torch_random_seed=args.torch_random_seed,
+                    fewshot_random_seed=args.fewshot_random_seed,
+                    use_cache=args.use_cache,
+                    cache_requests=args.cache_requests,
+                    max_gen_toks=args.max_gen_toks,
+                    thinking=args.thinking,
+                    apply_chat_template=args.apply_chat_template,
+                )
 
             # === Save per-task results & create symlink ===
             for task, task_dir in run_dirs.items():
