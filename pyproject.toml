@@ -30,7 +30,11 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "seaborn>=0.13.2",
     "statsmodels>=0.14.5",
-    "lm-eval>=0.4.9",
+    "lm-eval[vllm]>=0.4.9",
     "langdetect>=1.0.9",
     "immutabledict>=4.2.2",
+    "chatspace",
 ]
+
+[tool.uv.sources]
+chatspace = { path = "../chatspace", editable = true }

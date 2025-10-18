@@ -16,15 +16,20 @@ LIMIT=100
 SEED=42
 FEWSHOT=0
 DTYPE="bfloat16"
-BATCH=16
 
-# Skip experiments that already have results (set to empty string to disable skip check)
-SKIP_EXISTING="yes"
+# ===== vLLM-specific settings =====
+TENSOR_PARALLEL=1
+GPU_MEM_UTIL=0.95
+MAX_MODEL_LEN=2048
+
+# Filter pattern for experiment IDs (set to empty string to disable filtering)
+FILTER_PATTERN="40:48"
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
 export NVIDIA_TF32_OVERRIDE=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export VLLM_ALLOW_INSECURE_SERIALIZATION=1  # Fallback if v1 is still used
 
 # Process each config
 for CAP_FROM in "${!CONFIGS[@]}"; do
@@ -42,43 +47,44 @@ print("\n".join([e.get("id","") for e in cfg.get("experiments", []) if e.get("id
 PY
   )
 
-  # Filter out experiments that already exist if SKIP_EXISTING is set
-  if [[ -n "$SKIP_EXISTING" ]]; then
+  # Filter STEERED_IDS if pattern is set
+  if [[ -n "$FILTER_PATTERN" ]]; then
     SELECTED_IDS=()
     for exp_id in "${STEERED_IDS[@]}"; do
-      # Check if results directory exists for this experiment
-      exp_dir="${BASEDIR}/${TASKS}/${CAP_FROM}/${exp_id}"
-      if [[ -d "$exp_dir" ]]; then
-        echo "Skipping ${exp_id} (already exists: ${exp_dir})"
-      else
-        SELECTED_IDS+=("$exp_id")
-      fi
+      [[ "$exp_id" == *"$FILTER_PATTERN"* ]] && SELECTED_IDS+=("$exp_id")
     done
 
     if ((${#SELECTED_IDS[@]} == 0)); then
-      echo "All experiments already exist for ${CAP_FROM}. Nothing to run."
+      echo "No experiments matched filter \"${FILTER_PATTERN}\" for ${CAP_FROM}."
       continue
     fi
-
-    echo "Found ${#SELECTED_IDS[@]} experiments to run (${#STEERED_IDS[@]} total, $((${#STEERED_IDS[@]} - ${#SELECTED_IDS[@]})) already exist)"
   else
     SELECTED_IDS=("${STEERED_IDS[@]}")
   fi
 
-  # Queue one task per experiment
+  # Queue one task per experiment (one GPU each)
   for EXP in "${SELECTED_IDS[@]}"; do
-    echo ">>> Queue ${CAP_FROM}::${EXP} : MMLU-Pro (batch=${BATCH}) -> ${BASEDIR}/mmlu_pro/${CAP_FROM}/<experiment_id>/"
+    OUTPUT_PATH="${BASEDIR}/mmlu_pro/${CAP_FROM}/${EXP}"
 
-    ts -G 1 uv run 2_benchmark_eval.py \
+    # Skip if output directory already exists
+    if [[ -d "$OUTPUT_PATH" ]]; then
+      echo ">>> Skip ${CAP_FROM}::${EXP} : output directory already exists at ${OUTPUT_PATH}"
+      continue
+    fi
+
+    echo ">>> Queue ${CAP_FROM}::${EXP} : MMLU-Pro (batch=auto) -> ${OUTPUT_PATH}/"
+
+    ts -G 1 uv run 2_benchmark_vllm.py \
       --config_filepath "$CFG" \
       --experiment_ids "$EXP" \
       --model_name "$MODEL" \
       --tasks "$TASKS" \
       --output_dir "$BASEDIR" \
       --cap_from "$CAP_FROM" \
-      --batch_size "$BATCH" \
-      --device_strategy replicate \
-      --torch_dtype "$DTYPE" \
+      --tensor_parallel_size "$TENSOR_PARALLEL" \
+      --gpu_memory_utilization "$GPU_MEM_UTIL" \
+      --max_model_len "$MAX_MODEL_LEN" \
+      --dtype "$DTYPE" \
       --limit "$LIMIT" \
       --random_seed "$SEED" \
       --num_fewshot "$FEWSHOT"

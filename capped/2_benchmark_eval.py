@@ -391,7 +391,7 @@ def main() -> None:
 
             # === Create structured directories ===
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            run_suffix = f"{timestamp}_seed{args.random_seed}_limit{args.limit}_shots{args.num_fewshot}"
+            run_suffix = timestamp
 
             run_dirs = {}
             for task in tasks:
@@ -471,6 +471,7 @@ def main() -> None:
                     "experiment_id": exp_id,
                     "task": task,
                     "run_dir": str(task_dir),
+                    "vllm": False,
                 })
                 with open(task_dir / "manifest.json", "w") as f:
                     json.dump(manifest, f, indent=2)
