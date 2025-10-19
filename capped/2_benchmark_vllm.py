@@ -491,8 +491,19 @@ def cleanup_vllm_model(vllm_model: VLLMSteerModel) -> None:
     try:
         print("[cleanup] Destroying vLLM model and releasing GPU memory...")
 
-        # Step 1: Destroy distributed resources FIRST (before killing processes)
-        # This prevents NCCL warnings about leaked resources
+        # Step 1: Shutdown model executor FIRST to gracefully terminate workers
+        # This allows workers to clean up their NCCL resources before exit
+        try:
+            if hasattr(vllm_model, 'llm') and hasattr(vllm_model.llm, 'llm_engine'):
+                engine = vllm_model.llm.llm_engine
+                if hasattr(engine, 'model_executor'):
+                    print("[cleanup] Shutting down model executor...")
+                    engine.model_executor.shutdown()
+                    print("[cleanup] Model executor shutdown complete")
+        except Exception as e:
+            print(f"[cleanup] Warning: Could not shutdown model executor: {e}")
+
+        # Step 2: Destroy distributed parallel state
         try:
             print("[cleanup] Destroying distributed parallel state...")
             from vllm.distributed.parallel_state import destroy_model_parallel
@@ -503,19 +514,18 @@ def cleanup_vllm_model(vllm_model: VLLMSteerModel) -> None:
         except Exception as e:
             print(f"[cleanup] Warning: destroy_model_parallel failed: {e}")
 
-        # Step 2: Delete internal engine components before terminating processes
+        # Step 3: Delete internal engine components
         try:
             if hasattr(vllm_model, 'llm') and hasattr(vllm_model.llm, 'llm_engine'):
                 engine = vllm_model.llm.llm_engine
-
-                # Delete model executor
+                # Delete model executor (already shut down)
                 if hasattr(engine, 'model_executor'):
                     del engine.model_executor
                     print("[cleanup] Deleted model executor")
         except Exception as e:
             print(f"[cleanup] Warning: Could not delete model executor: {e}")
 
-        # Step 3: Delete the LLM engine reference
+        # Step 4: Delete the LLM engine reference
         try:
             if hasattr(vllm_model, 'llm'):
                 del vllm_model.llm
@@ -523,36 +533,9 @@ def cleanup_vllm_model(vllm_model: VLLMSteerModel) -> None:
         except Exception as e:
             print(f"[cleanup] Warning: Could not delete LLM engine: {e}")
 
-        # Step 4: Run garbage collection to trigger cleanup
+        # Step 5: Run garbage collection to trigger cleanup
         gc.collect()
         print("[cleanup] Ran garbage collection")
-
-        # Step 5: Now terminate child processes (after distributed cleanup)
-        try:
-            print("[cleanup] Cleaning up child processes...")
-
-            # Only terminate child processes of this script
-            if hasattr(multiprocessing, 'active_children'):
-                children = multiprocessing.active_children()
-                if children:
-                    print(f"[cleanup] Found {len(children)} child process(es) to terminate")
-                    for child in children:
-                        try:
-                            print(f"[cleanup]   Terminating child process {child.name} (PID: {child.pid})")
-                            child.terminate()
-                            child.join(timeout=3)
-                            if child.is_alive():
-                                print(f"[cleanup]   Force killing child process {child.name}")
-                                child.kill()
-                                child.join(timeout=1)
-                        except Exception as e:
-                            print(f"[cleanup]   Warning: Could not terminate child {child.name}: {e}")
-                    print("[cleanup] Cleaned up child processes")
-                else:
-                    print("[cleanup] No child processes to clean up")
-
-        except Exception as e:
-            print(f"[cleanup] Warning during child process cleanup: {e}")
 
         # Step 6: Final GPU cleanup
         torch.cuda.empty_cache()

@@ -23,7 +23,9 @@ GPU_MEM_UTIL=0.95
 MAX_MODEL_LEN=2048
 
 # Filter pattern for experiment IDs (set to empty string to disable filtering)
-FILTER_PATTERN="40:48"
+FILTER_PATTERN=""
+# Skip experiments that already have results (set to empty string to disable skip check)
+SKIP_EXISTING="yes"
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
@@ -49,28 +51,46 @@ PY
 
   # Filter STEERED_IDS if pattern is set
   if [[ -n "$FILTER_PATTERN" ]]; then
-    SELECTED_IDS=()
+    FILTERED_IDS=()
     for exp_id in "${STEERED_IDS[@]}"; do
-      [[ "$exp_id" == *"$FILTER_PATTERN"* ]] && SELECTED_IDS+=("$exp_id")
+      [[ "$exp_id" == *"$FILTER_PATTERN"* ]] && FILTERED_IDS+=("$exp_id")
     done
 
-    if ((${#SELECTED_IDS[@]} == 0)); then
+    if ((${#FILTERED_IDS[@]} == 0)); then
       echo "No experiments matched filter \"${FILTER_PATTERN}\" for ${CAP_FROM}."
       continue
     fi
+    echo "Filtered to ${#FILTERED_IDS[@]} experiments matching \"${FILTER_PATTERN}\" (from ${#STEERED_IDS[@]} total)"
   else
-    SELECTED_IDS=("${STEERED_IDS[@]}")
+    FILTERED_IDS=("${STEERED_IDS[@]}")
+  fi
+
+  # Filter out experiments that already exist if SKIP_EXISTING is set
+  if [[ -n "$SKIP_EXISTING" ]]; then
+    SELECTED_IDS=()
+    for exp_id in "${FILTERED_IDS[@]}"; do
+      # Check if results directory exists for this experiment
+      exp_dir="${BASEDIR}/mmlu_pro/${CAP_FROM}/${exp_id}"
+      if [[ -d "$exp_dir" ]]; then
+        echo "Skipping ${exp_id} (already exists: ${exp_dir})"
+      else
+        SELECTED_IDS+=("$exp_id")
+      fi
+    done
+
+    if ((${#SELECTED_IDS[@]} == 0)); then
+      echo "All experiments already exist for ${CAP_FROM}. Nothing to run."
+      continue
+    fi
+
+    echo "Found ${#SELECTED_IDS[@]} experiments to run (${#FILTERED_IDS[@]} after filter, $((${#FILTERED_IDS[@]} - ${#SELECTED_IDS[@]})) already exist)"
+  else
+    SELECTED_IDS=("${FILTERED_IDS[@]}")
   fi
 
   # Queue one task per experiment (one GPU each)
   for EXP in "${SELECTED_IDS[@]}"; do
     OUTPUT_PATH="${BASEDIR}/mmlu_pro/${CAP_FROM}/${EXP}"
-
-    # Skip if output directory already exists
-    if [[ -d "$OUTPUT_PATH" ]]; then
-      echo ">>> Skip ${CAP_FROM}::${EXP} : output directory already exists at ${OUTPUT_PATH}"
-      continue
-    fi
 
     echo ">>> Queue ${CAP_FROM}::${EXP} : MMLU-Pro (batch=auto) -> ${OUTPUT_PATH}/"
 
