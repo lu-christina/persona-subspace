@@ -75,7 +75,7 @@ class VLLMSteeringLM(TemplateLM):
             self._batch_size = "auto"
         else:
             self._batch_size = int(batch_size)
-        self._max_gen_toks = 512
+        self._max_gen_toks = None
 
     @property
     def eot_token_id(self):
