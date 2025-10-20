@@ -7,18 +7,16 @@ BASEDIR="/workspace/qwen-3-32b/capped/benchmarks"
 
 # Associative array: cap_from -> config_path
 declare -A CONFIGS=(
-  ["role_trait"]="/workspace/qwen-3-32b/capped/configs/role_trait_eighths_config.pt"
-  ["lmsys_10000"]="/workspace/qwen-3-32b/capped/configs/lmsys_10000_eighths_config.pt"
+  ["jailbreak"]="/workspace/qwen-3-32b/capped/configs/jailbreak_config.pt"
 )
 
 # ===== Eval settings =====
-TASKS="ifeval"
-LIMIT=500
+TASKS="gsm8k"
+LIMIT=1000
 SEED=42
-FEWSHOT=0
 DTYPE="bfloat16"
-BATCH=48
-MAXTOK=256
+BATCH=16
+MAXTOK=512
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
@@ -58,7 +56,6 @@ PY
       --torch_dtype "$DTYPE"
       --limit "$LIMIT"
       --random_seed "$SEED"
-      --num_fewshot "$FEWSHOT"
     )
     if [[ -n "${MAXTOK}" ]]; then
       ARGS_COMMON+=( --max_gen_toks "$MAXTOK" )
