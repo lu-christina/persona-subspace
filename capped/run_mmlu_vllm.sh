@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Usage: ./run_mmlu_vllm.sh [JOB_NUMBER]
-# JOB_NUMBER: 1 for first half of experiments, 2 for second half (default: run all)
+# JOB_NUMBER: 1-4 to split experiments into quarters (default: run all)
 
 JOB_NUMBER="${1:-0}"
 
@@ -30,7 +30,7 @@ MAX_MODEL_LEN=2048
 # Filter pattern for experiment IDs (set to empty string to disable filtering)
 FILTER_PATTERN=""
 # Skip experiments that already have results (set to empty string to disable skip check)
-SKIP_EXISTING=""
+SKIP_EXISTING="yes"
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
@@ -70,6 +70,44 @@ PY
     FILTERED_IDS=("${STEERED_IDS[@]}")
   fi
 
+  # Split experiments by job number if specified (1-4) - BEFORE skip_existing filter
+  if [[ "$JOB_NUMBER" =~ ^[1-4]$ ]]; then
+    TOTAL_EXPS=${#FILTERED_IDS[@]}
+    QUARTER=$((TOTAL_EXPS / 4))
+    REMAINDER=$((TOTAL_EXPS % 4))
+
+    case "$JOB_NUMBER" in
+      1)
+        # First quarter
+        START=0
+        # Add 1 to first quarter if there's remainder
+        SIZE=$((QUARTER + (REMAINDER > 0 ? 1 : 0)))
+        FILTERED_IDS=("${FILTERED_IDS[@]:$START:$SIZE}")
+        echo "Job 1: Running first quarter (${#FILTERED_IDS[@]} experiments)"
+        ;;
+      2)
+        # Second quarter
+        START=$((QUARTER + (REMAINDER > 0 ? 1 : 0)))
+        SIZE=$((QUARTER + (REMAINDER > 1 ? 1 : 0)))
+        FILTERED_IDS=("${FILTERED_IDS[@]:$START:$SIZE}")
+        echo "Job 2: Running second quarter (${#FILTERED_IDS[@]} experiments)"
+        ;;
+      3)
+        # Third quarter
+        START=$((QUARTER * 2 + (REMAINDER > 0 ? 1 : 0) + (REMAINDER > 1 ? 1 : 0)))
+        SIZE=$((QUARTER + (REMAINDER > 2 ? 1 : 0)))
+        FILTERED_IDS=("${FILTERED_IDS[@]:$START:$SIZE}")
+        echo "Job 3: Running third quarter (${#FILTERED_IDS[@]} experiments)"
+        ;;
+      4)
+        # Fourth quarter
+        START=$((QUARTER * 3 + (REMAINDER > 0 ? 1 : 0) + (REMAINDER > 1 ? 1 : 0) + (REMAINDER > 2 ? 1 : 0)))
+        FILTERED_IDS=("${FILTERED_IDS[@]:$START}")
+        echo "Job 4: Running fourth quarter (${#FILTERED_IDS[@]} experiments)"
+        ;;
+    esac
+  fi
+
   # Filter out experiments that already exist if SKIP_EXISTING is set
   if [[ -n "$SKIP_EXISTING" ]]; then
     SELECTED_IDS=()
@@ -91,22 +129,6 @@ PY
     echo "Found ${#SELECTED_IDS[@]} experiments to run (${#FILTERED_IDS[@]} after filter, $((${#FILTERED_IDS[@]} - ${#SELECTED_IDS[@]})) already exist)"
   else
     SELECTED_IDS=("${FILTERED_IDS[@]}")
-  fi
-
-  # Split experiments by job number if specified
-  if [[ "$JOB_NUMBER" == "1" ]] || [[ "$JOB_NUMBER" == "2" ]]; then
-    TOTAL_EXPS=${#SELECTED_IDS[@]}
-    HALF=$((TOTAL_EXPS / 2))
-
-    if [[ "$JOB_NUMBER" == "1" ]]; then
-      # First half
-      SELECTED_IDS=("${SELECTED_IDS[@]:0:$HALF}")
-      echo "Job 1: Running first half (${#SELECTED_IDS[@]} experiments)"
-    else
-      # Second half
-      SELECTED_IDS=("${SELECTED_IDS[@]:$HALF}")
-      echo "Job 2: Running second half (${#SELECTED_IDS[@]} experiments)"
-    fi
   fi
 
   OUTPUT_PATH="${BASEDIR}/mmlu_pro/${CAP_FROM}"
