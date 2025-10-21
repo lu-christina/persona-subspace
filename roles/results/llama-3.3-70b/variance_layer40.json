@@ -1,0 +1,240 @@
+{
+  "model_name": "Llama-3.3-70B",
+  "layer": 40,
+  "hidden_dim": 8192,
+  "n_roles": 275,
+  "n_role_samples": 377,
+  "timestamp": "2025-10-21T23:40:50.577644",
+  "analysis_version": "1.0",
+  "across_within_role_var": {
+    "raw_activations": {
+      "across_var_mean": 0.0008524379809387028,
+      "within_var_mean": 0.0029754638671875,
+      "ratio": 0.2864890992641449
+    },
+    "raw_activations_normalized": {
+      "across_var_mean": 1.5014164091553539e-05,
+      "within_var_mean": 3.695487976074219e-05,
+      "ratio": 0.4062836766242981
+    },
+    "pca_space_all_components": {
+      "across_var_mean": 20.701381296973107,
+      "within_var_mean": 60.20805881159359,
+      "ratio": 0.34383073803712927,
+      "n_components": 377
+    },
+    "pc1_only": {
+      "across_var": 1098.9190452905918,
+      "within_var_mean": 544.487320753733,
+      "ratio": 2.018263793120765
+    }
+  },
+  "conditional_var_roles": {
+    "threshold_analysis": {
+      "pc1_threshold": -25,
+      "assistant_like": {
+        "mask": "pc1 < -25",
+        "n_samples": 121,
+        "variance_raw": 0.000247955322265625,
+        "variance_raw_pc1_removed": 0.00024577256408520043
+      },
+      "roleplay": {
+        "mask": "pc1 >= -25",
+        "n_samples": 256,
+        "variance_raw": 0.0009002685546875,
+        "variance_raw_pc1_removed": 0.0008061571279540658
+      },
+      "variance_ratio_raw": 0.2754237288135593,
+      "variance_ratio_raw_pc1_removed": 0.30486930594900646
+    },
+    "quintile_analysis": {
+      "n_quintiles": 5,
+      "quintiles": [
+        {
+          "quintile": 1,
+          "pc1_range": [
+            -44.37923864160723,
+            -31.559046464589606
+          ],
+          "n_samples": 76,
+          "variance_full": 0.0002002716064453125,
+          "variance_pc1_removed": 0.00019950655405409634
+        },
+        {
+          "quintile": 2,
+          "pc1_range": [
+            -31.559046464589606,
+            -18.140796132344057
+          ],
+          "n_samples": 75,
+          "variance_full": 0.000308990478515625,
+          "variance_pc1_removed": 0.0003081231552641839
+        },
+        {
+          "quintile": 3,
+          "pc1_range": [
+            -18.140796132344057,
+            2.4708555653759383
+          ],
+          "n_samples": 75,
+          "variance_full": 0.00054931640625,
+          "variance_pc1_removed": 0.0005456163198687136
+        },
+        {
+          "quintile": 4,
+          "pc1_range": [
+            2.4708555653759383,
+            31.740300636660784
+          ],
+          "n_samples": 75,
+          "variance_full": 0.00098419189453125,
+          "variance_pc1_removed": 0.0009807390160858631
+        },
+        {
+          "quintile": 5,
+          "pc1_range": [
+            31.740300636660784,
+            101.89565628604095
+          ],
+          "n_samples": 76,
+          "variance_full": 0.00106048583984375,
+          "variance_pc1_removed": 0.0010300613939762115
+        }
+      ],
+      "variance_ratio_first_to_last_full": 5.295238095238095,
+      "variance_ratio_first_to_last_pc1_removed": 5.163045388959551
+    },
+    "distance_correlation": {
+      "full_space": {
+        "correlation": 0.7185280876808596,
+        "p_value": 4.150131577462243e-61,
+        "significant": true
+      },
+      "pc1_removed": {
+        "correlation": 0.6382001113530401,
+        "p_value": 1.6392726685477511e-44,
+        "significant": true
+      }
+    }
+  },
+  "high_var_pc_correlation": {
+    "pc_distance_correlations": {
+      "description": "Correlation between each PC and distance in remaining PC space",
+      "n_pcs_analyzed": 10,
+      "correlations": [
+        {
+          "pc": 1,
+          "r": 0.654895202056744,
+          "p_value": 1.5213266877861217e-47,
+          "significant": true
+        },
+        {
+          "pc": 2,
+          "r": 0.4303603504872165,
+          "p_value": 1.9812430365414586e-18,
+          "significant": true
+        },
+        {
+          "pc": 3,
+          "r": 0.27048806583120844,
+          "p_value": 9.594217018606936e-08,
+          "significant": true
+        },
+        {
+          "pc": 4,
+          "r": 0.16023381998537578,
+          "p_value": 0.001802158041231497,
+          "significant": true
+        },
+        {
+          "pc": 5,
+          "r": -0.05366174305753552,
+          "p_value": 0.2987063519432045,
+          "significant": false
+        },
+        {
+          "pc": 6,
+          "r": 0.111028939335328,
+          "p_value": 0.03113827826290761,
+          "significant": true
+        },
+        {
+          "pc": 7,
+          "r": 0.10954253097935532,
+          "p_value": 0.03348072207666804,
+          "significant": true
+        },
+        {
+          "pc": 8,
+          "r": 0.015324298533428904,
+          "p_value": 0.7667922123298899,
+          "significant": false
+        },
+        {
+          "pc": 9,
+          "r": 0.07510148922408305,
+          "p_value": 0.14555276678956774,
+          "significant": false
+        },
+        {
+          "pc": 10,
+          "r": 0.14328448605049263,
+          "p_value": 0.005315932332193185,
+          "significant": true
+        }
+      ],
+      "pc1_correlation": 0.654895202056744,
+      "mean_correlation_pc2_to_10": 0.14018913748543924
+    },
+    "conditional_variance_by_pc": {
+      "description": "Variance in PC2-10 conditioned on high/low position along each PC",
+      "n_pcs_analyzed": 10,
+      "variance_ratios": [
+        {
+          "pc": 1,
+          "ratio": 4.33517428959316
+        },
+        {
+          "pc": 2,
+          "ratio": 2.381119482122898
+        },
+        {
+          "pc": 3,
+          "ratio": 1.1406810043828657
+        },
+        {
+          "pc": 4,
+          "ratio": 1.4254455856193624
+        },
+        {
+          "pc": 5,
+          "ratio": 1.2435408062775433
+        },
+        {
+          "pc": 6,
+          "ratio": 1.2003385953695596
+        },
+        {
+          "pc": 7,
+          "ratio": 1.1117474033113428
+        },
+        {
+          "pc": 8,
+          "ratio": 1.102769212642026
+        },
+        {
+          "pc": 9,
+          "ratio": 1.519408404008145
+        },
+        {
+          "pc": 10,
+          "ratio": 1.133076888404107
+        }
+      ],
+      "pc1_variance_ratio": 4.33517428959316,
+      "mean_variance_ratio_pc2_to_10": 1.362014153570872,
+      "max_variance_ratio_excluding_pc1": 2.381119482122898,
+      "max_variance_ratio_pc": 2
+    }
+  }
+}
