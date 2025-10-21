@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Usage: ./run_mmlu_vllm.sh [JOB_NUMBER]
+# JOB_NUMBER: 1 for first half of experiments, 2 for second half (default: run all)
+
+JOB_NUMBER="${1:-0}"
+
 # ===== Paths & model =====
 MODEL="Qwen/Qwen3-32B"
 BASEDIR="/workspace/qwen-3-32b/capped/benchmarks"
 
 # Associative array: cap_from -> config_path
 declare -A CONFIGS=(
-  ["role_trait"]="/workspace/qwen-3-32b/capped/configs/role_trait_eighths_config.pt"
+  ["role_trait"]="/workspace/qwen-3-32b/capped/configs/role_trait_sliding_config.pt"
 )
 
 # ===== Eval settings =====
 TASKS="mmlu_pro"
 LIMIT=100
-SEED=42
+SEED=16
 FEWSHOT=0
 DTYPE="float16"
 
@@ -88,27 +93,41 @@ PY
     SELECTED_IDS=("${FILTERED_IDS[@]}")
   fi
 
-  # Queue one task per experiment (one GPU each)
-  for EXP in "${SELECTED_IDS[@]}"; do
-    OUTPUT_PATH="${BASEDIR}/mmlu_pro/${CAP_FROM}/${EXP}"
+  # Split experiments by job number if specified
+  if [[ "$JOB_NUMBER" == "1" ]] || [[ "$JOB_NUMBER" == "2" ]]; then
+    TOTAL_EXPS=${#SELECTED_IDS[@]}
+    HALF=$((TOTAL_EXPS / 2))
 
-    echo ">>> Queue ${CAP_FROM}::${EXP} : MMLU-Pro (batch=auto) -> ${OUTPUT_PATH}/"
+    if [[ "$JOB_NUMBER" == "1" ]]; then
+      # First half
+      SELECTED_IDS=("${SELECTED_IDS[@]:0:$HALF}")
+      echo "Job 1: Running first half (${#SELECTED_IDS[@]} experiments)"
+    else
+      # Second half
+      SELECTED_IDS=("${SELECTED_IDS[@]:$HALF}")
+      echo "Job 2: Running second half (${#SELECTED_IDS[@]} experiments)"
+    fi
+  fi
 
-    ts -G 1 uv run 2_benchmark_vllm.py \
-      --config_filepath "$CFG" \
-      --experiment_ids "$EXP" \
-      --model_name "$MODEL" \
-      --tasks "$TASKS" \
-      --output_dir "$BASEDIR" \
-      --cap_from "$CAP_FROM" \
-      --tensor_parallel_size "$TENSOR_PARALLEL" \
-      --gpu_memory_utilization "$GPU_MEM_UTIL" \
-      --max_model_len "$MAX_MODEL_LEN" \
-      --dtype "$DTYPE" \
-      --limit "$LIMIT" \
-      --random_seed "$SEED" \
-      --num_fewshot "$FEWSHOT"
-  done
+  OUTPUT_PATH="${BASEDIR}/mmlu_pro/${CAP_FROM}"
+
+  echo ">>> Queue ${CAP_FROM} : ${#SELECTED_IDS[@]} experiments : MMLU-Pro (batch=auto) -> ${OUTPUT_PATH}/"
+  echo "    Experiment IDs: ${SELECTED_IDS[*]}"
+
+  ts -G 1 uv run 2_benchmark_vllm.py \
+    --config_filepath "$CFG" \
+    --experiment_ids "${SELECTED_IDS[@]}" \
+    --model_name "$MODEL" \
+    --tasks "$TASKS" \
+    --output_dir "$BASEDIR" \
+    --cap_from "$CAP_FROM" \
+    --tensor_parallel_size "$TENSOR_PARALLEL" \
+    --gpu_memory_utilization "$GPU_MEM_UTIL" \
+    --max_model_len "$MAX_MODEL_LEN" \
+    --dtype "$DTYPE" \
+    --limit "$LIMIT" \
+    --random_seed "$SEED" \
+    --num_fewshot "$FEWSHOT"
 done
 
 echo ""
