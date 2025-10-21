@@ -211,21 +211,26 @@ def load_and_sample_dataset(
 
 def bucket_conversations_by_length(
     conversations: List[List[Dict[str, str]]],
-    tokenizer
+    tokenizer,
+    max_length: int = None
 ) -> List[int]:
     """
     Sort conversations by tokenized length and return sorted indices.
+    Optionally filter out conversations that exceed max_length.
 
     Args:
         conversations: List of conversation lists
         tokenizer: Tokenizer for length calculation
+        max_length: Optional maximum length - conversations exceeding this will be marked for exclusion
 
     Returns:
-        List of indices sorted by conversation length
+        List of indices sorted by conversation length (excludes conversations that are too long)
     """
     logger.info("Bucketing conversations by length...")
 
     conv_lengths = []
+    excluded_count = 0
+
     for i, conv in enumerate(conversations):
         try:
             tokenized = tokenizer.apply_chat_template(
@@ -234,9 +239,16 @@ def bucket_conversations_by_length(
                 add_generation_prompt=False
             )
             length = len(tokenized)
+
+            # Exclude conversations that are too long
+            if max_length is not None and length > max_length:
+                excluded_count += 1
+                logger.debug(f"Excluding conversation {i} with length {length} > {max_length}")
+                continue
+
         except Exception as e:
             logger.warning(f"Error tokenizing conversation {i}: {e}")
-            length = 999999  # Put at end if tokenization fails
+            continue
 
         conv_lengths.append((i, length))
 
@@ -244,10 +256,12 @@ def bucket_conversations_by_length(
     conv_lengths.sort(key=lambda x: x[1])
     sorted_indices = [idx for idx, _ in conv_lengths]
 
-    lengths = [length for _, length in conv_lengths if length < 999999]
+    lengths = [length for _, length in conv_lengths]
     if lengths:
         logger.info(f"Length bucketing complete: min={min(lengths)}, max={max(lengths)}, "
                    f"mean={sum(lengths)/len(lengths):.1f} tokens")
+        if excluded_count > 0:
+            logger.warning(f"Excluded {excluded_count} conversations that exceeded max_length={max_length}")
 
     return sorted_indices
 
@@ -531,6 +545,9 @@ def compute_explained_variance(
         Tuple of (projected data, explained variance ratio)
     """
     # Convert to numpy and scale
+    # Convert bfloat16 to float32 first since numpy doesn't support bfloat16
+    if mean_activations.dtype == torch.bfloat16:
+        mean_activations = mean_activations.float()
     activations_np = mean_activations.cpu().numpy()
     scaled = scaler.transform(activations_np)
 
@@ -731,7 +748,8 @@ def main():
         raise
 
     # Sort conversations by length for efficient batching
-    sorted_indices = bucket_conversations_by_length(conversations, tokenizer)
+    # Pass max_length to filter out conversations that are too long
+    sorted_indices = bucket_conversations_by_length(conversations, tokenizer, max_length=args.max_length)
 
     # Process conversations
     try:

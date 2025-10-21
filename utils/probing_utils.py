@@ -1197,8 +1197,15 @@ def extract_batch_activations(model, tokenizer, conversations, layer=None, max_l
     batch_size = len(batch_full_ids)
     device = next(model.parameters()).device
 
-    # Find max length and pad sequences
-    max_seq_len = min(max_length, max(len(ids) for ids in batch_full_ids))
+    # Find max length and pad sequences - ALWAYS respect max_length limit
+    actual_max_len = max(len(ids) for ids in batch_full_ids)
+    max_seq_len = min(max_length, actual_max_len)
+
+    # Log warning if truncation will occur
+    if actual_max_len > max_length:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Truncating sequences: max conversation length {actual_max_len} > max_length {max_length}")
 
     input_ids_batch = []
     attention_mask_batch = []
