@@ -4,7 +4,7 @@
   "hidden_dim": 4608,
   "n_roles": 275,
   "n_role_samples": 448,
-  "timestamp": "2025-10-22T04:40:08.135757",
+  "timestamp": "2025-10-22T06:20:43.219267",
   "analysis_version": "1.0",
   "across_within_role_var": {
     "raw_activations": {
@@ -27,9 +27,76 @@
       "across_var": 829.9696483722173,
       "within_var_mean": 291.39803214992793,
       "ratio": 2.848233539014387
+    },
+    "per_pc_ratios": {
+      "description": "Ratio of across-role variance to mean within-role variance for each PC",
+      "top_10_pcs": [
+        {
+          "pc": 1,
+          "across_var": 829.9696483722173,
+          "within_var_mean": 291.39803214992793,
+          "ratio": 2.848233539014387
+        },
+        {
+          "pc": 2,
+          "across_var": 277.99962095137306,
+          "within_var_mean": 123.93077265662568,
+          "ratio": 2.2431847634939315
+        },
+        {
+          "pc": 3,
+          "across_var": 265.08592588684814,
+          "within_var_mean": 247.65836274782467,
+          "ratio": 1.0703693707156132
+        },
+        {
+          "pc": 4,
+          "across_var": 205.6507688498777,
+          "within_var_mean": 123.04382601560636,
+          "ratio": 1.6713619489026115
+        },
+        {
+          "pc": 5,
+          "across_var": 185.35972295301977,
+          "within_var_mean": 180.36014959844638,
+          "ratio": 1.027719944598097
+        },
+        {
+          "pc": 6,
+          "across_var": 151.53594663255126,
+          "within_var_mean": 170.4565259427975,
+          "ratio": 0.8890005577340249
+        },
+        {
+          "pc": 7,
+          "across_var": 122.99376584133917,
+          "within_var_mean": 129.00631280452114,
+          "ratio": 0.9533933895754964
+        },
+        {
+          "pc": 8,
+          "across_var": 111.12267889226088,
+          "within_var_mean": 196.9057728312817,
+          "ratio": 0.5643444440172717
+        },
+        {
+          "pc": 9,
+          "across_var": 90.85329112026724,
+          "within_var_mean": 196.0804538306631,
+          "ratio": 0.4633470055038173
+        },
+        {
+          "pc": 10,
+          "across_var": 90.11980429524331,
+          "within_var_mean": 161.53046921541406,
+          "ratio": 0.5579121061987458
+        }
+      ]
     }
   },
   "conditional_var_roles": {
+    "description": "Conditional variance analysis for role vectors based on PC1 position",
+    "n_samples": 448,
     "threshold_analysis": {
       "pc1_threshold": 25,
       "assistant_like": {
@@ -113,6 +180,94 @@
       "pc1_removed": {
         "correlation": -0.5440760727438109,
         "p_value": 7.001873057668261e-36,
+        "significant": true
+      }
+    }
+  },
+  "conditional_var_dataset": {
+    "description": "Conditional variance analysis for LMSYS chat dataset based on PC1 position",
+    "n_samples": 18777,
+    "threshold_analysis": {
+      "pc1_threshold": 25,
+      "assistant_like": {
+        "n_samples": 36,
+        "variance_full": 873.2459106445312,
+        "variance_pc1_removed": 872.4187622070312
+      },
+      "roleplay": {
+        "n_samples": 18741,
+        "variance_full": 1615.2550048828125,
+        "variance_pc1_removed": 1611.24267578125
+      },
+      "variance_ratio_full": 0.5406241788477762,
+      "variance_ratio_pc1_removed": 0.5414570848454084
+    },
+    "quintile_analysis": {
+      "n_quintiles": 5,
+      "quintiles": [
+        {
+          "quintile": 1,
+          "pc1_range": [
+            -49.09744115017108,
+            -20.288407103794846
+          ],
+          "n_samples": 3756,
+          "variance_full": 1653.3243408203125,
+          "variance_pc1_removed": 1651.88134765625
+        },
+        {
+          "quintile": 2,
+          "pc1_range": [
+            -20.288407103794846,
+            -12.8961276148899
+          ],
+          "n_samples": 3755,
+          "variance_full": 1468.76416015625,
+          "variance_pc1_removed": 1467.9810791015625
+        },
+        {
+          "quintile": 3,
+          "pc1_range": [
+            -12.8961276148899,
+            -8.292131812388917
+          ],
+          "n_samples": 3755,
+          "variance_full": 1188.2547607421875,
+          "variance_pc1_removed": 1187.6663818359375
+        },
+        {
+          "quintile": 4,
+          "pc1_range": [
+            -8.292131812388917,
+            -3.8687669756340757
+          ],
+          "n_samples": 3755,
+          "variance_full": 1128.8636474609375,
+          "variance_pc1_removed": 1128.212158203125
+        },
+        {
+          "quintile": 5,
+          "pc1_range": [
+            -3.8687669756340757,
+            41.17655372731156
+          ],
+          "n_samples": 3756,
+          "variance_full": 1198.855712890625,
+          "variance_pc1_removed": 1197.3408203125
+        }
+      ],
+      "variance_ratio_first_to_last_full": 1.3790853419999092,
+      "variance_ratio_first_to_last_pc1_removed": 1.3796250153946286
+    },
+    "distance_correlation": {
+      "full_space": {
+        "correlation": -0.27459662100270044,
+        "p_value": 5.04e-322,
+        "significant": true
+      },
+      "pc1_removed": {
+        "correlation": -0.27521478658539433,
+        "p_value": 2e-323,
         "significant": true
       }
     }
