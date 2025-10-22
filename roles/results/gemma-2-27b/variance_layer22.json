@@ -1,0 +1,370 @@
+{
+  "model_name": "gemma-2-27b",
+  "layer": 22,
+  "hidden_dim": 4608,
+  "n_roles": 275,
+  "n_role_samples": 448,
+  "timestamp": "2025-10-22T01:08:55.286222",
+  "analysis_version": "1.0",
+  "across_within_role_var": {
+    "raw_activations": {
+      "across_var_mean": 167.9014129638672,
+      "within_var_mean": 390.0,
+      "ratio": 0.43051645159721375
+    },
+    "raw_activations_normalized": {
+      "across_var_mean": 5.128991347191914e-07,
+      "within_var_mean": 1.4156103134155273e-06,
+      "ratio": 0.3623166084289551
+    },
+    "pca_space_all_components": {
+      "across_var_mean": 8.602466953322374,
+      "within_var_mean": 27.385955712405416,
+      "ratio": 0.31411965474791115,
+      "n_components": 448
+    },
+    "pc1_only": {
+      "across_var": 829.9696483722173,
+      "within_var_mean": 291.39803214992793,
+      "ratio": 2.848233539014387
+    }
+  },
+  "conditional_var_roles": {
+    "threshold_analysis": {
+      "pc1_threshold": 25,
+      "assistant_like": {
+        "mask": "pc1 < 25",
+        "n_samples": 109,
+        "variance_raw": 137.0,
+        "variance_raw_pc1_removed": 135.04502868652344
+      },
+      "roleplay": {
+        "mask": "pc1 >= 25",
+        "n_samples": 339,
+        "variance_raw": 88.5,
+        "variance_raw_pc1_removed": 84.49017333984375
+      },
+      "variance_ratio_raw": 1.5480225988700564,
+      "variance_ratio_raw_pc1_removed": 1.5983518952355977
+    },
+    "quintile_analysis": {
+      "n_quintiles": 5,
+      "quintiles": [
+        {
+          "quintile": 1,
+          "pc1_range": [
+            -38.88484534561481,
+            -28.165481322492194
+          ],
+          "n_samples": 90,
+          "variance_full": 53.25,
+          "variance_pc1_removed": 53.227359771728516
+        },
+        {
+          "quintile": 2,
+          "pc1_range": [
+            -28.165481322492194,
+            -18.717946705304495
+          ],
+          "n_samples": 89,
+          "variance_full": 53.75,
+          "variance_pc1_removed": 53.688716888427734
+        },
+        {
+          "quintile": 3,
+          "pc1_range": [
+            -18.717946705304495,
+            1.0611511355891485
+          ],
+          "n_samples": 90,
+          "variance_full": 69.0,
+          "variance_pc1_removed": 68.68109893798828
+        },
+        {
+          "quintile": 4,
+          "pc1_range": [
+            1.0611511355891485,
+            33.35927317214874
+          ],
+          "n_samples": 89,
+          "variance_full": 98.0,
+          "variance_pc1_removed": 96.71923065185547
+        },
+        {
+          "quintile": 5,
+          "pc1_range": [
+            33.35927317214874,
+            86.47044637828765
+          ],
+          "n_samples": 90,
+          "variance_full": 136.0,
+          "variance_pc1_removed": 134.24488830566406
+        }
+      ],
+      "variance_ratio_first_to_last_full": 0.3915441176470588,
+      "variance_ratio_first_to_last_pc1_removed": 0.3964944992954547
+    },
+    "distance_correlation": {
+      "full_space": {
+        "correlation": 0.5635088687528921,
+        "p_value": 6.652221222598916e-39,
+        "significant": true
+      },
+      "pc1_removed": {
+        "correlation": 0.5440760742943739,
+        "p_value": 7.001869295721706e-36,
+        "significant": true
+      }
+    }
+  },
+  "high_var_pc_correlation": {
+    "pc_distance_correlations": {
+      "description": "Correlation between each PC and distance in remaining PC space",
+      "n_pcs_analyzed": 10,
+      "correlations": [
+        {
+          "pc": 1,
+          "r": 0.6576198771471349,
+          "p_value": 7.912966594613173e-57,
+          "significant": true
+        },
+        {
+          "pc": 2,
+          "r": 0.2100460722304591,
+          "p_value": 7.3418084537868875e-06,
+          "significant": true
+        },
+        {
+          "pc": 3,
+          "r": 0.31469656737976526,
+          "p_value": 9.347721346175892e-12,
+          "significant": true
+        },
+        {
+          "pc": 4,
+          "r": 0.054272309927943234,
+          "p_value": 0.2516445576321128,
+          "significant": false
+        },
+        {
+          "pc": 5,
+          "r": -0.22521215840518286,
+          "p_value": 1.4681173676716048e-06,
+          "significant": true
+        },
+        {
+          "pc": 6,
+          "r": -0.23850018226660508,
+          "p_value": 3.257790605162949e-07,
+          "significant": true
+        },
+        {
+          "pc": 7,
+          "r": 0.08815026127599213,
+          "p_value": 0.062292621991459456,
+          "significant": false
+        },
+        {
+          "pc": 8,
+          "r": 0.02831712514098481,
+          "p_value": 0.549969398101438,
+          "significant": false
+        },
+        {
+          "pc": 9,
+          "r": -0.05315323081804314,
+          "p_value": 0.26156810835453204,
+          "significant": false
+        },
+        {
+          "pc": 10,
+          "r": 0.057961461905065736,
+          "p_value": 0.22079569583064293,
+          "significant": false
+        }
+      ],
+      "pc1_correlation": 0.6576198771471349,
+      "mean_correlation_pc2_to_10": 0.0262864695967088
+    },
+    "conditional_variance_by_pc": {
+      "description": "Variance in PC2-10 conditioned on high/low position along each PC",
+      "n_pcs_analyzed": 10,
+      "variance_ratios": [
+        {
+          "pc": 1,
+          "ratio": 3.0426930533602325
+        },
+        {
+          "pc": 2,
+          "ratio": 1.7618248684057731
+        },
+        {
+          "pc": 3,
+          "ratio": 1.279767823959753
+        },
+        {
+          "pc": 4,
+          "ratio": 1.1976436612402692
+        },
+        {
+          "pc": 5,
+          "ratio": 1.5729731330864902
+        },
+        {
+          "pc": 6,
+          "ratio": 1.0710389185656337
+        },
+        {
+          "pc": 7,
+          "ratio": 1.2928907601323172
+        },
+        {
+          "pc": 8,
+          "ratio": 1.1136464724011375
+        },
+        {
+          "pc": 9,
+          "ratio": 1.2563080242583924
+        },
+        {
+          "pc": 10,
+          "ratio": 1.0668017775083063
+        }
+      ],
+      "pc1_variance_ratio": 3.0426930533602325,
+      "mean_variance_ratio_pc2_to_10": 1.2903217155064526,
+      "max_variance_ratio_excluding_pc1": 1.7618248684057731,
+      "max_variance_ratio_pc": 2
+    }
+  },
+  "default_pc_loading": {
+    "description": "Position of default assistant activation relative to role distribution on each PC",
+    "n_pcs_analyzed": 10,
+    "pc_positions": [
+      {
+        "pc": 1,
+        "assistant_loading": -34.71813511296198,
+        "role_range_min": -38.88484534561481,
+        "role_range_max": 86.47044637828765,
+        "relative_position": 0.033239204945811895,
+        "min_boundary_distance": 0.033239204945811895,
+        "position_category": "near minimum"
+      },
+      {
+        "pc": 2,
+        "assistant_loading": -3.728731952128914,
+        "role_range_min": -57.07221967105316,
+        "role_range_max": 89.6587428478554,
+        "relative_position": 0.36354622639410633,
+        "min_boundary_distance": 0.36354622639410633,
+        "position_category": "below center"
+      },
+      {
+        "pc": 3,
+        "assistant_loading": 1.9398482535451582,
+        "role_range_min": -34.642535347646465,
+        "role_range_max": 109.25731088558585,
+        "relative_position": 0.2542211444889179,
+        "min_boundary_distance": 0.2542211444889179,
+        "position_category": "below center"
+      },
+      {
+        "pc": 4,
+        "assistant_loading": -0.13770985353070203,
+        "role_range_min": -45.78617921355119,
+        "role_range_max": 65.84618524433027,
+        "relative_position": 0.4089178759377037,
+        "min_boundary_distance": 0.4089178759377037,
+        "position_category": "below center"
+      },
+      {
+        "pc": 5,
+        "assistant_loading": -9.76734785896032,
+        "role_range_min": -38.57108811995446,
+        "role_range_max": 60.55046579427954,
+        "relative_position": 0.2905900797914941,
+        "min_boundary_distance": 0.2905900797914941,
+        "position_category": "below center"
+      },
+      {
+        "pc": 6,
+        "assistant_loading": -1.417129133092672,
+        "role_range_min": -106.46005905467756,
+        "role_range_max": 26.328983355249793,
+        "relative_position": 0.7910511892789418,
+        "min_boundary_distance": 0.2089488107210582,
+        "position_category": "near maximum"
+      },
+      {
+        "pc": 7,
+        "assistant_loading": 0.5585619241009642,
+        "role_range_min": -57.45670114407686,
+        "role_range_max": 64.63832539731304,
+        "relative_position": 0.47516483440470686,
+        "min_boundary_distance": 0.47516483440470686,
+        "position_category": "centered"
+      },
+      {
+        "pc": 8,
+        "assistant_loading": 13.952868171883734,
+        "role_range_min": -33.48486740628549,
+        "role_range_max": 41.614266084906134,
+        "relative_position": 0.6316682147036117,
+        "min_boundary_distance": 0.3683317852963883,
+        "position_category": "above center"
+      },
+      {
+        "pc": 9,
+        "assistant_loading": -4.201644801806665,
+        "role_range_min": -43.2045203948039,
+        "role_range_max": 39.313477618692396,
+        "relative_position": 0.4726590141779505,
+        "min_boundary_distance": 0.4726590141779505,
+        "position_category": "centered"
+      },
+      {
+        "pc": 10,
+        "assistant_loading": 8.4724288016098,
+        "role_range_min": -30.668364261267513,
+        "role_range_max": 46.92727760946572,
+        "relative_position": 0.5044199921444307,
+        "min_boundary_distance": 0.4955800078555693,
+        "position_category": "centered"
+      }
+    ],
+    "summary": {
+      "pc1_position": "near minimum",
+      "pc1_relative_position": 0.033239204945811895,
+      "centered_pcs": [
+        7,
+        9,
+        10
+      ],
+      "extreme_pcs": [
+        1,
+        6
+      ]
+    }
+  },
+  "overall_activation_var": {
+    "description": "Variance in chat dataset activations explained by role and trait subspaces",
+    "dataset": {
+      "name": "lmsys_10000",
+      "n_samples": 18777,
+      "source_path": "/workspace/gemma-2-27b/dataset_activations/lmsys_10000"
+    },
+    "total_variance": 7442113.0,
+    "role_subspace": {
+      "n_components": 448,
+      "variance_captured": 1447342.75,
+      "variance_explained_ratio": 0.19448008247120138,
+      "variance_explained_percent": 19.44800824712014
+    },
+    "trait_subspace": {
+      "n_components": 239,
+      "variance_captured": 1234600.375,
+      "variance_explained_ratio": 0.16589379588834516,
+      "variance_explained_percent": 16.589379588834515
+    }
+  }
+}
