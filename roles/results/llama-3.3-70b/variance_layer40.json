@@ -27,6 +27,71 @@
       "across_var": 1098.9190452905918,
       "within_var_mean": 544.487320753733,
       "ratio": 2.018263793120765
+    },
+    "per_pc_ratios": {
+      "description": "Ratio of across-role variance to mean within-role variance for each PC",
+      "top_10_pcs": [
+        {
+          "pc": 1,
+          "across_var": 1098.9190452905918,
+          "within_var_mean": 544.4873207537331,
+          "ratio": 2.0182637931207648
+        },
+        {
+          "pc": 2,
+          "across_var": 688.3677161259244,
+          "within_var_mean": 372.83528432484974,
+          "ratio": 1.8463051783643756
+        },
+        {
+          "pc": 3,
+          "across_var": 507.8840436540417,
+          "within_var_mean": 463.5631316053082,
+          "ratio": 1.0956092256415026
+        },
+        {
+          "pc": 4,
+          "across_var": 433.5492296756852,
+          "within_var_mean": 309.7727765499672,
+          "ratio": 1.3995717587073133
+        },
+        {
+          "pc": 5,
+          "across_var": 338.3361378329192,
+          "within_var_mean": 256.74801330456484,
+          "ratio": 1.317775095815722
+        },
+        {
+          "pc": 6,
+          "across_var": 276.9067547290897,
+          "within_var_mean": 570.9832711128684,
+          "ratio": 0.4849647419431182
+        },
+        {
+          "pc": 7,
+          "across_var": 239.21773328982363,
+          "within_var_mean": 223.0560086589851,
+          "ratio": 1.0724559034656944
+        },
+        {
+          "pc": 8,
+          "across_var": 195.58189747183732,
+          "within_var_mean": 277.4308132126794,
+          "ratio": 0.7049753962329468
+        },
+        {
+          "pc": 9,
+          "across_var": 174.36923024567943,
+          "within_var_mean": 158.76123647977383,
+          "ratio": 1.0983111124099494
+        },
+        {
+          "pc": 10,
+          "across_var": 171.91817872382578,
+          "within_var_mean": 183.18393079203338,
+          "ratio": 0.9385003257682166
+        }
+      ]
     }
   },
   "conditional_var_roles": {
@@ -365,6 +430,94 @@
       "variance_captured": 8.527006149291992,
       "variance_explained_ratio": 0.20637371855628547,
       "variance_explained_percent": 20.637371855628547
+    }
+  },
+  "conditional_var_dataset": {
+    "description": "Conditional variance analysis for LMSYS chat dataset based on PC1 position",
+    "n_samples": 18777,
+    "threshold_analysis": {
+      "pc1_threshold": -25,
+      "assistant_like": {
+        "n_samples": 875,
+        "variance_full": 0.00472960714250803,
+        "variance_pc1_removed": 0.004725998267531395
+      },
+      "roleplay": {
+        "n_samples": 17902,
+        "variance_full": 0.005032764747738838,
+        "variance_pc1_removed": 0.005016905255615711
+      },
+      "variance_ratio_full": 0.9397632076152549,
+      "variance_ratio_pc1_removed": 0.9420146538030219
+    },
+    "quintile_analysis": {
+      "n_quintiles": 5,
+      "quintiles": [
+        {
+          "quintile": 1,
+          "pc1_range": [
+            -58.79488274767681,
+            -14.652555044685913
+          ],
+          "n_samples": 3756,
+          "variance_full": 0.004955325275659561,
+          "variance_pc1_removed": 0.004950881004333496
+        },
+        {
+          "quintile": 2,
+          "pc1_range": [
+            -14.652555044685913,
+            -7.352054028547218
+          ],
+          "n_samples": 3755,
+          "variance_full": 0.004761226009577513,
+          "variance_pc1_removed": 0.004760671406984329
+        },
+        {
+          "quintile": 3,
+          "pc1_range": [
+            -7.352054028547218,
+            -2.4684158355402883
+          ],
+          "n_samples": 3755,
+          "variance_full": 0.004447396844625473,
+          "variance_pc1_removed": 0.004447089973837137
+        },
+        {
+          "quintile": 4,
+          "pc1_range": [
+            -2.4684158355402883,
+            2.42867590174239
+          ],
+          "n_samples": 3755,
+          "variance_full": 0.004916495643556118,
+          "variance_pc1_removed": 0.004916194826364517
+        },
+        {
+          "quintile": 5,
+          "pc1_range": [
+            2.42867590174239,
+            107.22104568239835
+          ],
+          "n_samples": 3756,
+          "variance_full": 0.005431960336863995,
+          "variance_pc1_removed": 0.005416946951299906
+        }
+      ],
+      "variance_ratio_first_to_last_full": 1.0961864327142465,
+      "variance_ratio_first_to_last_pc1_removed": 1.0941379820194554
+    },
+    "distance_correlation": {
+      "full_space": {
+        "correlation": 0.024776317350753266,
+        "p_value": 0.0006853492403480103,
+        "significant": true
+      },
+      "pc1_removed": {
+        "correlation": 0.017006652947434562,
+        "p_value": 0.019783893855098475,
+        "significant": true
+      }
     }
   }
 }
