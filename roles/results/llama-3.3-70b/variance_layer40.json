@@ -1,10 +1,10 @@
 {
-  "model_name": "Llama-3.3-70B",
+  "model_name": "llama-3.3-70b",
   "layer": 40,
   "hidden_dim": 8192,
   "n_roles": 275,
   "n_role_samples": 377,
-  "timestamp": "2025-10-21T23:40:50.577644",
+  "timestamp": "2025-10-22T01:03:55.171955",
   "analysis_version": "1.0",
   "across_within_role_var": {
     "raw_activations": {
@@ -235,6 +235,136 @@
       "mean_variance_ratio_pc2_to_10": 1.362014153570872,
       "max_variance_ratio_excluding_pc1": 2.381119482122898,
       "max_variance_ratio_pc": 2
+    }
+  },
+  "default_pc_loading": {
+    "description": "Position of default assistant activation relative to role distribution on each PC",
+    "n_pcs_analyzed": 10,
+    "pc_positions": [
+      {
+        "pc": 1,
+        "assistant_loading": -32.434478277028866,
+        "role_range_min": -44.37923864160723,
+        "role_range_max": 101.89565628604095,
+        "relative_position": 0.08165967489148833,
+        "min_boundary_distance": 0.08165967489148833,
+        "position_category": "near minimum"
+      },
+      {
+        "pc": 2,
+        "assistant_loading": -1.0423319164709661,
+        "role_range_min": -57.38573929337603,
+        "role_range_max": 106.63857867188483,
+        "relative_position": 0.34350642682652816,
+        "min_boundary_distance": 0.34350642682652816,
+        "position_category": "below center"
+      },
+      {
+        "pc": 3,
+        "assistant_loading": 0.7373672409724662,
+        "role_range_min": -54.37036132576509,
+        "role_range_max": 141.6372252652839,
+        "relative_position": 0.28115099790353804,
+        "min_boundary_distance": 0.28115099790353804,
+        "position_category": "below center"
+      },
+      {
+        "pc": 4,
+        "assistant_loading": 1.8959550416600057,
+        "role_range_min": -69.92555842350136,
+        "role_range_max": 101.84525151688467,
+        "relative_position": 0.4181240892447757,
+        "min_boundary_distance": 0.4181240892447757,
+        "position_category": "below center"
+      },
+      {
+        "pc": 5,
+        "assistant_loading": -3.271059422116278,
+        "role_range_min": -54.38892966037965,
+        "role_range_max": 55.72016500926528,
+        "relative_position": 0.4642474846571928,
+        "min_boundary_distance": 0.4642474846571928,
+        "position_category": "centered"
+      },
+      {
+        "pc": 6,
+        "assistant_loading": 6.332580224458362,
+        "role_range_min": -44.26068064234246,
+        "role_range_max": 95.60062756146385,
+        "relative_position": 0.3617387933557447,
+        "min_boundary_distance": 0.3617387933557447,
+        "position_category": "below center"
+      },
+      {
+        "pc": 7,
+        "assistant_loading": 8.310857971593112,
+        "role_range_min": -51.71351681229714,
+        "role_range_max": 59.66355800065134,
+        "relative_position": 0.5389293522450451,
+        "min_boundary_distance": 0.4610706477549549,
+        "position_category": "centered"
+      },
+      {
+        "pc": 8,
+        "assistant_loading": 0.5744298555194038,
+        "role_range_min": -52.669901835555656,
+        "role_range_max": 59.4741966739555,
+        "relative_position": 0.4747849632636648,
+        "min_boundary_distance": 0.4747849632636648,
+        "position_category": "centered"
+      },
+      {
+        "pc": 9,
+        "assistant_loading": -1.2077504327577802,
+        "role_range_min": -54.581664022615705,
+        "role_range_max": 51.378425908659615,
+        "relative_position": 0.503717141279096,
+        "min_boundary_distance": 0.49628285872090405,
+        "position_category": "centered"
+      },
+      {
+        "pc": 10,
+        "assistant_loading": -8.477093396902637,
+        "role_range_min": -38.97773049743374,
+        "role_range_max": 71.48705761555713,
+        "relative_position": 0.2761118508581484,
+        "min_boundary_distance": 0.2761118508581484,
+        "position_category": "below center"
+      }
+    ],
+    "summary": {
+      "pc1_position": "near minimum",
+      "pc1_relative_position": 0.08165967489148833,
+      "centered_pcs": [
+        5,
+        7,
+        8,
+        9
+      ],
+      "extreme_pcs": [
+        1
+      ]
+    }
+  },
+  "overall_activation_var": {
+    "description": "Variance in chat dataset activations explained by role and trait subspaces",
+    "dataset": {
+      "name": "lmsys_10000",
+      "n_samples": 18777,
+      "source_path": "/workspace/llama-3.3-70b/dataset_activations/lmsys_10000"
+    },
+    "total_variance": 41.318275451660156,
+    "role_subspace": {
+      "n_components": 377,
+      "variance_captured": 10.078834533691406,
+      "variance_explained_ratio": 0.24393163614689153,
+      "variance_explained_percent": 24.393163614689154
+    },
+    "trait_subspace": {
+      "n_components": 240,
+      "variance_captured": 8.527006149291992,
+      "variance_explained_ratio": 0.20637371855628547,
+      "variance_explained_percent": 20.637371855628547
     }
   }
 }
