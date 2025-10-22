@@ -8,7 +8,7 @@ JOB_NUMBER="${1:-0}"
 
 # ===== Paths & model =====
 MODEL="Qwen/Qwen3-32B"
-BASEDIR="/workspace/qwen-3-32b/capped/benchmarks"
+BASEDIR="/workspace/qwen-3-32b/capped/sliding_benchmarks"
 
 # Associative array: cap_from -> config_path
 declare -A CONFIGS=(
@@ -21,7 +21,7 @@ LIMIT=1000
 SEED=16
 FEWSHOT=0
 DTYPE="bfloat16"
-BATCH=64
+BATCH=128
 
 # ===== vLLM-specific settings =====
 TENSOR_PARALLEL=1
