@@ -31,7 +31,7 @@ MAX_MODEL_LEN=2048
 # Filter pattern for experiment IDs (set to empty string to disable filtering)
 FILTER_PATTERN=""
 # Skip experiments that already have results (set to empty string to disable skip check)
-SKIP_EXISTING=""
+SKIP_EXISTING="yes"
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
