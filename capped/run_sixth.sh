@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage: ./run_16th.sh [JOB_NUMBER]
-# JOB_NUMBER: 1-16 to split experiments into sixteenths (default: run all)
+# Usage: ./run_sixth.sh [JOB_NUMBER]
+# JOB_NUMBER: 1-8 to split experiments into eighths (default: run all)
 
 JOB_NUMBER="${1:-0}"
 
@@ -31,7 +31,7 @@ MAX_MODEL_LEN=2048
 # Filter pattern for experiment IDs (set to empty string to disable filtering)
 FILTER_PATTERN=""
 # Skip experiments that already have results (set to empty string to disable skip check)
-SKIP_EXISTING="yes"
+SKIP_EXISTING=""
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
@@ -46,12 +46,18 @@ for CAP_FROM in "${!CONFIGS[@]}"; do
   echo "Processing config: ${CAP_FROM}"
   echo "========================================"
 
-  # Read experiment IDs for this config
-  readarray -t STEERED_IDS < <(python - "$CFG" <<'PY'
-import sys, torch
-cfg = torch.load(sys.argv[1], weights_only=False)
-print("\n".join([e.get("id","") for e in cfg.get("experiments", []) if e.get("id","").lower()!="baseline" and e.get("id","")]))
-PY
+  # Hardcoded experiment IDs
+  STEERED_IDS=(
+    "layers_32:36-p0.75" "layers_34:38-p0.01" "layers_34:38-p0.25" "layers_34:38-p0.5" "layers_34:38-p0.75"
+    "layers_36:40-p0.01" "layers_36:40-p0.25" "layers_36:40-p0.5" "layers_36:40-p0.75"
+    "layers_38:42-p0.01" "layers_38:42-p0.25" "layers_38:42-p0.5" "layers_38:42-p0.75"
+    "layers_40:44-p0.01" "layers_40:44-p0.25" "layers_40:44-p0.5" "layers_40:44-p0.75"
+    "layers_42:46-p0.01" "layers_42:46-p0.25" "layers_42:46-p0.5" "layers_42:46-p0.75"
+    "layers_44:48-p0.01" "layers_44:48-p0.25" "layers_44:48-p0.5" "layers_44:48-p0.75"
+    "layers_46:50-p0.01" "layers_46:50-p0.25" "layers_46:50-p0.5" "layers_46:50-p0.75"
+    "layers_38:54-p0.75" "layers_40:56-p0.01" "layers_40:56-p0.25" "layers_40:56-p0.5" "layers_40:56-p0.75"
+    "layers_42:58-p0.01" "layers_42:58-p0.25" "layers_42:58-p0.5" "layers_42:58-p0.75"
+    "layers_44:60-p0.01" "layers_44:60-p0.25" "layers_44:60-p0.5" "layers_44:60-p0.75"
   )
 
   # Filter STEERED_IDS if pattern is set
@@ -70,21 +76,21 @@ PY
     FILTERED_IDS=("${STEERED_IDS[@]}")
   fi
 
-  # Split experiments by job number if specified (1-16) - BEFORE skip_existing filter
-  if [[ "$JOB_NUMBER" =~ ^([1-9]|1[0-6])$ ]]; then
+  # Split experiments by job number if specified (1-8) - BEFORE skip_existing filter
+  if [[ "$JOB_NUMBER" =~ ^[1-8]$ ]]; then
     TOTAL_EXPS=${#FILTERED_IDS[@]}
-    SIXTEENTH=$((TOTAL_EXPS / 16))
-    REMAINDER=$((TOTAL_EXPS % 16))
+    EIGHTH=$((TOTAL_EXPS / 8))
+    REMAINDER=$((TOTAL_EXPS % 8))
 
     # Calculate start position and size for this job
     START=0
     for ((i=1; i<JOB_NUMBER; i++)); do
-      START=$((START + SIXTEENTH + (i <= REMAINDER ? 1 : 0)))
+      START=$((START + EIGHTH + (i <= REMAINDER ? 1 : 0)))
     done
-    SIZE=$((SIXTEENTH + (JOB_NUMBER <= REMAINDER ? 1 : 0)))
+    SIZE=$((EIGHTH + (JOB_NUMBER <= REMAINDER ? 1 : 0)))
 
     FILTERED_IDS=("${FILTERED_IDS[@]:$START:$SIZE}")
-    echo "Job ${JOB_NUMBER}: Running sixteenth #${JOB_NUMBER} (${#FILTERED_IDS[@]} experiments)"
+    echo "Job ${JOB_NUMBER}: Running eighth #${JOB_NUMBER} (${#FILTERED_IDS[@]} experiments)"
   fi
 
   # Filter out experiments that already exist if SKIP_EXISTING is set
