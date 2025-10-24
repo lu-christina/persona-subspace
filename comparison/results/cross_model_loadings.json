@@ -1,0 +1,157 @@
+{
+  "analysis_version": "1.0",
+  "timestamp": "2025-10-21T23:40:50.577644",
+  "models": [
+    "gemma-2-27b",
+    "qwen-3-32b",
+    "llama-3.3-70b"
+  ],
+  "n_pcs_analyzed": 6,
+  "trait_analysis": {
+    "dataset_info": {
+      "n_common_traits": 239,
+      "excluded_traits": [
+        "vindictive"
+      ],
+      "note": "Gemma missing vindictive trait, spliced out from other models for alignment"
+    },
+    "model_configs": {
+      "gemma-2-27b": {
+        "layer": 22,
+        "n_total_traits": 239,
+        "pca_shape": [
+          239,
+          239
+        ]
+      },
+      "qwen-3-32b": {
+        "layer": 32,
+        "n_total_traits": 240,
+        "pca_shape": [
+          240,
+          240
+        ]
+      },
+      "llama-3.3-70b": {
+        "layer": 40,
+        "n_total_traits": 240,
+        "pca_shape": [
+          240,
+          240
+        ]
+      }
+    },
+    "pc_correlations": [
+      {
+        "pc": 1,
+        "gemma_qwen": -0.8940156172560086,
+        "gemma_llama": 0.9689863470892631,
+        "qwen_llama": -0.8358546391992332
+      },
+      {
+        "pc": 2,
+        "gemma_qwen": 0.8356175991974695,
+        "gemma_llama": -0.9078599561258068,
+        "qwen_llama": -0.8063920315797453
+      },
+      {
+        "pc": 3,
+        "gemma_qwen": 0.7499197461821514,
+        "gemma_llama": -0.9004580679974264,
+        "qwen_llama": -0.8542199942004003
+      },
+      {
+        "pc": 4,
+        "gemma_qwen": 0.607524537804112,
+        "gemma_llama": 0.6253197144108558,
+        "qwen_llama": 0.47557917128319327
+      },
+      {
+        "pc": 5,
+        "gemma_qwen": 0.35096574402041236,
+        "gemma_llama": 0.5943168405590775,
+        "qwen_llama": 0.5252278432532389
+      },
+      {
+        "pc": 6,
+        "gemma_qwen": -0.20795424351555325,
+        "gemma_llama": -0.78453678889711,
+        "qwen_llama": -0.3113446108961389
+      }
+    ]
+  },
+  "role_analysis": {
+    "dataset_info": {
+      "n_common_roles": 361,
+      "note": "Roles include pos_2 (Somewhat RP) and pos_3 (Fully RP) labels",
+      "alignment_method": "sorted common roles list for consistent ordering"
+    },
+    "model_configs": {
+      "gemma-2-27b": {
+        "layer": 22,
+        "n_total_roles": 448,
+        "n_common_roles": 361,
+        "pca_shape": [
+          448,
+          448
+        ]
+      },
+      "qwen-3-32b": {
+        "layer": 32,
+        "n_total_roles": 463,
+        "n_common_roles": 361,
+        "pca_shape": [
+          463,
+          463
+        ]
+      },
+      "llama-3.3-70b": {
+        "layer": 40,
+        "n_total_roles": 377,
+        "n_common_roles": 361,
+        "pca_shape": [
+          377,
+          377
+        ]
+      }
+    },
+    "pc_correlations": [
+      {
+        "pc": 1,
+        "gemma_qwen": 0.9633118409734962,
+        "gemma_llama": 0.9529931181484117,
+        "qwen_llama": 0.9723259813412115
+      },
+      {
+        "pc": 2,
+        "gemma_qwen": 0.9283973591878528,
+        "gemma_llama": 0.9120761544997816,
+        "qwen_llama": 0.9175622712496548
+      },
+      {
+        "pc": 3,
+        "gemma_qwen": 0.31075161874753854,
+        "gemma_llama": 0.7326650722826635,
+        "qwen_llama": 0.6830904863636302
+      },
+      {
+        "pc": 4,
+        "gemma_qwen": 0.6475665642389595,
+        "gemma_llama": -0.8664051298386811,
+        "qwen_llama": -0.6006246074845216
+      },
+      {
+        "pc": 5,
+        "gemma_qwen": 0.670904133984275,
+        "gemma_llama": 0.8027522353692867,
+        "qwen_llama": 0.7283147293453566
+      },
+      {
+        "pc": 6,
+        "gemma_qwen": 0.21485773798242666,
+        "gemma_llama": -0.5410574937156062,
+        "qwen_llama": -0.10342772080559416
+      }
+    ]
+  }
+}

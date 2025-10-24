@@ -171,9 +171,13 @@ def accumulate_groups(response_activations_dir, role_files, layer, pc1_array,
         chunk_size_actual = chunk_tensor.shape[0]
         chunk_pc1 = pc1_array[sample_idx:sample_idx + chunk_size_actual]
 
-        # Determine masks: assistant-like is PC1 < threshold
-        assistant_mask = chunk_pc1 < threshold
-        roleplay_mask = chunk_pc1 >= threshold
+        # Determine masks based on model
+        if model_name == "gemma-2-27b":
+            assistant_mask = chunk_pc1 > threshold
+            roleplay_mask = chunk_pc1 <= threshold
+        else:
+            assistant_mask = chunk_pc1 < threshold
+            roleplay_mask = chunk_pc1 >= threshold
 
         # Accumulate threshold groups
         if assistant_mask.sum() > 0:
@@ -257,9 +261,13 @@ def compute_variance_metrics(groups, global_mean, threshold, quintile_edges, pc1
         quintile_variances_no_pc1.append(var_q_no_pc1)
         quintile_sizes.append(q_tensor.shape[0])
 
-    # Quintile ratio (last/first since higher PC1 = roleplay)
-    quintile_ratio = quintile_variances[-1] / quintile_variances[0]
-    quintile_ratio_no_pc1 = quintile_variances_no_pc1[-1] / quintile_variances_no_pc1[0]
+    # Quintile ratio
+    if model_name == "gemma-2-27b":
+        quintile_ratio = quintile_variances[0] / quintile_variances[-1]
+        quintile_ratio_no_pc1 = quintile_variances_no_pc1[0] / quintile_variances_no_pc1[-1]
+    else:
+        quintile_ratio = quintile_variances[-1] / quintile_variances[0]
+        quintile_ratio_no_pc1 = quintile_variances_no_pc1[-1] / quintile_variances_no_pc1[0]
 
     # Distance correlation
     all_tensor = groups['all']
@@ -277,9 +285,13 @@ def compute_variance_metrics(groups, global_mean, threshold, quintile_edges, pc1
     corr, p_value = pearsonr(pc1_array, distances)
     corr_no_pc1, p_value_no_pc1 = pearsonr(pc1_array, distances_no_pc1)
 
-    # Mask descriptions
-    assistant_mask_desc = f"pc1 < {threshold}"
-    roleplay_mask_desc = f"pc1 >= {threshold}"
+    # Determine mask descriptions based on model
+    if model_name == "gemma-2-27b":
+        assistant_mask_desc = f"pc1 > {threshold}"
+        roleplay_mask_desc = f"pc1 <= {threshold}"
+    else:
+        assistant_mask_desc = f"pc1 < {threshold}"
+        roleplay_mask_desc = f"pc1 >= {threshold}"
 
     return {
         'threshold_analysis': {
@@ -346,7 +358,10 @@ def main():
 
     # Auto-detect threshold if not provided
     if args.threshold is None:
-        threshold = -25
+        if args.model == "gemma-2-27b":
+            threshold = 25
+        else:
+            threshold = -25
     else:
         threshold = args.threshold
 

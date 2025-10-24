@@ -2,27 +2,27 @@
   "model_name": "gemma-2-27b",
   "layer": 22,
   "n_samples": 332400,
-  "timestamp": "2025-10-23T07:29:57.299282",
+  "timestamp": "2025-10-23T09:07:23.936560",
   "analysis_version": "1.0_streaming",
   "conditional_var_roles": {
     "description": "Conditional variance analysis for raw role activations based on PC1 position",
     "n_samples": 332400,
     "threshold_analysis": {
-      "pc1_threshold": -25,
+      "pc1_threshold": 25,
       "assistant_like": {
-        "mask": "pc1 < -25",
-        "n_samples": 129141,
-        "variance_raw": 425.62115478515625,
-        "variance_raw_pc1_removed": 422.25830078125
+        "mask": "pc1 > 25",
+        "n_samples": 79423,
+        "variance_raw": 549.8142700195312,
+        "variance_raw_pc1_removed": 548.920654296875
       },
       "roleplay": {
-        "mask": "pc1 >= -25",
-        "n_samples": 203259,
-        "variance_raw": 540.264404296875,
-        "variance_raw_pc1_removed": 534.3603515625
+        "mask": "pc1 <= 25",
+        "n_samples": 252977,
+        "variance_raw": 512.6695556640625,
+        "variance_raw_pc1_removed": 498.93499755859375
       },
-      "variance_ratio_raw": 0.7878015864085646,
-      "variance_ratio_raw_pc1_removed": 0.7902126337527527
+      "variance_ratio_raw": 1.0724535208792632,
+      "variance_ratio_raw_pc1_removed": 1.1001847073924917
     },
     "quintile_analysis": {
       "n_quintiles": 5,
@@ -78,8 +78,8 @@
           "variance_pc1_removed": 552.4959106445312
         }
       ],
-      "variance_ratio_first_to_last_full": 1.4094232829085451,
-      "variance_ratio_first_to_last_pc1_removed": 1.4123159645373788
+      "variance_ratio_first_to_last_full": 0.7095100614035252,
+      "variance_ratio_first_to_last_pc1_removed": 0.7080568549174208
     },
     "distance_correlation": {
       "full_space": {
