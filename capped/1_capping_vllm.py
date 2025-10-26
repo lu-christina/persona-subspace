@@ -147,6 +147,7 @@ def parse_arguments():
 
     parser.add_argument(
         "--model_name",
+        "--model",
         type=str,
         default="google/gemma-2-27b-it",
         help="Model name for steering"
@@ -456,7 +457,8 @@ def format_prompt_for_chat(prompt_data: Dict[str, Any], tokenizer) -> str:
 
 
 def worker_process(
-    gpu_id: int,
+    worker_id: int,
+    gpu_ids: List[int],
     experiment_queue: mp.Queue,
     base_prompts: List[Dict[str, Any]],
     existing_combinations: set,
@@ -480,14 +482,18 @@ def worker_process(
     torch.set_float32_matmul_precision('high')
 
     try:
-        logger = logging.getLogger(f"GPU-{gpu_id}")
+        # Set CUDA_VISIBLE_DEVICES to the assigned GPUs for this worker
+        gpu_str = ','.join(map(str, gpu_ids))
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpu_str
+
+        logger = logging.getLogger(f"Worker-{worker_id}")
         handler = logging.StreamHandler()
-        formatter = logging.Formatter(f'%(asctime)s - GPU-{gpu_id} - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(f'%(asctime)s - Worker-{worker_id} (GPUs {gpu_str}) - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
 
-        logger.info(f"Starting worker, pulling experiments from queue")
+        logger.info(f"Starting worker on GPUs {gpu_str} (tensor_parallel_size={tensor_parallel_size})")
 
         # Load experiments in the worker process (avoids passing tensors via multiprocessing)
         logger.info(f"Loading legacy config: {config_filepath}")
@@ -511,11 +517,10 @@ def worker_process(
             bootstrap_layers=bootstrap_layers,
         )
 
-        # Initialize VLLMSteerModel on assigned GPU
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+        # Initialize VLLMSteerModel on assigned GPUs
         vllm_model = VLLMSteerModel(vllm_cfg, enforce_eager=True)
         tokenizer = vllm_model.llm.get_tokenizer()
-        logger.info(f"VLLM model loaded on GPU {gpu_id}")
+        logger.info(f"VLLM model loaded on GPUs {gpu_str}")
         logger.info(f"Hidden size: {vllm_model.hidden_size}, Layer count: {vllm_model.layer_count}")
 
         # Initialize JSONL handler
@@ -583,8 +588,8 @@ def worker_process(
                 # Generate ALL responses for this experiment in one steering context
                 # Process in batches with progress bar
                 all_responses = []
-                with tqdm(total=len(formatted_prompts), desc=f"GPU-{gpu_id} exp={experiment_id}",
-                         unit="prompts", leave=False, position=gpu_id) as pbar:
+                with tqdm(total=len(formatted_prompts), desc=f"Worker-{worker_id} exp={experiment_id}",
+                         unit="prompts", leave=False, position=worker_id) as pbar:
                     for i in range(0, len(formatted_prompts), vllm_batch_size):
                         batch_prompts = formatted_prompts[i:i + vllm_batch_size]
 
@@ -635,7 +640,7 @@ def worker_process(
 
                     # Report progress
                     progress_queue.put({
-                        'gpu_id': gpu_id,
+                        'worker_id': worker_id,
                         'experiment_id': experiment_id,
                         'processed': len(output_rows)
                     })
@@ -650,7 +655,7 @@ def worker_process(
         logger.info(f"Worker completed. Processed {total_processed} total items")
 
         # Signal completion
-        progress_queue.put({'gpu_id': gpu_id, 'done': True})
+        progress_queue.put({'worker_id': worker_id, 'done': True})
 
     except Exception as e:
         logger.error(f"Fatal error in worker: {e}")
@@ -679,7 +684,7 @@ def progress_monitor(progress_queue: mp.Queue, total_experiments: int, n_workers
 
                 if result.get('done'):
                     active_workers -= 1
-                    logger.info(f"Worker GPU-{result['gpu_id']} finished")
+                    logger.info(f"Worker {result['worker_id']} finished")
                     continue
 
                 exp_id = result.get('experiment_id')
@@ -688,7 +693,7 @@ def progress_monitor(progress_queue: mp.Queue, total_experiments: int, n_workers
                     pbar.update(1)
                     pbar.set_postfix(
                         workers=active_workers,
-                        last_gpu=result.get('gpu_id')
+                        last_worker=result.get('worker_id')
                     )
             except:
                 # Timeout - check if we should exit
@@ -759,11 +764,32 @@ def main():
     if args.gpu_id is not None:
         if args.gpu_id < 0 or args.gpu_id >= n_gpus:
             raise ValueError(f"GPU ID {args.gpu_id} is out of range [0, {n_gpus-1}]")
-        gpu_ids = [args.gpu_id]
+        available_gpus = [args.gpu_id]
     else:
-        gpu_ids = list(range(n_gpus))
+        available_gpus = list(range(n_gpus))
 
-    print(f"Using GPUs: {gpu_ids}")
+    print(f"Available GPUs: {available_gpus}")
+    print(f"Tensor parallel size: {args.tensor_parallel_size}")
+
+    # Calculate number of workers based on tensor parallelism
+    n_available = len(available_gpus)
+    if n_available % args.tensor_parallel_size != 0:
+        raise ValueError(
+            f"Number of available GPUs ({n_available}) must be divisible by "
+            f"tensor_parallel_size ({args.tensor_parallel_size})"
+        )
+
+    n_workers = n_available // args.tensor_parallel_size
+    print(f"Will spawn {n_workers} workers, each using {args.tensor_parallel_size} GPU(s)")
+
+    # Assign GPU ranges to each worker
+    worker_gpu_assignments = []
+    for worker_idx in range(n_workers):
+        start_idx = worker_idx * args.tensor_parallel_size
+        end_idx = start_idx + args.tensor_parallel_size
+        worker_gpus = available_gpus[start_idx:end_idx]
+        worker_gpu_assignments.append(worker_gpus)
+        print(f"  Worker {worker_idx}: GPUs {worker_gpus}")
 
     # Create experiment and progress queues
     experiment_queue = mp.Queue()
@@ -774,7 +800,7 @@ def main():
         experiment_queue.put(experiment.id)
 
     # Add sentinel values for workers to know when to stop
-    for _ in gpu_ids:
+    for _ in range(n_workers):
         experiment_queue.put(None)
 
     print(f"\nPopulated queue with {len(all_experiments)} experiments")
@@ -782,11 +808,12 @@ def main():
 
     # Launch worker processes
     processes = []
-    for gpu_id in gpu_ids:
+    for worker_id, worker_gpus in enumerate(worker_gpu_assignments):
         p = mp.Process(
             target=worker_process,
             args=(
-                gpu_id,
+                worker_id,
+                worker_gpus,
                 experiment_queue,
                 base_prompts,
                 existing_combinations,
