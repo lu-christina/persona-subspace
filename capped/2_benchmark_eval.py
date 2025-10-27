@@ -363,8 +363,7 @@ def main() -> None:
     torch_dtype = dtype_map.get(args.torch_dtype, torch.bfloat16)
 
     # Build model kwargs
-    model_kwargs: Dict[str, Any] = dict(
-        pretrained=args.model_name,
+    base_kwargs = dict(
         batch_size=args.batch_size,
         dtype=torch_dtype,  # HFLM accepts 'dtype' alias
         low_cpu_mem_usage=True,
@@ -372,14 +371,20 @@ def main() -> None:
     )
 
     if args.attn_implementation:
-        model_kwargs['attn_implementation'] = args.attn_implementation
+        base_kwargs['attn_implementation'] = args.attn_implementation
 
     if args.device_strategy == "shard":
         ngpu = torch.cuda.device_count()
-        print(f"[init] Sharding with device_map='auto' across {ngpu} GPUs")
-        model_kwargs['device_map'] = 'auto'
+        print(f"[init] Sharding with parallelize=True across {ngpu} GPUs")
+        # Use HFLM's parallelize parameter for model sharding across GPUs
+        base_kwargs['parallelize'] = True
+        # Optionally set max memory per GPU (None = auto)
+        base_kwargs['max_memory_per_gpu'] = None
+        base_kwargs['max_cpu_memory'] = None
     else:
         print("[init] Replication (single-process). Tip: launch multiple processes on different GPUs to parallelize tasks.")
+
+    model_kwargs = dict(pretrained=args.model_name, **base_kwargs)
 
     # Create base HFLM instance once
     base_lm = HFLM(**model_kwargs)

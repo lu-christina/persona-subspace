@@ -7,37 +7,32 @@ import plotly.subplots as sp
 def _detect_role_types(pca_results):
     """
     Auto-detect role vector types from pca_results.
-    
+
     Returns:
-    - dict with keys: has_pos2, has_pos3, vectors, n_pos_2, colors, markers, show_legend
+    - dict with keys: has_pos2, has_pos3, n_pos_2, colors, markers, show_legend
     """
-    has_pos2 = ('pos_2' in pca_results.get('vectors', {}) and 
-                'pos_2' in pca_results.get('roles', {}))
-    has_pos3 = ('pos_3' in pca_results.get('vectors', {}) and 
-                'pos_3' in pca_results.get('roles', {}))
-    
+    has_pos2 = 'pos_2' in pca_results.get('roles', {})
+    has_pos3 = 'pos_3' in pca_results.get('roles', {})
+
     if has_pos2 and has_pos3:
         # Combined vectors: pos_2 + pos_3
-        vectors = pca_results['vectors']['pos_2'] + pca_results['vectors']['pos_3']
         n_pos_2 = len(pca_results['roles']['pos_2'])
-        n_total = len(vectors)
+        n_total = n_pos_2 + len(pca_results['roles']['pos_3'])
         colors = ['cyan'] * n_pos_2 + ['blue'] * (n_total - n_pos_2)
         markers = ['circle'] * n_pos_2 + ['square'] * (n_total - n_pos_2)
         show_legend = True
     elif has_pos3:
         # Only pos_3 vectors
-        vectors = pca_results['vectors']['pos_3']
         n_pos_2 = 0
-        colors = ['blue'] * len(vectors)
-        markers = ['circle'] * len(vectors)
+        colors = ['blue'] * len(pca_results['roles']['pos_3'])
+        markers = ['circle'] * len(pca_results['roles']['pos_3'])
         show_legend = False
     else:
         raise ValueError("No valid role vectors found in pca_results")
-    
+
     return {
         'has_pos2': has_pos2,
         'has_pos3': has_pos3,
-        'vectors': vectors,
         'n_pos_2': n_pos_2,
         'colors': colors,
         'markers': markers,
@@ -170,7 +165,8 @@ def plot_pca_cosine_similarity(pca_results, role_labels, pc_component,
                     name='Somewhat Role-Playing',
                     legendgroup='pos2',
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
         
         # Add pos_2 extreme points
@@ -192,7 +188,8 @@ def plot_pca_cosine_similarity(pca_results, role_labels, pc_component,
                     legendgroup='pos2',
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
         
         # Add pos_3 regular points  
@@ -213,7 +210,8 @@ def plot_pca_cosine_similarity(pca_results, role_labels, pc_component,
                     name='Fully Role-Playing',
                     legendgroup='pos3',
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
         
         # Add pos_3 extreme points
@@ -235,7 +233,8 @@ def plot_pca_cosine_similarity(pca_results, role_labels, pc_component,
                     legendgroup='pos3',
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
             
     else:
@@ -275,7 +274,8 @@ def plot_pca_cosine_similarity(pca_results, role_labels, pc_component,
                     text=regular_labels,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
         
         # Add extreme points with visible labels and leader lines
@@ -295,7 +295,8 @@ def plot_pca_cosine_similarity(pca_results, role_labels, pc_component,
                     text=extreme_labels,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
     
     # Add leader lines and annotations for extreme points
@@ -449,7 +450,7 @@ def plot_pca_cosine_similarity(pca_results, role_labels, pc_component,
     )
     
     fig.update_xaxes(
-        title_text=f"PC{pc_component+1} Cosine Similarity",
+        title_text=f"LD{pc_component+1} Cosine Similarity",
         range=[-x_half_width, x_half_width]
     )
     
@@ -576,7 +577,7 @@ def plot_pca_projection(pca_results, role_labels, pc_component,
                     legendgroup='pos2',
                     hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
         
         # Add pos_2 extreme points
@@ -599,7 +600,7 @@ def plot_pca_projection(pca_results, role_labels, pc_component,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
         
         # Add pos_3 regular points  
@@ -621,7 +622,7 @@ def plot_pca_projection(pca_results, role_labels, pc_component,
                     legendgroup='pos3',
                     hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
         
         # Add pos_3 extreme points
@@ -644,7 +645,7 @@ def plot_pca_projection(pca_results, role_labels, pc_component,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
             
     else:
@@ -685,7 +686,7 @@ def plot_pca_projection(pca_results, role_labels, pc_component,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
         
         # Add extreme points with visible labels and leader lines
@@ -706,7 +707,7 @@ def plot_pca_projection(pca_results, role_labels, pc_component,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Normalized Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
     
     # Add leader lines and annotations for extreme points
@@ -860,7 +861,7 @@ def plot_pca_projection(pca_results, role_labels, pc_component,
     )
     
     fig.update_xaxes(
-        title_text=f"PC{pc_component+1} Normalized Projection",
+        title_text=f"LD{pc_component+1} Normalized Projection",
         range=[-x_half_width, x_half_width]
     )
     
@@ -1035,10 +1036,18 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
     
     # Auto-detect role types
     role_info = _detect_role_types(pca_results)
-    
+
     # Extract the specified PC component for cosine similarity
-    pc_direction = pca_results['pca'].components_[pc_component]
-    vectors = torch.stack(role_info['vectors'])[:, layer, :].float().numpy()
+    # For LDA: components_ is [activation_dim, n_components], so extract column
+    # For PCA: components_ is [n_components, activation_dim], so we'd extract row
+    # Check shape to determine which indexing to use
+    if pca_results['pca'].components_.shape[0] > pca_results['pca'].components_.shape[1]:
+        # Shape is [activation_dim, n_components] - extract column (LDA case)
+        pc_direction = pca_results['pca'].components_[:, pc_component]
+    else:
+        # Shape is [n_components, activation_dim] - extract row (PCA case)
+        pc_direction = pca_results['pca'].components_[pc_component]
+    vectors = pca_results['vectors']
     if scaled:
         scaled_vectors = pca_results['scaler'].transform(vectors)
 
@@ -1085,8 +1094,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
         rows=2, cols=1,
         vertical_spacing=0.1,
         subplot_titles=[
-            f'PC{pc_component+1} Cosine Similarity',
-            f'PC{pc_component+1} Projection'
+            f'LD{pc_component+1} Projection',
+            f'LD{pc_component+1} Cosine Similarity'
         ]
     )
     
@@ -1100,7 +1109,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
     for i in range(10):
         proj_y_positions.extend([high_positions[i], low_positions[i]])
     
-    # === TOP SUBPLOT: COSINE SIMILARITY ===
+    # === BOTTOM SUBPLOT: COSINE SIMILARITY (ROW 2) ===
     
     if role_info['has_pos2'] and role_info['has_pos3']:
         # Split points by type for legend
@@ -1147,7 +1156,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     name='Somewhat Role-Playing',
                     legendgroup='pos2',
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
         
         # Add pos_2 extreme points
@@ -1169,7 +1179,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     legendgroup='pos2',
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
         
         # Add pos_3 regular points  
@@ -1190,7 +1201,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     name='Fully Role-Playing',
                     legendgroup='pos3',
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
         
         # Add pos_3 extreme points
@@ -1212,7 +1224,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     legendgroup='pos3',
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
             
     else:
@@ -1245,7 +1258,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     text=regular_cosine_labels,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
         
         # Add extreme points with visible labels and leader lines
@@ -1265,7 +1279,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     text=extreme_cosine_labels,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>Cosine Similarity: %{x:.3f}<extra></extra>'
-                )
+                ),
+                row=2, col=1
             )
     
     # Add leader lines and annotations for extreme cosine points
@@ -1292,7 +1307,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 font=dict(size=10, color=leader_color),
                 bgcolor="rgba(255, 255, 255, 0.9)",
                 bordercolor=leader_color, borderwidth=1,
-                row=1, col=1
+                row=2, col=1
             )
         
         for i, idx in enumerate(cosine_high_extreme):
@@ -1317,7 +1332,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 font=dict(size=10, color=leader_color),
                 bgcolor="rgba(255, 255, 255, 0.9)",
                 bordercolor=leader_color, borderwidth=1,
-                row=1, col=1
+                row=2, col=1
             )
     
     # Add cosine similarity histogram as opaque bars
@@ -1357,7 +1372,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 legendgroup='pos2',
                 showlegend=False,
                 hoverinfo='skip'
-            )
+            ),
+            row=2, col=1
         )
         
         fig.add_trace(
@@ -1371,7 +1387,8 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 legendgroup='pos3',
                 showlegend=False,
                 hoverinfo='skip'
-            )
+            ),
+            row=2, col=1
         )
     else:
         # Single histogram
@@ -1393,23 +1410,24 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 opacity=0.7,
                 showlegend=False,
                 hoverinfo='skip'
-            )
+            ),
+            row=2, col=1
         )
     
     # Add vertical line at x=0 and assistant line for cosine similarity
-    fig.add_vline(x=0, line_dash="solid", line_color="gray", line_width=1, opacity=0.7)
-    
+    fig.add_vline(x=0, line_dash="solid", line_color="gray", line_width=1, opacity=0.7, row=2, col=1)
+
     if assistant_cosine_sim is not None:
-        fig.add_vline(x=assistant_cosine_sim, line_dash="dash", line_color="red", line_width=1, opacity=1.0)
+        fig.add_vline(x=assistant_cosine_sim, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=2, col=1)
         fig.add_annotation(
             x=assistant_cosine_sim, y=2.25, text="Assistant", showarrow=False,
             font=dict(size=14, color="red"),
             bgcolor="rgba(255, 255, 255, 0.9)",
             bordercolor="red", borderwidth=1,
-            row=1, col=1
+            row=2, col=1
         )
     
-    # === BOTTOM SUBPLOT: PROJECTION ===
+    # === TOP SUBPLOT: PROJECTION (ROW 1) ===
     
     if role_info['has_pos2'] and role_info['has_pos3']:
         # Split points by type for projection
@@ -1458,7 +1476,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>PC Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
         
         # Add pos_2 extreme points
@@ -1481,7 +1499,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>PC Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
         
         # Add pos_3 regular points  
@@ -1504,7 +1522,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>PC Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
         
         # Add pos_3 extreme points
@@ -1527,7 +1545,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>PC Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
             
     else:
@@ -1561,7 +1579,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>PC Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
         
         # Add extreme points
@@ -1582,7 +1600,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     showlegend=False,
                     hovertemplate='<b>%{text}</b><br>PC Projection: %{x:.3f}<extra></extra>'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
     
     # Add leader lines and annotations for extreme projection points
@@ -1602,7 +1620,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     showlegend=False,
                     hoverinfo='skip'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
             
             fig.add_annotation(
@@ -1610,7 +1628,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 font=dict(size=10, color=leader_color),
                 bgcolor="rgba(255, 255, 255, 0.9)",
                 bordercolor=leader_color, borderwidth=1,
-                row=2, col=1
+                row=1, col=1
             )
         
         for i, idx in enumerate(proj_high_extreme):
@@ -1628,7 +1646,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                     showlegend=False,
                     hoverinfo='skip'
                 ),
-                row=2, col=1
+                row=1, col=1
             )
             
             fig.add_annotation(
@@ -1636,7 +1654,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 font=dict(size=10, color=leader_color),
                 bgcolor="rgba(255, 255, 255, 0.9)",
                 bordercolor=leader_color, borderwidth=1,
-                row=2, col=1
+                row=1, col=1
             )
     
     # Add projection histogram as opaque bars
@@ -1675,7 +1693,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 showlegend=False,
                 hoverinfo='skip'
             ),
-            row=2, col=1
+            row=1, col=1
         )
         
         fig.add_trace(
@@ -1690,7 +1708,7 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 showlegend=False,
                 hoverinfo='skip'
             ),
-            row=2, col=1
+            row=1, col=1
         )
     else:
         # Single histogram
@@ -1712,20 +1730,20 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
                 showlegend=False,
                 hoverinfo='skip'
             ),
-            row=2, col=1
+            row=1, col=1
         )
     
     # Add vertical line at x=0 and assistant line for projection
-    fig.add_vline(x=0, line_dash="solid", line_color="gray", line_width=1, opacity=0.7, row=2, col=1)
+    fig.add_vline(x=0, line_dash="solid", line_color="gray", line_width=1, opacity=0.7, row=1, col=1)
     
     if assistant_projection is not None:
-        fig.add_vline(x=assistant_pc_value, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=2, col=1)
+        fig.add_vline(x=assistant_pc_value, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=1, col=1)
         fig.add_annotation(
             x=assistant_pc_value, y=2.25, text="Assistant", showarrow=False,
             font=dict(size=14, color="red"),
             bgcolor="rgba(255, 255, 255, 0.9)",
             bordercolor="red", borderwidth=1,
-            row=2, col=1
+            row=1, col=1
         )
     
     # Update layout
@@ -1751,15 +1769,19 @@ def plot_pc(pca_results, role_labels, pc_component, layer=None,
         )
     )
     
-    # Update x-axes ranges
-    cosine_max_abs = max(abs(min(cosine_sims)), abs(max(cosine_sims)))
-    cosine_x_width = cosine_max_abs * 1.1
-    
-    proj_max_abs = max(abs(min(projections)), abs(max(projections)))
-    proj_x_width = proj_max_abs * 1.1
-    
-    fig.update_xaxes(range=[-cosine_x_width, cosine_x_width], row=1, col=1)
-    fig.update_xaxes(range=[-proj_x_width, proj_x_width], row=2, col=1)
+    # Update x-axes ranges based on actual data range
+    cosine_min = min(cosine_sims)
+    cosine_max = max(cosine_sims)
+    cosine_range = cosine_max - cosine_min
+    cosine_padding = cosine_range * 0.1
+
+    proj_min = min(projections)
+    proj_max = max(projections)
+    proj_range = proj_max - proj_min
+    proj_padding = proj_range * 0.1
+
+    fig.update_xaxes(range=[proj_min - proj_padding, proj_max + proj_padding], row=1, col=1)
+    fig.update_xaxes(range=[cosine_min - cosine_padding, cosine_max + cosine_padding], row=2, col=1)
     
     # Update y-axes
     fig.update_yaxes(
