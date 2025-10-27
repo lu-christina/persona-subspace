@@ -7,21 +7,21 @@ set -euo pipefail
 JOB_NUMBER="${1:-0}"
 
 # ===== Paths & model =====
-MODEL="Qwen/Qwen3-32B"
-BASEDIR="/workspace/qwen-3-32b/capped/sliding_benchmarks"
+MODEL="meta-llama/Llama-3.3-70B-Instruct"
+BASEDIR="/workspace/llama-3.3-70b/capped/benchmarks"
 
 # Associative array: cap_from -> config_path
 declare -A CONFIGS=(
-  ["role_trait"]="/workspace/qwen-3-32b/capped/configs/role_trait_sliding_config.pt"
+  ["role_trait"]="/workspace/llama-3.3-70b/capped/configs/role_trait_config.pt"
 )
 
 # ===== Eval settings =====
-TASKS="ifeval"
-LIMIT=1000
-SEED=16
+TASKS="eq_bench"
+LIMIT=100
+SEED=42
 FEWSHOT=0
 DTYPE="bfloat16"
-BATCH=128
+BATCH=96
 
 # ===== vLLM-specific settings =====
 TENSOR_PARALLEL=1
@@ -31,7 +31,7 @@ MAX_MODEL_LEN=2048
 # Filter pattern for experiment IDs (set to empty string to disable filtering)
 FILTER_PATTERN=""
 # Skip experiments that already have results (set to empty string to disable skip check)
-SKIP_EXISTING=""
+SKIP_EXISTING="yes"
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
@@ -113,7 +113,7 @@ PY
     SELECTED_IDS=()
     for exp_id in "${FILTERED_IDS[@]}"; do
       # Check if results directory exists for this experiment
-      exp_dir="${BASEDIR}/mmlu_pro/${CAP_FROM}/${exp_id}"
+      exp_dir="${BASEDIR}/${TASKS}/${CAP_FROM}/${exp_id}"
       if [[ -d "$exp_dir" ]]; then
         echo "Skipping ${exp_id} (already exists: ${exp_dir})"
       else
@@ -131,12 +131,12 @@ PY
     SELECTED_IDS=("${FILTERED_IDS[@]}")
   fi
 
-  OUTPUT_PATH="${BASEDIR}/mmlu_pro/${CAP_FROM}"
+  OUTPUT_PATH="${BASEDIR}/${TASKS}/${CAP_FROM}"
 
-  echo ">>> Queue ${CAP_FROM} : ${#SELECTED_IDS[@]} experiments : MMLU-Pro (batch=auto) -> ${OUTPUT_PATH}/"
+  echo ">>> Queue ${CAP_FROM} : ${#SELECTED_IDS[@]} experiments : (batch=${BATCH}) -> ${OUTPUT_PATH}/"
   echo "    Experiment IDs: ${SELECTED_IDS[*]}"
 
-  ts -G 1 uv run 2_benchmark_eval.py \
+  ts -G 2 uv run 2_benchmark_eval.py \
     --config_filepath "$CFG" \
     --experiment_ids "${SELECTED_IDS[@]}" \
     --model_name "$MODEL" \
@@ -147,11 +147,13 @@ PY
     --limit "$LIMIT" \
     --random_seed "$SEED" \
     --num_fewshot "$FEWSHOT" \
-    --batch_size "$BATCH"
+    --batch_size "$BATCH" \
+    --device_strategy shard \
+    --max_gen_toks "$MAX_MODEL_LEN"
 done
 
 echo ""
 echo "Results will be saved to:"
 for CAP_FROM in "${!CONFIGS[@]}"; do
-  echo "  ${CAP_FROM} -> ${BASEDIR}/mmlu_pro/${CAP_FROM}/<experiment_id>/"
+  echo "  ${CAP_FROM} -> ${BASEDIR}/${TASKS}/${CAP_FROM}/<experiment_id>/"
 done
