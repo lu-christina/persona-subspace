@@ -44,7 +44,7 @@ import jsonlines
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.inference_utils import load_vllm_model, batch_conversation_chat, close_vllm_model, cleanup_all_models
+from utils.inference_utils import load_vllm_model, batch_conversation, close_vllm_model, cleanup_all_models
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -67,14 +67,15 @@ class TraitResponseGenerator:
         max_tokens: int = 1024,
         top_p: float = 0.9,
         prompt_indices: Optional[List[int]] = None,
-        include_default: bool = True,
+        skip_default: bool = False,
+        default_only: bool = False,
         append_mode: bool = False,
         questions_file: Optional[str] = None,
         traits_subset: Optional[Tuple[int, int]] = None
     ):
         """
         Initialize the trait response generator.
-        
+
         Args:
             model_name: HuggingFace model identifier
             traits_dir: Directory containing trait JSON files
@@ -87,7 +88,8 @@ class TraitResponseGenerator:
             max_tokens: Maximum tokens to generate
             top_p: Top-p sampling parameter
             prompt_indices: List of instruction prompt indices to process (None = all prompts)
-            include_default: Whether to include default system prompts
+            skip_default: Whether to skip default system prompts (only run pos/neg)
+            default_only: Whether to skip pos/neg instructions (only run default prompts)
             append_mode: Whether to append to existing files instead of overwriting
             questions_file: Path to central questions JSONL file (if None, use trait-specific questions)
             traits_subset: Tuple of (start, end) indices to process subset of traits (if None, process all)
@@ -103,7 +105,8 @@ class TraitResponseGenerator:
         self.max_tokens = max_tokens
         self.top_p = top_p
         self.prompt_indices = prompt_indices if prompt_indices is not None else list(range(5))
-        self.include_default = include_default
+        self.skip_default = skip_default
+        self.default_only = default_only
         self.append_mode = append_mode
         self.questions_file = questions_file
         self.traits_subset = traits_subset
@@ -321,15 +324,23 @@ class TraitResponseGenerator:
         neg_instructions = all_neg_instructions
         
         logger.info(f"Available {len(pos_instructions)} pos and {len(neg_instructions)} neg instruction prompts, will use indices: {self.prompt_indices}")
-        
+
         # Define default system prompts
+        model_name_short = ""
+        if self.model_name.startswith("google/gemma"):
+            model_name_short = "Gemma"
+        elif self.model_name.startswith("Qwen"):
+            model_name_short = "Qwen"
+        elif self.model_name.startswith("meta-llama"):
+            model_name_short = "Llama"
+            
         default_instructions = [
             "",
             "You are an AI assistant.",
             "You are a large language model.",
-            "You are Gemma.",
+            f"You are {model_name_short}.",
             "Respond as yourself."
-        ] if self.include_default else []
+        ] if not self.skip_default else []
         
         # Load existing responses if in append mode
         existing_responses = []
@@ -353,46 +364,48 @@ class TraitResponseGenerator:
         # Prepare conversation batches for each instruction type
         all_conversations = []
         all_metadata = []
-        
-        # Positive instruction conversations (selected variants)
-        for prompt_idx in self.prompt_indices:
-            if prompt_idx < len(pos_instructions):
-                pos_instruction = pos_instructions[prompt_idx]
-                for q_idx, question in enumerate(questions):
-                    # Skip if this combination already exists (check by question and prompt combination)
-                    skip_key = ("pos", prompt_idx, q_idx)
-                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
-                        continue
-                    
-                    conversation = self.format_conversation(pos_instruction, question)
-                    all_conversations.append(conversation)
-                    all_metadata.append({
-                        "system_prompt": pos_instruction,
-                        "label": "pos",
-                        "prompt_index": prompt_idx,
-                        "question_index": q_idx,
-                        "question": question
-                    })
-        
-        # Negative instruction conversations (selected variants)
-        for prompt_idx in self.prompt_indices:
-            if prompt_idx < len(neg_instructions):
-                neg_instruction = neg_instructions[prompt_idx]
-                for q_idx, question in enumerate(questions):
-                    # Skip if this combination already exists
-                    skip_key = ("neg", prompt_idx, q_idx)
-                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
-                        continue
-                    
-                    conversation = self.format_conversation(neg_instruction, question)
-                    all_conversations.append(conversation)
-                    all_metadata.append({
-                        "system_prompt": neg_instruction,
-                        "label": "neg",
-                        "prompt_index": prompt_idx,
-                        "question_index": q_idx,
-                        "question": question
-                    })
+
+        # Positive instruction conversations (selected variants) - skip if default_only
+        if not self.default_only:
+            for prompt_idx in self.prompt_indices:
+                if prompt_idx < len(pos_instructions):
+                    pos_instruction = pos_instructions[prompt_idx]
+                    for q_idx, question in enumerate(questions):
+                        # Skip if this combination already exists (check by question and prompt combination)
+                        skip_key = ("pos", prompt_idx, q_idx)
+                        if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                            continue
+
+                        conversation = self.format_conversation(pos_instruction, question)
+                        all_conversations.append(conversation)
+                        all_metadata.append({
+                            "system_prompt": pos_instruction,
+                            "label": "pos",
+                            "prompt_index": prompt_idx,
+                            "question_index": q_idx,
+                            "question": question
+                        })
+
+        # Negative instruction conversations (selected variants) - skip if default_only
+        if not self.default_only:
+            for prompt_idx in self.prompt_indices:
+                if prompt_idx < len(neg_instructions):
+                    neg_instruction = neg_instructions[prompt_idx]
+                    for q_idx, question in enumerate(questions):
+                        # Skip if this combination already exists
+                        skip_key = ("neg", prompt_idx, q_idx)
+                        if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                            continue
+
+                        conversation = self.format_conversation(neg_instruction, question)
+                        all_conversations.append(conversation)
+                        all_metadata.append({
+                            "system_prompt": neg_instruction,
+                            "label": "neg",
+                            "prompt_index": prompt_idx,
+                            "question_index": q_idx,
+                            "question": question
+                        })
         
         # Default instruction conversations (selected variants)
         for prompt_idx in self.prompt_indices:
@@ -419,7 +432,7 @@ class TraitResponseGenerator:
         # Run batch inference
         try:
             logger.info(f"Running batch inference for trait '{trait_name}'...")
-            responses = batch_conversation_chat(
+            responses = batch_conversation(
                 model_wrapper=self.model_wrapper,
                 conversations=all_conversations,
                 temperature=self.temperature,
@@ -505,7 +518,7 @@ class TraitResponseGenerator:
             "You are a large language model.",
             "You are Llama.",
             "Respond as yourself."
-        ] if self.include_default else []
+        ] if not self.skip_default else []
         
         # Load existing responses if in append mode
         existing_responses = []
@@ -529,46 +542,48 @@ class TraitResponseGenerator:
         # Prepare conversation batches for each instruction type
         all_conversations = []
         all_metadata = []
-        
-        # Positive instruction conversations (selected variants)
-        for prompt_idx in self.prompt_indices:
-            if prompt_idx < len(pos_instructions):
-                pos_instruction = pos_instructions[prompt_idx]
-                for q_idx, question in enumerate(questions):
-                    # Skip if this combination already exists (check by question and prompt combination)
-                    skip_key = ("pos", prompt_idx, q_idx)
-                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
-                        continue
-                    
-                    conversation = self.format_conversation(pos_instruction, question)
-                    all_conversations.append(conversation)
-                    all_metadata.append({
-                        "system_prompt": pos_instruction,
-                        "label": "pos",
-                        "prompt_index": prompt_idx,
-                        "question_index": q_idx,
-                        "question": question
-                    })
-        
-        # Negative instruction conversations (selected variants)
-        for prompt_idx in self.prompt_indices:
-            if prompt_idx < len(neg_instructions):
-                neg_instruction = neg_instructions[prompt_idx]
-                for q_idx, question in enumerate(questions):
-                    # Skip if this combination already exists
-                    skip_key = ("neg", prompt_idx, q_idx)
-                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
-                        continue
-                    
-                    conversation = self.format_conversation(neg_instruction, question)
-                    all_conversations.append(conversation)
-                    all_metadata.append({
-                        "system_prompt": neg_instruction,
-                        "label": "neg",
-                        "prompt_index": prompt_idx,
-                        "question_index": q_idx,
-                        "question": question
-                    })
+
+        # Positive instruction conversations (selected variants) - skip if default_only
+        if not self.default_only:
+            for prompt_idx in self.prompt_indices:
+                if prompt_idx < len(pos_instructions):
+                    pos_instruction = pos_instructions[prompt_idx]
+                    for q_idx, question in enumerate(questions):
+                        # Skip if this combination already exists (check by question and prompt combination)
+                        skip_key = ("pos", prompt_idx, q_idx)
+                        if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                            continue
+
+                        conversation = self.format_conversation(pos_instruction, question)
+                        all_conversations.append(conversation)
+                        all_metadata.append({
+                            "system_prompt": pos_instruction,
+                            "label": "pos",
+                            "prompt_index": prompt_idx,
+                            "question_index": q_idx,
+                            "question": question
+                        })
+
+        # Negative instruction conversations (selected variants) - skip if default_only
+        if not self.default_only:
+            for prompt_idx in self.prompt_indices:
+                if prompt_idx < len(neg_instructions):
+                    neg_instruction = neg_instructions[prompt_idx]
+                    for q_idx, question in enumerate(questions):
+                        # Skip if this combination already exists
+                        skip_key = ("neg", prompt_idx, q_idx)
+                        if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                            continue
+
+                        conversation = self.format_conversation(neg_instruction, question)
+                        all_conversations.append(conversation)
+                        all_metadata.append({
+                            "system_prompt": neg_instruction,
+                            "label": "neg",
+                            "prompt_index": prompt_idx,
+                            "question_index": q_idx,
+                            "question": question
+                        })
         
         # Default instruction conversations (selected variants)
         for prompt_idx in self.prompt_indices:
@@ -595,7 +610,7 @@ class TraitResponseGenerator:
         # Run batch inference
         try:
             logger.info(f"Running batch inference for trait '{trait_name}'...")
-            responses = batch_conversation_chat(
+            responses = batch_conversation(
                 model_wrapper=self.model_wrapper,
                 conversations=all_conversations,
                 temperature=self.temperature,
@@ -868,11 +883,11 @@ Examples:
                        help='Maximum model context length (default: 1024)')
     parser.add_argument('--tensor-parallel-size', type=int, default=None,
                        help='Number of GPUs to use (default: auto-detect)')
-    parser.add_argument('--gpu-memory-utilization', type=float, default=0.9,
+    parser.add_argument('--gpu-memory-utilization', type=float, default=0.95,
                        help='GPU memory utilization ratio (default: 0.9)')
     
     # Generation parameters
-    parser.add_argument('--question-count', type=int, default=240,
+    parser.add_argument('--question-count', type=int, default=40,
                        help='Number of questions to process per trait (default: 20)')
     parser.add_argument('--temperature', type=float, default=0.7,
                        help='Sampling temperature (default: 0.7)')
@@ -884,10 +899,10 @@ Examples:
     # Instruction selection parameters
     parser.add_argument('--prompt-indices', type=str, default=None,
                        help='Comma-separated list of instruction prompt indices to process (e.g., "1,2,3,4")')
-    parser.add_argument('--include-default', action='store_true', default=True,
-                       help='Include default system prompts in addition to pos/neg pairs (default: True)')
-    parser.add_argument('--no-default', action='store_false', dest='include_default',
-                       help='Disable default system prompts')
+    parser.add_argument('--skip-default', action='store_true',
+                       help='Skip default system prompts (only run pos/neg instructions)')
+    parser.add_argument('--default-only', action='store_true',
+                       help='Skip pos/neg instructions (only run default system prompts)')
     parser.add_argument('--append-mode', action='store_true',
                        help='Append responses to existing files instead of overwriting')
     
@@ -937,7 +952,12 @@ Examples:
         except ValueError as e:
             logger.error(f"Invalid traits subset format: {args.traits_subset}")
             return 1
-    
+
+    # Validate mutually exclusive flags
+    if args.skip_default and args.default_only:
+        logger.error("Error: --skip-default and --default-only are mutually exclusive")
+        return 1
+
     # Print configuration
     logger.info("Configuration:")
     logger.info(f"  Model: {args.model_name}")
@@ -949,7 +969,8 @@ Examples:
     logger.info(f"  Temperature: {args.temperature}")
     logger.info(f"  Max tokens: {args.max_tokens}")
     logger.info(f"  Prompt indices: {prompt_indices if prompt_indices else 'all (0-4)'}")
-    logger.info(f"  Include default: {args.include_default}")
+    logger.info(f"  Skip default: {args.skip_default}")
+    logger.info(f"  Default only: {args.default_only}")
     logger.info(f"  Append mode: {args.append_mode}")
     logger.info(f"  Skip existing: {not args.no_skip_existing}")
     
@@ -967,7 +988,8 @@ Examples:
             max_tokens=args.max_tokens,
             top_p=args.top_p,
             prompt_indices=prompt_indices,
-            include_default=args.include_default,
+            skip_default=args.skip_default,
+            default_only=args.default_only,
             append_mode=args.append_mode,
             questions_file=args.questions_file,
             traits_subset=traits_subset
