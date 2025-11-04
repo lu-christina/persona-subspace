@@ -33,7 +33,7 @@ logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 # Constants
 DEFAULT_JUDGE_PROMPT_FILE = Path(__file__).parent / "susceptibility" / "judge.json"
-DEFAULT_JUDGE_MODEL = "deepseek/deepseek-chat"
+DEFAULT_JUDGE_MODEL = "deepseek/deepseek-chat-v3.1"
 
 
 class RateLimiter:
@@ -188,12 +188,12 @@ def load_input_data(input_files: List[str]) -> List[Dict[str, Any]]:
                 try:
                     data = json.loads(line)
                     # Validate required fields for susceptibility data
-                    required_fields = ['id', 'role', 'prompt', 'question', 'response', 'magnitude']
+                    required_fields = ['id', 'role', 'prompt', 'question', 'response']
                     missing_fields = [field for field in required_fields if field not in data]
                     if missing_fields:
                         logger.warning(f"Missing required fields {missing_fields} on line {line_num} in {input_file}")
                         continue
-                    
+
                     all_data.append(data)
                 except json.JSONDecodeError as e:
                     logger.warning(f"Invalid JSON on line {line_num} in {input_file}: {e}")
@@ -203,34 +203,44 @@ def load_input_data(input_files: List[str]) -> List[Dict[str, Any]]:
     return all_data
 
 
-def load_existing_results(output_file: Path) -> Set[Tuple[int, float, int]]:
+def load_existing_results(output_file: Path) -> Set[Tuple[int, str, int]]:
     """
     Load existing results from output file to support restart.
-    Returns set of (id, magnitude, sample_id) tuples that were already processed.
+    Returns set of (id, identifier, sample_id) tuples that were already processed.
     For backwards compatibility, entries without sample_id are treated as sample_id=0.
+    Tries 'experiment_id' first, then 'magnitude', then falls back to 'cap'.
     """
     if not output_file.exists():
         return set()
-    
+
     existing = set()
     with open(output_file, 'r', encoding='utf-8') as f:
         for line_num, line in enumerate(f, 1):
             line = line.strip()
             if not line:
                 continue
-            
+
             try:
                 data = json.loads(line)
-                if 'id' in data and 'magnitude' in data:
+                if 'id' in data:
                     request_key = data['id']
-                    magnitude = data['magnitude']
+                    # Try experiment_id first, then magnitude, then fall back to cap
+                    if 'experiment_id' in data:
+                        identifier = data['experiment_id']
+                    else:
+                        magnitude_or_cap = data.get('magnitude', data.get('cap'))
+                        if magnitude_or_cap is not None:
+                            identifier = str(float(magnitude_or_cap))
+                        else:
+                            continue  # Skip if no identifier found
+
                     # For backwards compatibility, treat missing sample_id as 0
                     sample_id = data.get('sample_id', 0)
-                    existing.add((request_key, magnitude, sample_id))
+                    existing.add((request_key, identifier, sample_id))
             except json.JSONDecodeError as e:
                 logger.warning(f"Invalid JSON in existing output on line {line_num}: {e}")
                 continue
-    
+
     logger.info(f"Found {len(existing)} existing results in output file")
     return existing
 
@@ -250,25 +260,30 @@ def create_evaluation_prompts(
     input_data: List[Dict[str, Any]],
     judge_template: Dict[str, Any],
     judge_prompt_file: Path,
-    existing_results: Set[Tuple[int, float, int]],
+    existing_results: Set[Tuple[int, str, int]],
     overwrite: bool = False
 ) -> List[Tuple[Dict[str, Any], List[Dict[str, str]]]]:
     """
     Create evaluation prompts for the judge model from input data.
-    
+
     Returns:
         List of tuples: (original_input_data, chat_messages)
     """
     evaluation_prompts = []
     skipped_count = 0
-    
+
     for data_item in input_data:
         # Check if this item was already processed (unless overwrite flag is set)
         request_key = data_item['id']
-        magnitude = data_item.get('magnitude', 0.0)
+        # Try experiment_id first, then magnitude, then fall back to cap
+        if 'experiment_id' in data_item:
+            identifier = data_item['experiment_id']
+        else:
+            magnitude_or_cap = data_item.get('magnitude', data_item.get('cap', 0.0))
+            identifier = str(float(magnitude_or_cap))
         # For backwards compatibility, treat missing sample_id as 0
         sample_id = data_item.get('sample_id', 0)
-        if not overwrite and (request_key, magnitude, sample_id) in existing_results:
+        if not overwrite and (request_key, identifier, sample_id) in existing_results:
             skipped_count += 1
             continue
         
@@ -305,71 +320,78 @@ def create_evaluation_prompts(
 def parse_judge_response(response_text: str, input_data: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
     """
     Parse the judge's response to extract the score and analysis.
-    
+
     Args:
         response_text: The judge model's response
         input_data: The original input data for error logging
-    
+
     Returns:
         Tuple of (score, analysis) or (None, None) if parsing fails
     """
+    # Get identifier for logging (experiment_id, magnitude, or cap)
+    if 'experiment_id' in input_data:
+        identifier = input_data['experiment_id']
+    else:
+        magnitude_or_cap = input_data.get('magnitude', input_data.get('cap', 'N/A'))
+        identifier = magnitude_or_cap
+
     if not response_text:
         logger.error(
             f"Empty response from judge model - "
             f"id: {input_data.get('id')}, "
-            f"magnitude: {input_data.get('magnitude')}"
+            f"identifier: {identifier}"
         )
         return None, None
-    
+
     try:
         # Clean the response text by removing markdown code blocks
         cleaned_text = response_text.strip()
-        
+
         # Remove ```json and ``` markers if present
         if cleaned_text.startswith('```json'):
             cleaned_text = cleaned_text[7:]  # Remove ```json
         elif cleaned_text.startswith('```'):
             cleaned_text = cleaned_text[3:]   # Remove ```
-            
+
         if cleaned_text.endswith('```'):
             cleaned_text = cleaned_text[:-3]  # Remove trailing ```
-            
+
         cleaned_text = cleaned_text.strip()
-        
+
         # Try to parse as JSON
         response_json = json.loads(cleaned_text)
-        
+
         if 'score' not in response_json or 'analysis' not in response_json:
             logger.error(
                 f"Missing score or analysis in judge response: {response_text} - "
                 f"id: {input_data.get('id')}, "
-                f"magnitude: {input_data.get('magnitude')}"
+                f"identifier: {identifier}"
             )
             return None, None
-        
+
         return response_json['score'], response_json['analysis']
-        
+
     except json.JSONDecodeError as e:
         # Try to fix common JSON issues and retry parsing
         try:
             fixed_json = fix_common_json_issues(cleaned_text)
             response_json = json.loads(fixed_json)
-            
+
             if 'score' not in response_json or 'analysis' not in response_json:
                 logger.error(
                     f"Missing score or analysis in judge response: {response_text} - "
                     f"id: {input_data.get('id')}, "
-                    f"magnitude: {input_data.get('magnitude')}"
+                    f"identifier: {identifier}"
                 )
                 return None, None
-            
+
             return response_json['score'], response_json['analysis']
-            
+
         except json.JSONDecodeError:
             logger.error(
                 f"Could not parse JSON response from judge: {response_text} - "
                 f"id: {input_data.get('id')}, "
-                f"magnitude: {input_data.get('magnitude')}, "
+                f"identifier: {identifier}, "
                 f"error: {e}"
             )
             return None, None
@@ -512,10 +534,17 @@ async def process_batch(
                 successful_count += 1
             # If parsing failed, error was already logged in parse_judge_response
         else:
+            # Get identifier for logging
+            if 'experiment_id' in input_data:
+                identifier = input_data['experiment_id']
+            else:
+                magnitude_or_cap = input_data.get('magnitude', input_data.get('cap', 'N/A'))
+                identifier = magnitude_or_cap
+
             logger.error(
                 f"No response received from judge model - "
                 f"id: {input_data.get('id')}, "
-                f"magnitude: {input_data.get('magnitude')}"
+                f"identifier: {identifier}"
             )
     
     logger.info(f"Successfully processed {successful_count}/{len(batch_data)} items in batch")

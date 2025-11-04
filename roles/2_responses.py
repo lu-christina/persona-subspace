@@ -43,7 +43,7 @@ import jsonlines
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.inference_utils import load_vllm_model, batch_conversation_chat, close_vllm_model, cleanup_all_models
+from utils.inference_utils import load_vllm_model, batch_conversation, close_vllm_model, cleanup_all_models
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -398,7 +398,7 @@ class RoleResponseGenerator:
         # Run batch inference
         try:
             logger.info(f"Running batch inference for role '{role_name}'...")
-            responses = batch_conversation_chat(
+            responses = batch_conversation(
                 model_wrapper=self.model_wrapper,
                 conversations=all_conversations,
                 temperature=self.temperature,
@@ -554,7 +554,7 @@ class RoleResponseGenerator:
         # Run batch inference
         try:
             logger.info(f"Running batch inference for role '{role_name}'...")
-            responses = batch_conversation_chat(
+            responses = batch_conversation(
                 model_wrapper=self.model_wrapper,
                 conversations=all_conversations,
                 temperature=self.temperature,

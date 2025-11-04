@@ -264,12 +264,6 @@ def parse_arguments():
         help="Temperature for text generation"
     )
 
-    parser.add_argument(
-        "--vllm_batch_size",
-        type=int,
-        default=256,
-        help="Batch size for VLLM generation (to avoid OOM)"
-    )
 
     parser.add_argument(
         "--test_mode",
@@ -519,17 +513,24 @@ def create_prompt_data(prompts_data, company_name="Acme Corp", name_value="Alex"
     return base_prompts
 
 
-def format_prompt_for_chat(prompt_data: Dict[str, Any], tokenizer) -> str:
+def format_prompt_for_chat(prompt_data: Dict[str, Any], tokenizer, model_name: str = "", enable_thinking: bool = True) -> str:
     """Format a single prompt using the tokenizer's chat template."""
     system_prompt = prompt_data.get('_system_prompt', '')
     user_message = prompt_data.get('_user_message', '')
 
     if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
+        # Check if this is a Gemma model - they append system prompts to user messages
+        is_gemma = 'gemma' in model_name.lower()
+
         if not system_prompt:
             # No system prompt: only use user message
             messages = [{"role": "user", "content": user_message}]
+        elif is_gemma:
+            # Gemma: append system prompt to user message
+            combined_content = f"{system_prompt}\n\n{user_message}"
+            messages = [{"role": "user", "content": combined_content}]
         else:
-            # Use system prompt + user message
+            # Other models: use system message role
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message}
@@ -537,7 +538,7 @@ def format_prompt_for_chat(prompt_data: Dict[str, Any], tokenizer) -> str:
 
         # Use tokenizer's apply_chat_template for proper formatting
         formatted_prompt = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
+            messages, tokenize=False, add_generation_prompt=True, enable_thinking=enable_thinking
         )
         return formatted_prompt
     else:
@@ -558,11 +559,11 @@ def worker_process(
     max_new_tokens: int,
     temperature: float,
     samples_per_prompt: int,
-    vllm_batch_size: int,
     tensor_parallel_size: int,
     gpu_memory_utilization: float,
     max_model_len: Optional[int],
     dtype: str,
+    enable_thinking: bool,
     progress_queue: mp.Queue
 ):
     """
@@ -572,9 +573,8 @@ def worker_process(
     torch.set_float32_matmul_precision('high')
 
     try:
-        # Set CUDA_VISIBLE_DEVICES to the assigned GPUs for this worker
+        # Note: We don't set CUDA_VISIBLE_DEVICES here because task spooler handles GPU assignment
         gpu_str = ','.join(map(str, gpu_ids))
-        os.environ['CUDA_VISIBLE_DEVICES'] = gpu_str
 
         logger = logging.getLogger(f"Worker-{worker_id}")
         handler = logging.StreamHandler()
@@ -668,7 +668,7 @@ def worker_process(
             # Format all prompts for this experiment
             formatted_prompts = []
             for prompt_data, _ in work_items:
-                formatted_prompt = format_prompt_for_chat(prompt_data, tokenizer)
+                formatted_prompt = format_prompt_for_chat(prompt_data, tokenizer, model_name, enable_thinking)
                 formatted_prompts.append(formatted_prompt)
 
             # Apply steering ONCE for this entire experiment
@@ -676,28 +676,20 @@ def worker_process(
                 logger.info(f"[steer] Steering context active for experiment '{experiment_id}'")
 
                 # Generate ALL responses for this experiment in one steering context
-                # Process in batches with progress bar
-                all_responses = []
-                with tqdm(total=len(formatted_prompts), desc=f"Worker-{worker_id} exp={experiment_id}",
-                         unit="prompts", leave=False, position=worker_id) as pbar:
-                    for i in range(0, len(formatted_prompts), vllm_batch_size):
-                        batch_prompts = formatted_prompts[i:i + vllm_batch_size]
+                # VLLM handles batching automatically with continuous batching
+                sampling_params = SamplingParams(
+                    max_tokens=max_new_tokens,
+                    temperature=temperature,
+                )
 
-                        sampling_params = SamplingParams(
-                            max_tokens=max_new_tokens,
-                            temperature=temperature,
-                        )
+                logger.info(f"Generating {len(formatted_prompts)} responses with VLLM continuous batching...")
+                outputs = vllm_model.llm.generate(
+                    prompts=formatted_prompts,
+                    sampling_params=sampling_params,
+                    use_tqdm=True  # Let VLLM show its own progress bar
+                )
 
-                        outputs = vllm_model.llm.generate(
-                            prompts=batch_prompts,
-                            sampling_params=sampling_params,
-                            use_tqdm=False
-                        )
-
-                        batch_responses = [output.outputs[0].text.strip() for output in outputs]
-                        all_responses.extend(batch_responses)
-                        pbar.update(len(batch_prompts))
-
+                all_responses = [output.outputs[0].text.strip() for output in outputs]
                 logger.info(f"[steer] Generated {len(all_responses)} responses")
 
             logger.info(f"[steer] Steering context released for experiment '{experiment_id}'")
@@ -850,12 +842,20 @@ def main():
     n_gpus = torch.cuda.device_count()
     print(f"Found {n_gpus} GPUs available")
 
-    # Determine GPU IDs to use
-    if args.gpu_id is not None:
+    # Check if CUDA_VISIBLE_DEVICES was already set (e.g., by task spooler)
+    # If so, respect it and don't try to spawn multiple workers
+    cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES')
+    if cuda_visible_devices is not None:
+        print(f"CUDA_VISIBLE_DEVICES already set to: {cuda_visible_devices}")
+        print(f"Running in single-worker mode (managed by external scheduler)")
+        available_gpus = list(range(n_gpus))  # Use all visible GPUs (already filtered by env var)
+    elif args.gpu_id is not None:
+        # Explicit GPU ID specified
         if args.gpu_id < 0 or args.gpu_id >= n_gpus:
             raise ValueError(f"GPU ID {args.gpu_id} is out of range [0, {n_gpus-1}]")
         available_gpus = [args.gpu_id]
     else:
+        # No external constraint, use all GPUs
         available_gpus = list(range(n_gpus))
 
     print(f"Available GPUs: {available_gpus}")
@@ -913,11 +913,11 @@ def main():
                 args.max_new_tokens,
                 args.temperature,
                 args.samples_per_prompt,
-                args.vllm_batch_size,
                 args.tensor_parallel_size,
                 args.gpu_memory_utilization,
                 args.max_model_len,
                 args.dtype,
+                args.thinking,
                 progress_queue
             )
         )

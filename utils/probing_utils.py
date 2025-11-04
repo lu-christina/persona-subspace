@@ -59,7 +59,7 @@ def get_model_layers(model):
     raise AttributeError(error_msg)
 
 
-def load_model(model_name, device=None, max_memory_per_gpu=None, chat_model_name=None):
+def load_model(model_name, device=None, max_memory_per_gpu=None, chat_model_name=None, dtype=torch.bfloat16):
     """Load model and tokenizer
 
     Args:
@@ -70,6 +70,7 @@ def load_model(model_name, device=None, max_memory_per_gpu=None, chat_model_name
             - dict: custom device_map
         max_memory_per_gpu: Optional dict mapping GPU ids to max memory (e.g. {0: "40GiB", 1: "40GiB"})
         chat_model_name: Optional HuggingFace model identifier for tokenizer (if different from base model)
+        dtype: Data type for model weights (default: torch.bfloat16)
     """
     # Load tokenizer from chat_model_name if provided, otherwise from model_name
     tokenizer_source = chat_model_name if chat_model_name else model_name
@@ -81,7 +82,7 @@ def load_model(model_name, device=None, max_memory_per_gpu=None, chat_model_name
 
     # Build model loading kwargs
     model_kwargs = {
-        "torch_dtype": torch.bfloat16,
+        "dtype": dtype,
     }
     
     if max_memory_per_gpu is not None:
