@@ -329,10 +329,17 @@ class VLLMSteeringLM(TemplateLM):
             # Filter out empty strings from stop sequences (used to signal EOS-only for eq_bench)
             stop_sequences = [s for s in stop_sequences if s] if stop_sequences else []
 
+            # Debug: log what stop sequences we're actually using
+            stop_param = stop_sequences if stop_sequences else None
+            if stop_param is None:
+                print(f"[vLLM] Using EOS token only (stop=None)")
+            else:
+                print(f"[vLLM] Using stop sequences: {stop_param}")
+
             sampling_params = SamplingParams(
                 temperature=temperature,
                 max_tokens=max_tokens,
-                stop=stop_sequences if stop_sequences else None,
+                stop=stop_param,
             )
 
             # Generate using the underlying vLLM engine directly for better control
