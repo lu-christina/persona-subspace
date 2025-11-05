@@ -609,7 +609,7 @@ def worker_process(
 
         # Initialize VLLMSteerModel on assigned GPUs
         vllm_model = VLLMSteerModel(vllm_cfg, enforce_eager=True)
-        tokenizer = vllm_model.llm.get_tokenizer()
+        tokenizer = vllm_model.tokenizer
         logger.info(f"VLLM model loaded on GPUs {gpu_str}")
         logger.info(f"Hidden size: {vllm_model.hidden_size}, Layer count: {vllm_model.layer_count}")
 
@@ -672,7 +672,12 @@ def worker_process(
                 formatted_prompts.append(formatted_prompt)
 
             # Apply steering ONCE for this entire experiment
-            with vllm_model.steering(steering_spec):
+            # Use manual push/pop since we're in sync context
+            import asyncio
+            import uuid
+
+            asyncio.run(vllm_model.push_steering_spec(steering_spec))
+            try:
                 logger.info(f"[steer] Steering context active for experiment '{experiment_id}'")
 
                 # Generate ALL responses for this experiment in one steering context
@@ -683,16 +688,29 @@ def worker_process(
                 )
 
                 logger.info(f"Generating {len(formatted_prompts)} responses with VLLM continuous batching...")
-                outputs = vllm_model.llm.generate(
-                    prompts=formatted_prompts,
-                    sampling_params=sampling_params,
-                    use_tqdm=True  # Let VLLM show its own progress bar
-                )
+
+                # Use async generate with proper iteration
+                async def _async_generate():
+                    from tqdm import tqdm
+                    await vllm_model._ensure_engine_initialized()
+                    results = []
+                    for prompt in tqdm(formatted_prompts, desc="Generating"):
+                        request_id = f"gen_{uuid.uuid4().hex}"
+                        final_output = None
+                        async for output in vllm_model._engine.generate(prompt, sampling_params, request_id=request_id):
+                            final_output = output
+                        if final_output is None:
+                            raise RuntimeError(f"No output for prompt")
+                        results.append(final_output)
+                    return results
+
+                outputs = asyncio.run(_async_generate())
 
                 all_responses = [output.outputs[0].text.strip() for output in outputs]
                 logger.info(f"[steer] Generated {len(all_responses)} responses")
-
-            logger.info(f"[steer] Steering context released for experiment '{experiment_id}'")
+            finally:
+                asyncio.run(vllm_model.pop_steering_spec())
+                logger.info(f"[steer] Steering context released for experiment '{experiment_id}'")
 
             # Prepare output rows
             output_rows = []

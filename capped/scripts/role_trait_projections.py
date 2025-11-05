@@ -91,7 +91,7 @@ def load_target_vectors(filepath: str) -> List[Dict[str, Any]]:
                 vec_info['vector'] = torch.from_numpy(vec_info['vector']).bfloat16()
             elif isinstance(vec_info['vector'], torch.Tensor):
                 # Keep original dtype (should be bfloat16)
-                pass
+                vec_info['vector'] = vec_info['vector'].bfloat16()
             else:
                 raise ValueError(f"Vector '{vec_info.get('name', '?')}' must be numpy array or torch tensor")
 

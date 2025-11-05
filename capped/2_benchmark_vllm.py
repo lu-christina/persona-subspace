@@ -68,7 +68,7 @@ class VLLMSteeringLM(TemplateLM):
     def __init__(self, vllm_steer_model: VLLMSteerModel, batch_size: int | str = 1):
         super().__init__()
         self.model = vllm_steer_model
-        self.tokenizer = vllm_steer_model.llm.get_tokenizer()
+        self.tokenizer = vllm_steer_model.tokenizer
         self.tokenizer = configure_pad_token(self.tokenizer)
         # Handle "auto" batch size
         if isinstance(batch_size, str) and batch_size.lower() == "auto":
@@ -77,13 +77,91 @@ class VLLMSteeringLM(TemplateLM):
             self._batch_size = int(batch_size)
         self._max_gen_toks = None
 
+    def _ensure_engine_initialized(self):
+        """Synchronous wrapper to ensure async engine is initialized."""
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            # If we're already in an async context, we can't use run()
+            raise RuntimeError("Cannot initialize engine from within running event loop")
+        except RuntimeError:
+            # No running loop, use asyncio.run() which handles loop creation
+            asyncio.run(self.model._ensure_engine_initialized())
+
+    def _apply_steering_sync(self, steering_spec):
+        """Synchronously apply steering spec."""
+        import asyncio
+        asyncio.run(self.model.push_steering_spec(steering_spec))
+
+    def _remove_steering_sync(self):
+        """Synchronously remove steering spec."""
+        import asyncio
+        asyncio.run(self.model.pop_steering_spec())
+
+    def _generate_sync(self, prompts=None, prompt_token_ids=None, sampling_params=None, use_tqdm=False):
+        """Synchronous wrapper for async generate.
+
+        Args:
+            prompts: String prompt(s) or None if using prompt_token_ids
+            prompt_token_ids: Token ID list(s) or None if using prompts
+            sampling_params: SamplingParams instance
+            use_tqdm: Whether to show progress bar
+        """
+        import asyncio
+        import uuid
+        from vllm.inputs import TokensPrompt
+        from tqdm import tqdm
+
+        async def _async_generate():
+            await self.model._ensure_engine_initialized()
+            results = []
+
+            # Determine input type and normalize to list
+            if prompt_token_ids is not None:
+                # Using token IDs
+                if isinstance(prompt_token_ids[0], int):
+                    # Single list of token IDs
+                    inputs_list = [TokensPrompt(prompt_token_ids=prompt_token_ids)]
+                else:
+                    # List of lists of token IDs
+                    inputs_list = [TokensPrompt(prompt_token_ids=ids) for ids in prompt_token_ids]
+            elif prompts is not None:
+                # Using string prompts
+                if isinstance(prompts, str):
+                    inputs_list = [prompts]
+                else:
+                    inputs_list = prompts
+            else:
+                raise ValueError("Must provide either prompts or prompt_token_ids")
+
+            # Wrap with tqdm if requested
+            iterator = tqdm(inputs_list, desc="Generating") if use_tqdm else inputs_list
+
+            for inp in iterator:
+                request_id = f"gen_{uuid.uuid4().hex}"
+                final_output = None
+                async for output in self.model._engine.generate(inp, sampling_params, request_id=request_id):
+                    final_output = output
+                if final_output is None:
+                    raise RuntimeError(f"No output for prompt")
+                results.append(final_output)
+            return results
+
+        return asyncio.run(_async_generate())
+
     @property
     def eot_token_id(self):
         return self.tokenizer.eos_token_id
 
     @property
     def max_length(self):
-        return self.model.llm.llm_engine.model_config.max_model_len
+        # Try config first, otherwise load from transformers
+        if self.model.cfg.max_model_len is not None:
+            return self.model.cfg.max_model_len
+        # Load from transformers config as fallback
+        from transformers import AutoConfig
+        config = AutoConfig.from_pretrained(self.model.cfg.model_name, trust_remote_code=True)
+        return getattr(config, 'max_position_embeddings', 4096)
 
     @property
     def max_gen_toks(self):
@@ -142,10 +220,9 @@ class VLLMSteeringLM(TemplateLM):
                 logprobs=1,
             )
 
-            outputs = self.model.llm.generate(
+            outputs = self._generate_sync(
                 prompt_token_ids=prompt_token_ids,
                 sampling_params=sampling_params,
-                use_tqdm=True,
             )
 
             for output, (ctx_tokens, cont_tokens) in zip(outputs, ctx_cont_pairs):
@@ -198,10 +275,9 @@ class VLLMSteeringLM(TemplateLM):
                 prompt_logprobs=1,
             )
 
-            outputs = self.model.llm.generate(
+            outputs = self._generate_sync(
                 prompt_token_ids=[tokens],
                 sampling_params=sampling_params,
-                use_tqdm=True,
             )
 
             output = outputs[0]
@@ -250,6 +326,9 @@ class VLLMSteeringLM(TemplateLM):
             temperature = gen_kwargs.get("temperature", 0.0)
             stop_sequences = gen_kwargs.get("until", [])
 
+            # Filter out empty strings from stop sequences (used to signal EOS-only for eq_bench)
+            stop_sequences = [s for s in stop_sequences if s] if stop_sequences else []
+
             sampling_params = SamplingParams(
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -257,10 +336,9 @@ class VLLMSteeringLM(TemplateLM):
             )
 
             # Generate using the underlying vLLM engine directly for better control
-            outputs = self.model.llm.generate(
+            outputs = self._generate_sync(
                 prompts=contexts,
                 sampling_params=sampling_params,
-                use_tqdm=True,
             )
 
             # Extract text from vLLM outputs
@@ -366,12 +444,12 @@ def run_evaluation(
         gen_kwargs["max_gen_toks"] = max_gen_toks
         lm._max_gen_toks = max_gen_toks
 
-    # Fix eq_bench: remove default "\n\n" until constraint to allow model's EOS token
-    # to naturally stop generation. The default fewshot_delimiter of "\n\n" prevents
-    # eq_bench from generating proper responses.
+    # Fix eq_bench: Set until to empty string to signal EOS-only stopping.
+    # The default fewshot_delimiter of "\n\n" prevents eq_bench from generating proper responses.
+    # Using [""] (list with empty string) signals to lm-eval that until IS specified but with no stop strings.
     if any("eq_bench" in task.lower() for task in tasks):
-        gen_kwargs["until"] = None
-        print("[config] Detected eq_bench task, setting until=None to use model's EOS token")
+        gen_kwargs["until"] = [""]
+        print("[config] Detected eq_bench task, setting until=[''] to use model's EOS token")
 
     results = lm_eval.simple_evaluate(
         model=lm,
@@ -648,7 +726,10 @@ def main() -> None:
                     num_interventions = len(steering_spec.layers)
                     print(f"[steer] Applying {num_interventions} projection cap(s) on layers {unique_layers}")
 
-                    with vllm_model.steering(steering_spec):
+                    # Apply steering manually since we're in sync context
+                    import asyncio
+                    asyncio.run(vllm_model.push_steering_spec(steering_spec))
+                    try:
                         print("[steer] Steering active (projection capping only)")
                         results = run_evaluation(
                             lm=lm,
@@ -667,7 +748,9 @@ def main() -> None:
                             thinking=args.thinking,
                             apply_chat_template=args.apply_chat_template,
                         )
-                    print("[steer] Steering removed")
+                    finally:
+                        asyncio.run(vllm_model.pop_steering_spec())
+                        print("[steer] Steering removed")
                 else:
                     # Baseline: no steering
                     print("[baseline] Running without steering")
