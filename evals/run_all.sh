@@ -16,11 +16,11 @@
 #     --output_jsonl /workspace/qwen-3-32b/evals/results/rp_pc1_contrast_susceptibility_50.jsonl \
 #     --model_name Qwen/Qwen3-32B --company Alibaba --name Qwen --thinking false --max_model_len 4096 --dtype bfloat16
 
-ts -G 1 uv run 1_steering_vllm.py \
-    --config_filepath /workspace/qwen-3-32b/evals/configs/rp_pc1_contrast_config.pt \
-    --prompts_file /root/git/persona-subspace/evals/susceptibility/default_50.jsonl \
-    --output_jsonl /workspace/qwen-3-32b/evals/results/rp_pc1_contrast_default_50.jsonl \
-    --model_name Qwen/Qwen3-32B --company Alibaba --name Qwen --thinking false --max_model_len 4096 --dtype bfloat16 --samples_per_prompt 10
+# ts -G 1 uv run 1_steering_vllm.py \
+#     --config_filepath /workspace/qwen-3-32b/evals/configs/rp_pc1_contrast_config.pt \
+#     --prompts_file /root/git/persona-subspace/evals/susceptibility/default_50.jsonl \
+#     --output_jsonl /workspace/qwen-3-32b/evals/results/rp_pc1_contrast_default_50.jsonl \
+#     --model_name Qwen/Qwen3-32B --company Alibaba --name Qwen --thinking false --max_model_len 4096 --dtype bfloat16 --samples_per_prompt 10
 
 # ts -G 2 uv run 1_steering_vllm.py \
 #   --config_filepath /workspace/llama-3.3-70b/evals/configs/rp_pc1_contrast_config.pt \
@@ -90,19 +90,26 @@ ts -G 1 uv run 1_steering_vllm.py \
 #     /workspace/llama-3.3-70b/evals/results/rp_pc1_contrast_susceptibility_50.jsonl \
 #     --output /workspace/llama-3.3-70b/evals/results/rp_pc1_contrast_susceptibility_50_scores.jsonl
 
-uv run 2_jailbreak_judge.py \
-    /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_jailbreak_1100.jsonl \
-    --output /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_jailbreak_1100_scores.jsonl
+# uv run 2_jailbreak_judge.py \
+#     /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_jailbreak_1100.jsonl \
+#     --output /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_jailbreak_1100_scores.jsonl
+
+# uv run 2_jailbreak_judge.py \
+#     /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_default_1100.jsonl \
+#     --output /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_default_1100_scores.jsonl
+
+# uv run 2_susceptibility_judge.py \
+#     /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_default_50.jsonl \
+#     --output /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_default_50_scores.jsonl
+
+# uv run 2_susceptibility_judge.py \
+#     /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_susceptibility_50.jsonl \
+#     --output /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_susceptibility_50_scores.jsonl
 
 uv run 2_jailbreak_judge.py \
-    /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_default_1100.jsonl \
-    --output /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_default_1100_scores.jsonl
+    /workspace/qwen-3-32b/capped/results/pc1_role_trait_jailbreak_1100.jsonl \
+    --output /workspace/qwen-3-32b/capped/results/pc1_role_trait_jailbreak_1100_scores.jsonl
 
-uv run 2_susceptibility_judge.py \
-    /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_default_50.jsonl \
-    --output /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_default_50_scores.jsonl
-
-uv run 2_susceptibility_judge.py \
-    /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_susceptibility_50.jsonl \
-    --output /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_susceptibility_50_scores.jsonl
-
+uv run 2_jailbreak_judge.py \
+    /workspace/llama-3.3-70b/capped/results/pc1_role_trait_jailbreak_1100.jsonl \
+    --output /workspace/llama-3.3-70b/capped/results/pc1_role_trait_jailbreak_1100_scores.jsonl
