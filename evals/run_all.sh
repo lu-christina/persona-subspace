@@ -90,3 +90,19 @@
 #     /workspace/llama-3.3-70b/evals/results/rp_pc1_contrast_susceptibility_50.jsonl \
 #     --output /workspace/llama-3.3-70b/evals/results/rp_pc1_contrast_susceptibility_50_scores.jsonl
 
+uv run 2_jailbreak_judge.py \
+    /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_jailbreak_1100.jsonl \
+    --output /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_jailbreak_1100_scores.jsonl
+
+uv run 2_jailbreak_judge.py \
+    /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_default_1100.jsonl \
+    --output /workspace/gemma-2-27b/evals/results/asst_pc1_contrast_default_1100_scores.jsonl
+
+uv run 2_susceptibility_judge.py \
+    /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_default_50.jsonl \
+    --output /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_default_50_scores.jsonl
+
+uv run 2_susceptibility_judge.py \
+    /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_susceptibility_50.jsonl \
+    --output /workspace/gemma-2-27b/evals/results/rp_pc1_contrast_susceptibility_50_scores.jsonl
+

@@ -12,11 +12,11 @@ BASEDIR="/workspace/llama-3.3-70b/capped/benchmarks"
 
 # Associative array: cap_from -> config_path
 declare -A CONFIGS=(
-  ["role_trait"]="/workspace/llama-3.3-70b/capped/configs/role_trait_config.pt"
+  ["role_trait"]="/workspace/llama-3.3-70b/capped/configs/pc1/role_trait_config.pt"
 )
 
 # ===== Eval settings =====
-TASKS="eq_bench"
+TASKS="mmlu_pro"
 LIMIT=100
 SEED=42
 FEWSHOT=0
