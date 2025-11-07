@@ -1606,7 +1606,7 @@ def process_batch_conversations_no_code(model, tokenizer, conversations, max_len
     return conversation_activations
 
 
-def mean_all_turn_activations(model, tokenizer, conversation, layer=15, **chat_kwargs):
+def mean_all_turn_activations(model, tokenizer, conversation, layer=15, chat_format=True, **chat_kwargs):
     """
     Get mean activations for all turns in a conversation using build_turn_spans and extract_full_activations.
 
@@ -1627,7 +1627,7 @@ def mean_all_turn_activations(model, tokenizer, conversation, layer=15, **chat_k
 
     # Extract full activations for the conversation
     activations = extract_full_activations(
-        model, tokenizer, conversation, layer=layer, chat_format=True, **chat_kwargs
+        model, tokenizer, conversation, layer=layer, chat_format=chat_format, **chat_kwargs
     )
 
     # Handle the case where extract_full_activations returns multi-layer format

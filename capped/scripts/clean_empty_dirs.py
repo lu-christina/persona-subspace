@@ -19,7 +19,14 @@ def find_empty_dirs(base_dir):
     for root, dirs, _ in os.walk(base_dir, topdown=False):
         for dirname in dirs:
             dirpath = os.path.join(root, dirname)
-            if not os.listdir(dirpath):
+            contents = os.listdir(dirpath)
+            # Consider empty if no contents, or only contains a 'latest' symlink
+            is_empty = (
+                not contents or
+                (len(contents) == 1 and contents[0] == 'latest' and
+                 os.path.islink(os.path.join(dirpath, 'latest')))
+            )
+            if is_empty:
                 empty_dirs.append(dirpath)
     return sorted(empty_dirs)
 
@@ -45,6 +52,14 @@ def main():
     if response == 'y':
         for d in empty_dirs:
             try:
+                # Remove any contents (like 'latest' symlink) before removing directory
+                contents = os.listdir(d)
+                for item in contents:
+                    item_path = os.path.join(d, item)
+                    if os.path.islink(item_path):
+                        os.unlink(item_path)
+                    elif os.path.isfile(item_path):
+                        os.remove(item_path)
                 os.rmdir(d)
                 print(f"Deleted: {d}")
             except Exception as e:

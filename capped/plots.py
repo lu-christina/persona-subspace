@@ -14,15 +14,17 @@ CONFIG_COLORS = {
     'baseline': '#2ca02c',      # green
     'role_trait': '#ff7f0e',    # orange
     'jailbreak': '#d62728',     # red
-    'lmsys_10000': '#9467bd'    # purple
+    'lmsys_10000': '#9467bd',   # purple
+    'pc1_role_trait': '#1f77b4' # blue
 }
 
 # Display names for configs
 CONFIG_DISPLAY_NAMES = {
     'baseline': 'Baseline',
-    'role_trait': 'Role/Trait Rollouts',
+    'role_trait': 'Contrast Vector',
     'jailbreak': 'Jailbreak Rollouts',
-    'lmsys_10000': 'LMSYS-10K Rollouts'
+    'lmsys_10000': 'LMSYS-10K Rollouts',
+    'pc1_role_trait': 'Role PC1'
 }
 
 # Config ordering for consistent sorting (baseline first)
@@ -30,7 +32,8 @@ CONFIG_ORDER = {
     'baseline': 0,
     'role_trait': 1,
     'jailbreak': 2,
-    'lmsys_10000': 3
+    'lmsys_10000': 3,
+    'pc1_role_trait': 4
 }
 
 

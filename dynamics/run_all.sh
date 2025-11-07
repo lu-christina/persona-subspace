@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-uv run 0_auto_conversation_parallel.py \
-	--target-model google/gemma-2-27b-it \
-	--auditor-model openai/gpt-5-chat \
-	--output-dir /root/git/persona-subspace/dynamics/results/gemma-2-27b/gpt-5/transcripts \
-	--max-model-len 8192
+EXP_IDS=(
+	"layers_46:54-p0.25"
+	"layers_56:60-p0.25"
+	"layers_52:56-p0.25"
+)
 
-uv run 0_auto_conversation_parallel.py \
-	--target-model Qwen/Qwen3-32B \
-	--auditor-model openai/gpt-5-chat \
-	--output-dir /root/git/persona-subspace/dynamics/results/qwen-3-32b/gpt-5/transcripts \
-	--max-model-len 30000
+for exp_id in "${EXP_IDS[@]}"; do
+	ts -G 1 uv run scripts/steer_transcript.py --transcript /root/git/persona-subspace/dynamics/results/qwen-3-32b/interactive/medical.json --config /workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt --experiment_id $exp_id --output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/steered/${exp_id}-medical.json --model_name Qwen/Qwen3-32B
+done

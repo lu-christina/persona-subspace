@@ -6,11 +6,11 @@ This script replays user turns from an existing transcript with a steered model 
 It maintains multi-turn conversation context and applies steering from experiment configurations.
 
 Example usage:
-python dynamics/scripts/replay_transcript_with_steering.py \
+uv run steer_transcript.py \
     --transcript /root/git/persona-subspace/dynamics/results/qwen-3-32b/interactive/philosophy.json \
     --config /workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt \
-    --experiment_id "layers_32:36-p0.01" \
-    --output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/steered/philosophy_steered.json \
+    --experiment_id "layers_54:58-p0.25" \
+    --output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/steered/philosophy.json \
     --model_name "Qwen/Qwen3-32B"
 """
 
@@ -240,7 +240,7 @@ def replay_with_steering(
                 formatted_prompt,
                 return_tensors="pt",
                 truncation=True,
-                max_length=2048
+                max_length=40960
             ).to(model.device)
 
             # Generate response with steering
@@ -340,7 +340,7 @@ def parse_arguments():
     parser.add_argument(
         "--max_new_tokens",
         type=int,
-        default=1024,
+        default=2048,
         help="Maximum new tokens to generate"
     )
 

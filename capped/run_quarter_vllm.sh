@@ -7,30 +7,30 @@ set -euo pipefail
 JOB_NUMBER="${1:-0}"
 
 # ===== Paths & model =====
-MODEL="meta-llama/Llama-3.3-70B-Instruct"
-BASEDIR="/workspace/llama-3.3-70b/capped/benchmarks"
+MODEL="Qwen/Qwen3-32B"
+BASEDIR="/workspace/qwen-3-32b/capped/benchmarks"
 
 # Associative array: cap_from -> config_path
 declare -A CONFIGS=(
-  ["pc1_role_trait"]="/workspace/llama-3.3-70b/capped/configs/pc1/role_trait_config.pt"
+  ["role_trait"]="/workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt"
 )
 
 # ===== Eval settings =====
-TASKS="ifeval"
+TASKS="gsm8k"
 LIMIT=1000
 SEED=16
 FEWSHOT=0
 DTYPE="float16"
 
 # ===== vLLM-specific settings =====
-TENSOR_PARALLEL=2
+TENSOR_PARALLEL=1
 GPU_MEM_UTIL=0.95
 MAX_MODEL_LEN=2048
 
 # Filter pattern for experiment IDs (set to empty string to disable filtering)
 FILTER_PATTERN=""
 # Skip experiments that already have results (set to empty string to disable skip check)
-SKIP_EXISTING="yes"
+SKIP_EXISTING=""
 
 # ===== Env & prep =====
 export TORCH_ALLOW_TF32=1
@@ -136,7 +136,7 @@ PY
   echo ">>> Queue ${CAP_FROM} : ${#SELECTED_IDS[@]} experiments : MMLU-Pro (batch=auto) -> ${OUTPUT_PATH}/"
   echo "    Experiment IDs: ${SELECTED_IDS[*]}"
 
-  ts -G 2 uv run 2_benchmark_vllm.py \
+  ts -G 1 uv run 2_benchmark_vllm.py \
     --config_filepath "$CFG" \
     --experiment_ids "${SELECTED_IDS[@]}" \
     --model_name "$MODEL" \
