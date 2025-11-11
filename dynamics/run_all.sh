@@ -8,5 +8,5 @@ EXP_IDS=(
 )
 
 for exp_id in "${EXP_IDS[@]}"; do
-	ts -G 1 uv run scripts/steer_transcript.py --transcript /root/git/persona-subspace/dynamics/results/qwen-3-32b/interactive/medical.json --config /workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt --experiment_id $exp_id --output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/steered/${exp_id}-medical.json --model_name Qwen/Qwen3-32B
+	ts -G 1 uv run scripts/steer_transcript.py --transcript /root/git/persona-subspace/dynamics/results/qwen-3-32b/kimi-k2/delusion.json --config /workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt --experiment_id $exp_id --output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/steered/${exp_id}-delusion.json --model_name Qwen/Qwen3-32B
 done

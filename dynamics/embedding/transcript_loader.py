@@ -15,16 +15,18 @@ def load_transcript_dataset(
     input_root: Path,
     auditor_models: list[str],
     text_field: str = "text",
-    max_rows: int | None = None,
+    max_rows: int | None = None,  # Kept for API compatibility but not used
 ) -> Iterator[dict[str, Any]]:
     """
     Load transcript JSON files and yield user turns for embedding.
+
+    Note: max_rows limiting is handled by chatspace's _rows_from_dataset, not here.
 
     Args:
         input_root: Base path like /workspace/{model_short}/dynamics
         auditor_models: List of auditor model short names (e.g., ["gpt-5", "sonnet-4.5"])
         text_field: Name of field to put user message text in (default: "text")
-        max_rows: Optional limit on total number of rows to yield
+        max_rows: Ignored (for API compatibility only)
 
     Yields:
         Dictionary with fields:
@@ -42,8 +44,6 @@ def load_transcript_dataset(
     # Extract short model name from input_root path
     # E.g., /workspace/qwen-3-32b/dynamics -> qwen-3-32b
     short_model = input_root.parent.name
-
-    rows_yielded = 0
 
     for auditor_short in auditor_models:
         # Construct path: {input_root}/{auditor}/default/transcripts/
@@ -129,7 +129,3 @@ def load_transcript_dataset(
                 }
 
                 yield row
-
-                rows_yielded += 1
-                if max_rows is not None and rows_yielded >= max_rows:
-                    return

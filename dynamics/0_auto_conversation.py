@@ -3,8 +3,10 @@ import os
 import sys
 import logging
 import json
+import re
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
+from dataclasses import dataclass
 import openai
 
 from dotenv import load_dotenv
@@ -21,6 +23,47 @@ load_dotenv()
 
 DEFAULT_PERSONAS_FILE = "/root/git/persona-subspace/dynamics/data/personas/personas.jsonl"
 DEFAULT_OUTPUT_DIR = "/root/git/persona-subspace/dynamics/results"
+
+
+@dataclass
+class PersonaInput:
+    """Input configuration for persona-based conversations"""
+    input_type: str
+    domain: str
+    persona_id: int
+    persona: str
+    topic_id: int
+    topic: str
+    system_prompt: str
+
+
+@dataclass
+class InstructionInput:
+    """Input configuration for instruction-file-based conversations"""
+    input_type: str
+    system_prompt: str        # auditor system prompt
+    first_message: str        # content from instruction file
+    instruction: str          # copy for output metadata
+    source_file: str          # basename like "isolation" for filename
+
+
+def strip_internal_state(message: str) -> str:
+    """
+    Remove <INTERNAL_STATE>...</INTERNAL_STATE> tags from a message.
+
+    Args:
+        message: The message potentially containing internal state tags
+
+    Returns:
+        The message with internal state tags and their content removed
+    """
+    # Remove internal state tags and everything between them
+    pattern = r'<INTERNAL_STATE>.*?</INTERNAL_STATE>'
+    cleaned = re.sub(pattern, '', message, flags=re.DOTALL)
+    # Clean up any extra whitespace that might be left
+    cleaned = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned)
+    return cleaned.strip()
+
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -82,8 +125,19 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--max-model-len",
         type=int,
-        default=8192,
+        default=40960,
         help="Maximum sequence length for the target model (default: 8192)"
+    )
+    parser.add_argument(
+        "--instruction-file",
+        type=str,
+        help="Text file containing instruction for the first user message (mutually exclusive with --personas-file)"
+    )
+    parser.add_argument(
+        "--auditor-system-prompt",
+        type=str,
+        default="red_team_system_prompt",
+        help="Name of the system prompt from prompts.py to use for auditor model (default: red_team_system_prompt)"
     )
 
     return parser.parse_args()
@@ -123,6 +177,40 @@ def load_personas_and_topics(personas_file: str) -> List[Dict[str, Any]]:
                 })
 
     return personas_data
+
+def load_instruction_file_inputs(instruction_file: str, system_prompt_name: str = "red_team_system_prompt") -> List[InstructionInput]:
+    """
+    Load instruction file and create input configuration.
+
+    Args:
+        instruction_file: Path to text file containing the first user message
+        system_prompt_name: Name of the system prompt in PROMPTS dict
+
+    Returns:
+        List containing a single InstructionInput (list for future extensibility)
+    """
+    # Read the instruction file
+    with open(instruction_file, "r") as f:
+        first_message = f.read()
+
+    # Get system prompt from PROMPTS
+    if system_prompt_name not in PROMPTS:
+        raise ValueError(f"System prompt '{system_prompt_name}' not found in PROMPTS")
+    system_prompt = PROMPTS[system_prompt_name]
+
+    # Extract source file basename (without extension)
+    source_file = Path(instruction_file).stem
+
+    # Create InstructionInput
+    instruction_input = InstructionInput(
+        input_type="instruction",
+        system_prompt=system_prompt,
+        first_message=first_message,
+        instruction=first_message,  # Copy for metadata
+        source_file=source_file
+    )
+
+    return [instruction_input]
 
 def load_target_prompts(target_prompts_file: str) -> List[Dict[str, Any]]:
     """
@@ -170,47 +258,65 @@ class ConversationRunner:
 
     def is_end_conversation_signal(self, message: str) -> bool:
         """Check if the message contains an end conversation signal."""
-        message_clean = message.strip()
-        return message_clean == 'END_CONVERSATION' or message_clean == '<END_CONVERSATION>'
+        return 'END_CONVERSATION' in message or '<END_CONVERSATION>' in message
 
-    def generate_transcript_filename(self, data: Dict[str, Any]) -> str:
-        """Generate transcript filename for given persona data or transcript."""
-        return f"{data['domain']}_persona{data['persona_id']}_topic{data['topic_id']}.json"
+    def generate_transcript_filename(self, data: Union[Dict[str, Any], PersonaInput, InstructionInput]) -> str:
+        """Generate transcript filename for given input data or transcript."""
+        # Handle dataclass inputs
+        if isinstance(data, InstructionInput):
+            return f"{data.source_file}.json"
+        elif isinstance(data, PersonaInput):
+            return f"{data.domain}_persona{data.persona_id}_topic{data.topic_id}.json"
+        # Handle dict (for transcript dicts)
+        elif isinstance(data, dict):
+            if 'domain' in data:
+                # Persona-based transcript
+                return f"{data['domain']}_persona{data['persona_id']}_topic{data['topic_id']}.json"
+            elif 'source_file' in data:
+                # Instruction-based transcript
+                return f"{data['source_file']}.json"
+        raise ValueError(f"Unknown data type for filename generation: {type(data)}")
 
-    def check_existing_transcripts(self, personas_data: List[Dict[str, Any]], target_prompts: Optional[List[Dict[str, Any]]] = None):
-        """Filter out persona data (and target prompts) that already have existing transcripts."""
+    def check_existing_transcripts(self, inputs_data: List[Union[PersonaInput, InstructionInput]], target_prompts: Optional[List[Dict[str, Any]]] = None):
+        """Filter out input data (and target prompts) that already have existing transcripts."""
         missing_combinations = []
         existing_count = 0
 
+        # Note: target_prompts are only used with PersonaInput, not InstructionInput
         if target_prompts:
             # When using target prompts, check each persona + target_prompt combination
-            total_combinations = len(personas_data) * len(target_prompts)
+            total_combinations = len(inputs_data) * len(target_prompts)
 
-            for persona_data in personas_data:
+            for input_data in inputs_data:
+                if isinstance(input_data, InstructionInput):
+                    # InstructionInput doesn't support target_prompts pathway
+                    logger.warning("InstructionInput does not support target_prompts, skipping")
+                    continue
+
                 for target_prompt in target_prompts:
                     # Build path with role subdirectory
                     role_dir = self.output_dir / target_prompt["role"]
-                    filename = self.generate_transcript_filename(persona_data)
+                    filename = self.generate_transcript_filename(input_data)
                     file_path = role_dir / filename
 
                     if file_path.exists():
                         existing_count += 1
                         logger.info(f"Skipping existing transcript: {target_prompt['role']}/{filename}")
                     else:
-                        missing_combinations.append((persona_data, target_prompt))
+                        missing_combinations.append((input_data, target_prompt))
 
             logger.info(f"Found {existing_count} existing transcripts, {len(missing_combinations)} combinations to process (out of {total_combinations} total)")
         else:
             # Original behavior when no target prompts provided
-            for persona_data in personas_data:
-                filename = self.generate_transcript_filename(persona_data)
+            for input_data in inputs_data:
+                filename = self.generate_transcript_filename(input_data)
                 file_path = self.output_dir / filename
 
                 if file_path.exists():
                     existing_count += 1
                     logger.info(f"Skipping existing transcript: {filename}")
                 else:
-                    missing_combinations.append((persona_data, None))
+                    missing_combinations.append((input_data, None))
 
             logger.info(f"Found {existing_count} existing transcripts, {len(missing_combinations)} to process")
 
@@ -299,20 +405,28 @@ class ConversationRunner:
             logger.error(f"Error getting target response: {e}")
             raise
 
-    def run_conversation(self, persona_data: Dict[str, Any], num_turns: int, target_prompt: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def run_conversation(self, input_data: Union[PersonaInput, InstructionInput], num_turns: int, target_prompt: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Run a single conversation between auditor and target."""
-        logger.info(f"Starting conversation for persona {persona_data['persona_id']}, topic {persona_data['topic_id']}")
+        # Log based on input type
+        if isinstance(input_data, PersonaInput):
+            logger.info(f"Starting conversation for persona {input_data.persona_id}, topic {input_data.topic_id}")
+        elif isinstance(input_data, InstructionInput):
+            logger.info(f"Starting conversation for instruction file: {input_data.source_file}")
 
         if target_prompt:
             logger.info(f"Using target prompt: {target_prompt['role']} (index {target_prompt['prompt_index']})")
 
         # Initialize conversation contexts
-        auditor_messages = [{"role": "system", "content": persona_data["system_prompt"]}]
+        auditor_messages = [{"role": "system", "content": input_data.system_prompt}]
         target_messages = []
         full_conversation = []
 
         # Extract target system prompt if available
         target_system_prompt = target_prompt["system_prompt"] if target_prompt else None
+
+        # For InstructionInput, add the first message from the file to auditor context
+        if isinstance(input_data, InstructionInput):
+            auditor_messages.append({"role": "user", "content": input_data.first_message})
 
         # Auditor starts the conversation
         try:
@@ -327,15 +441,25 @@ class ConversationRunner:
                 transcript = {
                     "model": self.target_model_name,
                     "auditor_model": self.auditor_model_name,
-                    "domain": persona_data["domain"],
-                    "persona_id": persona_data["persona_id"],
-                    "persona": persona_data["persona"],
-                    "topic_id": persona_data["topic_id"],
-                    "topic": persona_data["topic"],
                     "turns": len(full_conversation),
                     "conversation": full_conversation,
                     "ended_early": True
                 }
+
+                # Add input-specific fields
+                if isinstance(input_data, PersonaInput):
+                    transcript.update({
+                        "domain": input_data.domain,
+                        "persona_id": input_data.persona_id,
+                        "persona": input_data.persona,
+                        "topic_id": input_data.topic_id,
+                        "topic": input_data.topic
+                    })
+                elif isinstance(input_data, InstructionInput):
+                    transcript.update({
+                        "instruction": input_data.instruction,
+                        "source_file": input_data.source_file
+                    })
 
                 # Add target prompt metadata if available
                 if target_prompt:
@@ -347,7 +471,8 @@ class ConversationRunner:
 
             # Add to conversation contexts
             auditor_messages.append({"role": "assistant", "content": auditor_response})
-            target_messages.append({"role": "user", "content": auditor_response})
+            # Strip internal state tags before sending to target
+            target_messages.append({"role": "user", "content": strip_internal_state(auditor_response)})
             full_conversation.append({"role": "user", "content": auditor_response})
 
             # Alternate between target and auditor for remaining turns
@@ -367,7 +492,8 @@ class ConversationRunner:
                 # Auditor responds
                 auditor_response = self.get_auditor_response(auditor_messages)
                 auditor_messages.append({"role": "assistant", "content": auditor_response})
-                target_messages.append({"role": "user", "content": auditor_response})
+                # Strip internal state tags before sending to target
+                target_messages.append({"role": "user", "content": strip_internal_state(auditor_response)})
                 full_conversation.append({"role": "user", "content": auditor_response})
 
                 # Check if auditor wants to end conversation
@@ -383,14 +509,24 @@ class ConversationRunner:
         transcript = {
             "model": self.target_model_name,
             "auditor_model": self.auditor_model_name,
-            "domain": persona_data["domain"],
-            "persona_id": persona_data["persona_id"],
-            "persona": persona_data["persona"],
-            "topic_id": persona_data["topic_id"],
-            "topic": persona_data["topic"],
             "turns": len(full_conversation),
             "conversation": full_conversation
         }
+
+        # Add input-specific fields
+        if isinstance(input_data, PersonaInput):
+            transcript.update({
+                "domain": input_data.domain,
+                "persona_id": input_data.persona_id,
+                "persona": input_data.persona,
+                "topic_id": input_data.topic_id,
+                "topic": input_data.topic
+            })
+        elif isinstance(input_data, InstructionInput):
+            transcript.update({
+                "instruction": input_data.instruction,
+                "source_file": input_data.source_file
+            })
 
         # Add target prompt metadata if available
         if target_prompt:
@@ -435,9 +571,40 @@ def main():
         logger.error("OPENROUTER_API_KEY not found in environment variables")
         sys.exit(1)
 
-    # Load personas and topics
-    personas_data = load_personas_and_topics(args.personas_file)
-    logger.info(f"Loaded {len(personas_data)} conversation topics")
+    # Check for mutual exclusivity between --personas-file and --instruction-file
+    if args.instruction_file and args.personas_file != DEFAULT_PERSONAS_FILE:
+        logger.error("Cannot specify both --instruction-file and --personas-file")
+        sys.exit(1)
+
+    # Load inputs based on mode
+    inputs_data: List[Union[PersonaInput, InstructionInput]]
+    if args.instruction_file:
+        # Instruction-file mode
+        inputs_data = load_instruction_file_inputs(args.instruction_file, args.auditor_system_prompt)
+        logger.info(f"Loaded instruction file: {args.instruction_file}")
+
+        # Warn if target_prompts is specified (not supported for instruction mode)
+        if args.target_prompts:
+            logger.warning("--target-prompts is not supported with --instruction-file, ignoring")
+            args.target_prompts = None
+    else:
+        # Persona mode (default)
+        personas_dict_list = load_personas_and_topics(args.personas_file)
+        logger.info(f"Loaded {len(personas_dict_list)} conversation topics")
+
+        # Convert dict list to PersonaInput list
+        inputs_data = [
+            PersonaInput(
+                input_type="persona",
+                domain=p["domain"],
+                persona_id=p["persona_id"],
+                persona=p["persona"],
+                topic_id=p["topic_id"],
+                topic=p["topic"],
+                system_prompt=p["system_prompt"]
+            )
+            for p in personas_dict_list
+        ]
 
     # Load target prompts if provided
     target_prompts = None
@@ -454,19 +621,19 @@ def main():
         if start >= end:
             logger.error("Interval start must be less than end")
             sys.exit(1)
-        if start >= len(personas_data):
-            logger.error(f"Interval start ({start}) is beyond available data ({len(personas_data)} topics)")
+        if start >= len(inputs_data):
+            logger.error(f"Interval start ({start}) is beyond available data ({len(inputs_data)} inputs)")
             sys.exit(1)
 
         # Apply interval filtering
-        end = min(end, len(personas_data))  # Cap end at available data length
-        personas_data = personas_data[start:end]
-        logger.info(f"Interval mode: running conversations {start} to {end-1} ({len(personas_data)} topics)")
+        end = min(end, len(inputs_data))  # Cap end at available data length
+        inputs_data = inputs_data[start:end]
+        logger.info(f"Interval mode: running conversations {start} to {end-1} ({len(inputs_data)} inputs)")
 
     # Filter for test mode
     if args.test_mode:
-        personas_data = personas_data[:1]
-        logger.info("Test mode: running only first conversation topic")
+        inputs_data = inputs_data[:1]
+        logger.info("Test mode: running only first conversation input")
 
     # Initialize conversation runner
     runner = ConversationRunner(args.target_model, args.auditor_model, args.output_dir, target_prompts, args.max_model_len)
@@ -474,7 +641,7 @@ def main():
     # Check for existing transcripts unless overwrite is specified
     if not args.overwrite:
         logger.info("Checking for existing transcripts...")
-        missing_combinations = runner.check_existing_transcripts(personas_data, target_prompts)
+        missing_combinations = runner.check_existing_transcripts(inputs_data, target_prompts)
         if len(missing_combinations) == 0:
             logger.info("All conversations already completed. Use --overwrite to re-run.")
             return
@@ -482,11 +649,11 @@ def main():
         logger.info("Overwrite mode: will re-run all conversations")
         # Build all combinations for overwrite mode
         if target_prompts:
-            missing_combinations = [(persona_data, target_prompt)
-                                  for persona_data in personas_data
+            missing_combinations = [(input_data, target_prompt)
+                                  for input_data in inputs_data
                                   for target_prompt in target_prompts]
         else:
-            missing_combinations = [(persona_data, None) for persona_data in personas_data]
+            missing_combinations = [(input_data, None) for input_data in inputs_data]
 
     try:
         # Setup models
@@ -496,12 +663,12 @@ def main():
         total_conversations = len(missing_combinations)
         conversation_count = 0
 
-        for persona_data, target_prompt in missing_combinations:
+        for input_data, target_prompt in missing_combinations:
             conversation_count += 1
             logger.info(f"Running conversation {conversation_count}/{total_conversations}")
 
             try:
-                transcript = runner.run_conversation(persona_data, args.num_turns, target_prompt)
+                transcript = runner.run_conversation(input_data, args.num_turns, target_prompt)
                 runner.save_transcript(transcript)
             except Exception as e:
                 logger.error(f"Failed to run conversation {conversation_count}: {e}")

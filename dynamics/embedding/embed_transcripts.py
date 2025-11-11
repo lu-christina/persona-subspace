@@ -14,13 +14,15 @@ Usage:
 import argparse
 import logging
 import sys
+from functools import partial
 from pathlib import Path
 
-# Import chatspace config
+# Import chatspace components
 from chatspace.hf_embed.config import SentenceTransformerConfig
+from chatspace.hf_embed.pipeline import run_sentence_transformer
 
-# Import our custom pipeline
-from pipeline import run_transcript_embedding
+# Import our custom transcript loader
+from transcript_loader import load_transcript_dataset
 
 
 def parse_args():
@@ -127,28 +129,51 @@ def main():
     auditor_models = [name.strip() for name in args.auditor_models.split(",")]
     logging.info(f"Processing auditor models: {auditor_models}")
 
-    # Determine output directory
-    if args.output_dir:
-        output_dir = args.output_dir
-    else:
-        output_dir = args.input_root / "embedding" / "user_turns"
-
-    logging.info(f"Output directory: {output_dir}")
-
     # Extract short model name from input_root path
     # E.g., /workspace/qwen-3-32b/dynamics -> qwen-3-32b
     short_model = args.input_root.parent.name
 
-    # Create chatspace config
-    # We'll use synthetic "dataset" and "split" names for path construction
+    # Determine output directory
+    # Chatspace flat mode (dataset="."): {output_root}/{split}/ and {output_root}/indexes/
+    # Result:
+    #   - Shards: /workspace/qwen-3-32b/dynamics/embedding/user_turns/
+    #   - Indexes: /workspace/qwen-3-32b/dynamics/embedding/indexes/
+    # We set output_root to: /workspace/qwen-3-32b/dynamics/embedding
+    if args.output_dir:
+        # User specified custom output
+        output_root = args.output_dir.parent
+        split_name = args.output_dir.name
+    else:
+        # Default structure
+        output_root = args.input_root / "embedding"
+        split_name = "user_turns"
+
+    logging.info(f"Output shards: {output_root}/{split_name}/")
+    logging.info(f"Output indexes: {output_root}/indexes/")
+    logging.info(f"Loading transcripts from: {args.input_root}")
+
+    # Create a factory function using partial - this is picklable for multiprocessing
+    dataset_factory = partial(
+        load_transcript_dataset,
+        input_root=args.input_root,
+        auditor_models=auditor_models,
+        text_field=args.text_field,
+        max_rows=args.max_rows,
+    )
+
+    # Create chatspace config with custom dataset factory
     config = SentenceTransformerConfig(
-        # Required fields (synthetic for our use case)
-        dataset="transcripts",  # Synthetic dataset name
+        # Model configuration - use full model name for loading
         model_name=args.embedding_model,
 
-        # Path configuration
-        output_root=output_dir.parent,  # Parent of user_turns/
-        split="user_turns",  # Will create subdirectory
+        # Path configuration - use simple names to minimize directory nesting
+        # Result: {output_root}/embeddings/default/./user_turns/
+        dataset=".",  # Minimal dataset name
+        output_root=output_root,
+        split=split_name,
+
+        # Custom dataset factory (returns an iterator when called)
+        custom_dataset_factory=dataset_factory,
 
         # Text field
         text_field=args.text_field,
@@ -173,7 +198,7 @@ def main():
         logging.info(f"Starting embedding pipeline for model: {short_model}")
         logging.info(f"Embedding model: {args.embedding_model}")
 
-        result = run_transcript_embedding(config, args.input_root, auditor_models)
+        result = run_sentence_transformer(config)
 
         logging.info("Pipeline completed successfully!")
         logging.info(f"Manifest: {result.get('manifest_path')}")
