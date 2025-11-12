@@ -120,8 +120,10 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
                 max_length=max_length
             )
             
-            input_ids = batch_tokens["input_ids"].to(model.device)
-            attention_mask = batch_tokens["attention_mask"].to(model.device)
+            # Get device from model parameters (handles distributed models)
+            device = next(model.parameters()).device
+            input_ids = batch_tokens["input_ids"].to(device)
+            attention_mask = batch_tokens["attention_mask"].to(device)
             
             # Get response indices for this batch
             batch_response_indices = get_response_indices_batch(batch_conversations, tokenizer, model_name, **chat_kwargs)
@@ -594,24 +596,24 @@ class OptimizedRoleActivationExtractor:
             logger.info("Final cleanup completed")
 
 
-def process_roles_on_gpu_optimized(gpu_id, role_names, args, prompt_indices=None):
-    """Process a subset of roles on a specific GPU using optimized extraction."""
-    # Set the GPU for this process
-    torch.cuda.set_device(gpu_id)
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
-    
+def process_roles_on_worker(worker_id, gpu_ids, role_names, args, prompt_indices=None):
+    """Process a subset of roles on a worker with tensor parallelism support."""
+    # Set CUDA_VISIBLE_DEVICES for this worker's GPU subset
+    gpu_ids_str = ','.join(map(str, gpu_ids))
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_ids_str
+
     # Set up logging for this process
-    logger = logging.getLogger(f"GPU-{gpu_id}")
+    logger = logging.getLogger(f"Worker-{worker_id}")
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(f'%(asctime)s - GPU-{gpu_id} - %(levelname)s - %(message)s')
+    formatter = logging.Formatter(f'%(asctime)s - Worker-{worker_id}[GPUs:{gpu_ids_str}] - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
-    
-    logger.info(f"Starting optimized processing on GPU {gpu_id} with {len(role_names)} roles")
+
+    logger.info(f"Starting processing on Worker {worker_id} with GPUs {gpu_ids} and {len(role_names)} roles")
     
     try:
-        # Create optimized extractor for this GPU
+        # Create optimized extractor for this worker
         extractor = OptimizedRoleActivationExtractor(
             model_name=args.model_name,
             responses_dir=args.responses_dir,
@@ -625,15 +627,15 @@ def process_roles_on_gpu_optimized(gpu_id, role_names, args, prompt_indices=None
             chat_model_name=args.chat_model,
             thinking=args.thinking
         )
-        
-        # Load model on this specific GPU
-        extractor.load_model(device=f"cuda:{gpu_id}")
+
+        # Load model with automatic device mapping (supports tensor parallelism)
+        extractor.load_model(device="auto")
         
         # Process assigned roles with progress tracking
         completed_count = 0
         failed_count = 0
-        
-        with tqdm(role_names, desc=f"GPU-{gpu_id} roles", unit="role", position=gpu_id) as role_pbar:
+
+        with tqdm(role_names, desc=f"Worker-{worker_id} roles", unit="role", position=worker_id) as role_pbar:
             for role_name in role_pbar:
                 role_pbar.set_postfix(role=role_name[:15], refresh=True)
                 
@@ -651,27 +653,48 @@ def process_roles_on_gpu_optimized(gpu_id, role_names, args, prompt_indices=None
                     role_pbar.set_postfix(role=role_name[:15], status="✗", refresh=True)
                     logger.error(f"Exception processing role {role_name}: {e}")
         
-        logger.info(f"GPU {gpu_id} completed: {completed_count} successful, {failed_count} failed")
-        
+        logger.info(f"Worker {worker_id} completed: {completed_count} successful, {failed_count} failed")
+
     except Exception as e:
-        logger.error(f"Fatal error on GPU {gpu_id}: {e}")
-        
+        logger.error(f"Fatal error on Worker {worker_id}: {e}")
+
     finally:
         # Cleanup
         if 'extractor' in locals():
             extractor.close_model()
-        logger.info(f"GPU {gpu_id} cleanup completed")
+        logger.info(f"Worker {worker_id} cleanup completed")
 
 
-def run_multi_gpu_optimized(args, prompt_indices):
-    """Run optimized multi-GPU processing with role distribution."""
-    # Parse GPU IDs
-    if args.gpu_ids:
-        gpu_ids = [int(x.strip()) for x in args.gpu_ids.split(',')]
+def run_multi_worker(args, prompt_indices):
+    """Run multi-worker processing with tensor parallelism support."""
+    # Get available GPUs from CUDA_VISIBLE_DEVICES or torch.cuda
+    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+        gpu_ids = [int(x.strip()) for x in os.environ['CUDA_VISIBLE_DEVICES'].split(',') if x.strip()]
     else:
-        gpu_ids = list(range(args.num_gpus))
-    
-    logger.info(f"Using GPUs: {gpu_ids}")
+        gpu_ids = list(range(torch.cuda.device_count()))
+
+    total_gpus = len(gpu_ids)
+
+    if total_gpus == 0:
+        logger.error("No GPUs available. Please set CUDA_VISIBLE_DEVICES or ensure CUDA is available.")
+        return 1
+
+    # Calculate number of workers based on tensor parallel size
+    tensor_parallel_size = args.tensor_parallel_size
+
+    if tensor_parallel_size > total_gpus:
+        logger.error(f"tensor-parallel-size ({tensor_parallel_size}) cannot be greater than available GPUs ({total_gpus})")
+        return 1
+
+    num_workers = total_gpus // tensor_parallel_size
+
+    if total_gpus % tensor_parallel_size != 0:
+        logger.warning(f"Total GPUs ({total_gpus}) not evenly divisible by tensor-parallel-size ({tensor_parallel_size}). "
+                      f"Using {num_workers} workers, leaving {total_gpus % tensor_parallel_size} GPU(s) unused.")
+
+    logger.info(f"Available GPUs: {gpu_ids}")
+    logger.info(f"Tensor parallel size: {tensor_parallel_size}")
+    logger.info(f"Number of workers: {num_workers}")
     
     # Get available roles
     responses_dir = Path(args.responses_dir)
@@ -703,46 +726,54 @@ def run_multi_gpu_optimized(args, prompt_indices):
         logger.info("No roles to process")
         return 0
     
-    logger.info(f"Processing {len(role_names)} roles across {len(gpu_ids)} GPUs with batch size {args.batch_size}")
-    
-    # Distribute roles across GPUs
-    roles_per_gpu = len(role_names) // len(gpu_ids)
-    remainder = len(role_names) % len(gpu_ids)
-    
+    logger.info(f"Processing {len(role_names)} roles across {num_workers} workers with batch size {args.batch_size}")
+
+    # Partition GPUs into chunks for each worker
+    gpu_chunks = []
+    for i in range(num_workers):
+        start_gpu_idx = i * tensor_parallel_size
+        end_gpu_idx = start_gpu_idx + tensor_parallel_size
+        worker_gpus = gpu_ids[start_gpu_idx:end_gpu_idx]
+        gpu_chunks.append(worker_gpus)
+
+    # Distribute roles across workers
+    roles_per_worker = len(role_names) // num_workers
+    remainder = len(role_names) % num_workers
+
     role_chunks = []
     start_idx = 0
-    
-    for i, gpu_id in enumerate(gpu_ids):
-        # Give extra roles to first few GPUs if there's a remainder
-        chunk_size = roles_per_gpu + (1 if i < remainder else 0)
+
+    for i in range(num_workers):
+        # Give extra roles to first few workers if there's a remainder
+        chunk_size = roles_per_worker + (1 if i < remainder else 0)
         end_idx = start_idx + chunk_size
-        
+
         chunk = role_names[start_idx:end_idx]
-        role_chunks.append((gpu_id, chunk))
-        
-        logger.info(f"GPU {gpu_id}: {len(chunk)} roles ({chunk[0] if chunk else 'none'} to {chunk[-1] if chunk else 'none'})")
+        role_chunks.append(chunk)
+
+        logger.info(f"Worker {i} (GPUs {gpu_chunks[i]}): {len(chunk)} roles ({chunk[0] if chunk else 'none'} to {chunk[-1] if chunk else 'none'})")
         start_idx = end_idx
     
     # Set multiprocessing start method
     mp.set_start_method('spawn', force=True)
-    
-    # Launch processes
+
+    # Launch worker processes
     processes = []
-    for gpu_id, chunk in role_chunks:
-        if chunk:  # Only launch if there are roles to process
+    for worker_id in range(num_workers):
+        if role_chunks[worker_id]:  # Only launch if there are roles to process
             p = mp.Process(
-                target=process_roles_on_gpu_optimized,
-                args=(gpu_id, chunk, args, prompt_indices)
+                target=process_roles_on_worker,
+                args=(worker_id, gpu_chunks[worker_id], role_chunks[worker_id], args, prompt_indices)
             )
             p.start()
             processes.append(p)
-    
+
     # Wait for all processes to complete
-    logger.info(f"Launched {len(processes)} optimized GPU processes")
+    logger.info(f"Launched {len(processes)} worker processes")
     for p in processes:
         p.join()
-    
-    logger.info("Optimized multi-GPU processing completed!")
+
+    logger.info("Multi-worker processing completed!")
     return 0
 
 
@@ -753,18 +784,23 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Basic optimized usage
-    python roles/3_response_activations_optimized.py --batch-size 32
+    # Single GPU (no tensor parallelism)
+    CUDA_VISIBLE_DEVICES=0 python roles/3_response_activations.py --batch-size 32
 
-    # Custom model and larger batches
-    python roles/3_response_activations_optimized.py \\
-        --model-name google/gemma-2-9b-it \\
-        --batch-size 64 \\
+    # Tensor parallelism across 4 GPUs (1 worker)
+    CUDA_VISIBLE_DEVICES=0,1,2,3 python roles/3_response_activations.py \\
+        --tensor-parallel-size 4 --batch-size 16
+
+    # 4 workers, each using 2-GPU tensor parallelism (8 GPUs total)
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python roles/3_response_activations.py \\
+        --tensor-parallel-size 2 --batch-size 32
+
+    # Custom model with tensor parallelism
+    CUDA_VISIBLE_DEVICES=0,1,2,3 python roles/3_response_activations.py \\
+        --model-name google/gemma-2-27b-it \\
+        --tensor-parallel-size 4 \\
+        --batch-size 16 \\
         --max-length 2048
-
-    # Multi-GPU optimized processing
-    python roles/3_response_activations_optimized.py \\
-        --multi-gpu --num-gpus 6 --batch-size 32
         """
     )
     
@@ -800,13 +836,10 @@ Examples:
     parser.add_argument('--verbose', action='store_true',
                        help='Enable verbose logging')
     
-    # Multi-GPU options
-    parser.add_argument('--multi-gpu', action='store_true',
-                       help='Use multi-GPU processing')
-    parser.add_argument('--num-gpus', type=int, default=8,
-                       help='Number of GPUs to use (default: 6)')
-    parser.add_argument('--gpu-ids', type=str, default=None,
-                       help='Comma-separated list of GPU IDs to use')
+    # Tensor parallelism options
+    parser.add_argument('--tensor-parallel-size', type=int, default=1,
+                       help='Number of GPUs per model instance for tensor parallelism (default: 1). '
+                            'Total workers = CUDA_VISIBLE_DEVICES // tensor-parallel-size')
     
     parser.add_argument(
         "--thinking",
@@ -841,11 +874,21 @@ Examples:
     logger.info(f"  Layers: {args.layers if args.layers else 'all'}")
     
     try:
-        if args.multi_gpu:
-            # Multi-GPU optimized processing
-            return run_multi_gpu_optimized(args, prompt_indices)
+        # Determine if we should use multi-worker mode
+        if 'CUDA_VISIBLE_DEVICES' in os.environ:
+            available_gpus = len([x for x in os.environ['CUDA_VISIBLE_DEVICES'].split(',') if x.strip()])
         else:
-            # Single GPU optimized processing
+            available_gpus = torch.cuda.device_count()
+
+        num_workers = available_gpus // args.tensor_parallel_size
+
+        if num_workers > 1:
+            # Multi-worker processing
+            logger.info(f"Using multi-worker mode with {num_workers} workers")
+            return run_multi_worker(args, prompt_indices)
+        else:
+            # Single worker processing
+            logger.info("Using single worker mode")
             extractor = OptimizedRoleActivationExtractor(
                 model_name=args.model_name,
                 responses_dir=args.responses_dir,
@@ -859,13 +902,16 @@ Examples:
                 chat_model_name=args.chat_model,
                 thinking=args.thinking
             )
-            
+
+            # Load model with automatic device mapping
+            extractor.load_model(device="auto")
+
             # Process all roles
             extractor.process_all_roles(
                 skip_existing=not args.no_skip_existing,
                 role_limit=args.role_limit
             )
-            
+
             logger.info("Optimized per-response activation extraction completed successfully!")
         
     except Exception as e:
