@@ -34,11 +34,11 @@ dependencies = [
     "langdetect>=1.0.9",
     "immutabledict>=4.2.2",
     "chatspace",
-    "flash-attn>=2.8.3",
+    "pyarrow>=21.0.0",
+    "hdbscan>=0.8.40",
+    "umap-learn>=0.5.9.post2",
 ]
 
 [tool.uv.sources]
 chatspace = { path = "../chatspace", editable = true }
 
-[tool.uv.extra-build-dependencies]
-flash-attn = ["torch"]
