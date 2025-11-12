@@ -4,12 +4,13 @@ import os
 import sys
 import logging
 import json
+import re
 import time
 import multiprocessing
 import threading
 import queue
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 from datetime import datetime
 import signal
@@ -38,9 +39,49 @@ DEFAULT_OUTPUT_DIR = "/root/git/persona-subspace/dynamics/results"
 
 
 @dataclass
+class PersonaInput:
+    """Input configuration for persona-based conversations"""
+    input_type: str
+    domain: str
+    persona_id: int
+    persona: str
+    topic_id: int
+    topic: str
+    system_prompt: str
+
+
+@dataclass
+class InstructionInput:
+    """Input configuration for instruction-file-based conversations"""
+    input_type: str
+    system_prompt: str        # auditor system prompt
+    first_message: str        # content from instruction file
+    instruction: str          # copy for output metadata
+    source_file: str          # basename like "isolation" for filename
+
+
+def strip_internal_state(message: str) -> str:
+    """
+    Remove <INTERNAL_STATE>...</INTERNAL_STATE> tags from a message.
+
+    Args:
+        message: The message potentially containing internal state tags
+
+    Returns:
+        The message with internal state tags and their content removed
+    """
+    # Remove internal state tags and everything between them
+    pattern = r'<INTERNAL_STATE>.*?</INTERNAL_STATE>'
+    cleaned = re.sub(pattern, '', message, flags=re.DOTALL)
+    # Clean up any extra whitespace that might be left
+    cleaned = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned)
+    return cleaned.strip()
+
+
+@dataclass
 class ConversationState:
     """Represents the state of an ongoing conversation."""
-    persona_data: Dict[str, Any]
+    input_data: Union[PersonaInput, InstructionInput]
     target_prompt: Optional[Dict[str, Any]]
     auditor_messages: List[Dict[str, str]]
     target_messages: List[Dict[str, str]]
@@ -65,23 +106,32 @@ class ConversationState:
 
     def is_end_conversation_signal(self, message: str) -> bool:
         """Check if the message contains an end conversation signal."""
-        message_clean = message.strip()
-        return message_clean == 'END_CONVERSATION' or message_clean == '<END_CONVERSATION>'
+        return 'END_CONVERSATION' in message or '<END_CONVERSATION>' in message
 
     def to_transcript(self, target_model_name: str, auditor_model_name: str) -> Dict[str, Any]:
         """Convert to transcript format."""
         transcript = {
             "model": target_model_name,
             "auditor_model": auditor_model_name,
-            "domain": self.persona_data["domain"],
-            "persona_id": self.persona_data["persona_id"],
-            "persona": self.persona_data["persona"],
-            "topic_id": self.persona_data["topic_id"],
-            "topic": self.persona_data["topic"],
             "turns": len(self.full_conversation),
             "conversation": self.full_conversation,
             "conversation_id": self.conversation_id
         }
+
+        # Add input-specific fields
+        if isinstance(self.input_data, PersonaInput):
+            transcript.update({
+                "domain": self.input_data.domain,
+                "persona_id": self.input_data.persona_id,
+                "persona": self.input_data.persona,
+                "topic_id": self.input_data.topic_id,
+                "topic": self.input_data.topic
+            })
+        elif isinstance(self.input_data, InstructionInput):
+            transcript.update({
+                "instruction": self.input_data.instruction,
+                "source_file": self.input_data.source_file
+            })
 
         # Add target prompt metadata if available
         if self.target_prompt:
@@ -499,7 +549,8 @@ class OpenRouterWorker(multiprocessing.Process):
                     else:
                         # Update conversation state
                         state.auditor_messages.append({"role": "assistant", "content": response_text})
-                        state.target_messages.append({"role": "user", "content": response_text})
+                        # Strip internal state tags before sending to target
+                        state.target_messages.append({"role": "user", "content": strip_internal_state(response_text)})
                         state.full_conversation.append({"role": "user", "content": response_text})
 
                         # Send to vLLM queue for target response
@@ -559,7 +610,14 @@ class TranscriptSaver(multiprocessing.Process):
 
     def generate_transcript_filename(self, data: Dict[str, Any]) -> str:
         """Generate transcript filename for given conversation data."""
-        return f"{data['domain']}_persona{data['persona_id']}_topic{data['topic_id']}.json"
+        if 'domain' in data:
+            # Persona-based transcript
+            return f"{data['domain']}_persona{data['persona_id']}_topic{data['topic_id']}.json"
+        elif 'source_file' in data:
+            # Instruction-based transcript
+            return f"{data['source_file']}.json"
+        else:
+            raise ValueError(f"Unknown transcript type: {data}")
 
     def save_transcript(self, transcript: Dict[str, Any]):
         """Save conversation transcript to file."""
@@ -712,6 +770,23 @@ def parse_arguments() -> argparse.Namespace:
         default=0.2,
         help="Timeout in seconds for OpenRouter batch collection (default: 0.2)"
     )
+    parser.add_argument(
+        "--instruction-dir",
+        type=str,
+        help="Directory containing .txt instruction files (mutually exclusive with --personas-file)"
+    )
+    parser.add_argument(
+        "--instruction-files",
+        nargs='+',
+        type=str,
+        help="Specific instruction files to run (without .txt extension). If not provided, runs all .txt files in directory"
+    )
+    parser.add_argument(
+        "--auditor-system-prompt",
+        type=str,
+        default="red_team_system_prompt",
+        help="Name of the system prompt from prompts.py to use for auditor model (default: red_team_system_prompt)"
+    )
 
     return parser.parse_args()
 
@@ -786,68 +861,158 @@ def load_target_prompts(target_prompts_file: str) -> List[Dict[str, Any]]:
     return target_prompts
 
 
-def generate_transcript_filename(data: Dict[str, Any]) -> str:
-    """Generate transcript filename for given persona data."""
-    return f"{data['domain']}_persona{data['persona_id']}_topic{data['topic_id']}.json"
+def load_instruction_file_inputs(instruction_dir: str, instruction_files: Optional[List[str]] = None,
+                                 system_prompt_name: str = "red_team_system_prompt") -> List[InstructionInput]:
+    """
+    Load instruction files from directory and create input configurations.
+
+    Args:
+        instruction_dir: Directory containing .txt instruction files
+        instruction_files: Optional list of filenames (without .txt) to load. If None, loads all .txt files
+        system_prompt_name: Name of the system prompt in PROMPTS dict
+
+    Returns:
+        List of InstructionInput objects
+    """
+    instruction_dir_path = Path(instruction_dir)
+
+    if not instruction_dir_path.exists():
+        raise ValueError(f"Instruction directory not found: {instruction_dir}")
+
+    # Get system prompt from PROMPTS
+    if system_prompt_name not in PROMPTS:
+        raise ValueError(f"System prompt '{system_prompt_name}' not found in PROMPTS")
+    system_prompt = PROMPTS[system_prompt_name]
+
+    # Determine which files to load
+    if instruction_files:
+        # Load specific files
+        files_to_load = [instruction_dir_path / f"{fname}.txt" for fname in instruction_files]
+        # Validate that all files exist
+        for file_path in files_to_load:
+            if not file_path.exists():
+                raise ValueError(f"Instruction file not found: {file_path}")
+    else:
+        # Load all .txt files in directory
+        files_to_load = list(instruction_dir_path.glob("*.txt"))
+        if not files_to_load:
+            raise ValueError(f"No .txt files found in directory: {instruction_dir}")
+
+    # Create InstructionInput for each file
+    instruction_inputs = []
+    for file_path in files_to_load:
+        # Read the instruction file
+        with open(file_path, "r") as f:
+            first_message = f.read()
+
+        # Extract source file basename (without extension)
+        source_file = file_path.stem
+
+        # Create InstructionInput
+        instruction_input = InstructionInput(
+            input_type="instruction",
+            system_prompt=system_prompt,
+            first_message=first_message,
+            instruction=first_message,  # Copy for metadata
+            source_file=source_file
+        )
+        instruction_inputs.append(instruction_input)
+
+    logger.info(f"Loaded {len(instruction_inputs)} instruction files from {instruction_dir}")
+    return instruction_inputs
 
 
-def check_existing_transcripts(personas_data: List[Dict[str, Any]],
+def generate_transcript_filename(data: Union[Dict[str, Any], PersonaInput, InstructionInput]) -> str:
+    """Generate transcript filename for given input data."""
+    # Handle dataclass inputs
+    if isinstance(data, InstructionInput):
+        return f"{data.source_file}.json"
+    elif isinstance(data, PersonaInput):
+        return f"{data.domain}_persona{data.persona_id}_topic{data.topic_id}.json"
+    # Handle dict (for transcript dicts)
+    elif isinstance(data, dict):
+        if 'domain' in data:
+            # Persona-based transcript
+            return f"{data['domain']}_persona{data['persona_id']}_topic{data['topic_id']}.json"
+        elif 'source_file' in data:
+            # Instruction-based transcript
+            return f"{data['source_file']}.json"
+    raise ValueError(f"Unknown data type for filename generation: {type(data)}")
+
+
+def check_existing_transcripts(inputs_data: List[Union[PersonaInput, InstructionInput]],
                              target_prompts: Optional[List[Dict[str, Any]]],
                              output_dir: Path):
-    """Filter out persona data that already have existing transcripts."""
+    """Filter out input data that already have existing transcripts."""
     missing_combinations = []
     existing_count = 0
 
+    # Note: target_prompts are only used with PersonaInput, not InstructionInput
     if target_prompts:
         # When using target prompts, check each persona + target_prompt combination
-        total_combinations = len(personas_data) * len(target_prompts)
+        total_combinations = len(inputs_data) * len(target_prompts)
 
-        for persona_data in personas_data:
+        for input_data in inputs_data:
+            if isinstance(input_data, InstructionInput):
+                # InstructionInput doesn't support target_prompts pathway
+                logger.warning("InstructionInput does not support target_prompts, skipping")
+                continue
+
             for target_prompt in target_prompts:
                 # Build path with role subdirectory
                 role_dir = output_dir / target_prompt["role"]
-                filename = generate_transcript_filename(persona_data)
+                filename = generate_transcript_filename(input_data)
                 file_path = role_dir / filename
 
                 if file_path.exists():
                     existing_count += 1
                     logger.info(f"Skipping existing transcript: {target_prompt['role']}/{filename}")
                 else:
-                    missing_combinations.append((persona_data, target_prompt))
+                    missing_combinations.append((input_data, target_prompt))
 
         logger.info(f"Found {existing_count} existing transcripts, {len(missing_combinations)} combinations to process (out of {total_combinations} total)")
     else:
         # Original behavior when no target prompts provided
-        for persona_data in personas_data:
-            filename = generate_transcript_filename(persona_data)
+        for input_data in inputs_data:
+            filename = generate_transcript_filename(input_data)
             file_path = output_dir / filename
 
             if file_path.exists():
                 existing_count += 1
                 logger.info(f"Skipping existing transcript: {filename}")
             else:
-                missing_combinations.append((persona_data, None))
+                missing_combinations.append((input_data, None))
 
         logger.info(f"Found {existing_count} existing transcripts, {len(missing_combinations)} to process")
 
     return missing_combinations
 
 
-def create_initial_conversation_states(missing_combinations: List[Tuple[Dict[str, Any], Optional[Dict[str, Any]]]],
+def create_initial_conversation_states(missing_combinations: List[Tuple[Union[PersonaInput, InstructionInput], Optional[Dict[str, Any]]]],
                                      num_turns: int) -> List[ConversationState]:
     """Create initial conversation states from missing combinations."""
     conversation_states = []
 
-    for i, (persona_data, target_prompt) in enumerate(missing_combinations):
-        conversation_id = f"{persona_data['domain']}_p{persona_data['persona_id']}_t{persona_data['topic_id']}_{i}"
+    for i, (input_data, target_prompt) in enumerate(missing_combinations):
+        # Generate conversation ID based on input type
+        if isinstance(input_data, PersonaInput):
+            conversation_id = f"{input_data.domain}_p{input_data.persona_id}_t{input_data.topic_id}_{i}"
+        elif isinstance(input_data, InstructionInput):
+            conversation_id = f"{input_data.source_file}_{i}"
+        else:
+            raise ValueError(f"Unknown input type: {type(input_data)}")
 
         # Initialize conversation state
-        auditor_messages = [{"role": "system", "content": persona_data["system_prompt"]}]
+        auditor_messages = [{"role": "system", "content": input_data.system_prompt}]
         target_messages = []
         full_conversation = []
 
+        # For InstructionInput, pre-initialize with first message from file
+        if isinstance(input_data, InstructionInput):
+            auditor_messages.append({"role": "user", "content": input_data.first_message})
+
         conversation_state = ConversationState(
-            persona_data=persona_data,
+            input_data=input_data,
             target_prompt=target_prompt,
             auditor_messages=auditor_messages,
             target_messages=target_messages,
@@ -890,9 +1055,44 @@ def main():
         logger.error("OPENROUTER_API_KEY not found in environment variables")
         sys.exit(1)
 
-    # Load personas and topics
-    personas_data = load_personas_and_topics(args.personas_file)
-    logger.info(f"Loaded {len(personas_data)} conversation topics")
+    # Check for mutual exclusivity between --personas-file and --instruction-dir
+    if args.instruction_dir and args.personas_file != DEFAULT_PERSONAS_FILE:
+        logger.error("Cannot specify both --instruction-dir and --personas-file")
+        sys.exit(1)
+
+    # Load inputs based on mode
+    inputs_data: List[Union[PersonaInput, InstructionInput]]
+    if args.instruction_dir:
+        # Instruction-file mode
+        inputs_data = load_instruction_file_inputs(
+            args.instruction_dir,
+            args.instruction_files,
+            args.auditor_system_prompt
+        )
+        logger.info(f"Loaded {len(inputs_data)} instruction files from {args.instruction_dir}")
+
+        # Warn if target_prompts is specified (not supported for instruction mode)
+        if args.target_prompts:
+            logger.warning("--target-prompts is not supported with --instruction-dir, ignoring")
+            args.target_prompts = None
+    else:
+        # Persona mode (default)
+        personas_dict_list = load_personas_and_topics(args.personas_file)
+        logger.info(f"Loaded {len(personas_dict_list)} conversation topics")
+
+        # Convert dict list to PersonaInput list
+        inputs_data = [
+            PersonaInput(
+                input_type="persona",
+                domain=p["domain"],
+                persona_id=p["persona_id"],
+                persona=p["persona"],
+                topic_id=p["topic_id"],
+                topic=p["topic"],
+                system_prompt=p["system_prompt"]
+            )
+            for p in personas_dict_list
+        ]
 
     # Load target prompts if provided
     target_prompts = None
@@ -909,25 +1109,25 @@ def main():
         if start >= end:
             logger.error("Interval start must be less than end")
             sys.exit(1)
-        if start >= len(personas_data):
-            logger.error(f"Interval start ({start}) is beyond available data ({len(personas_data)} topics)")
+        if start >= len(inputs_data):
+            logger.error(f"Interval start ({start}) is beyond available data ({len(inputs_data)} inputs)")
             sys.exit(1)
 
         # Apply interval filtering
-        end = min(end, len(personas_data))  # Cap end at available data length
-        personas_data = personas_data[start:end]
-        logger.info(f"Interval mode: running conversations {start} to {end-1} ({len(personas_data)} topics)")
+        end = min(end, len(inputs_data))  # Cap end at available data length
+        inputs_data = inputs_data[start:end]
+        logger.info(f"Interval mode: running conversations {start} to {end-1} ({len(inputs_data)} inputs)")
 
     # Filter for test mode
     if args.test_mode:
-        personas_data = personas_data[:1]
-        logger.info("Test mode: running only first conversation topic")
+        inputs_data = inputs_data[:1]
+        logger.info("Test mode: running only first conversation input")
 
     # Check for existing transcripts unless overwrite is specified
     output_dir = Path(args.output_dir)
     if not args.overwrite:
         logger.info("Checking for existing transcripts...")
-        missing_combinations = check_existing_transcripts(personas_data, target_prompts, output_dir)
+        missing_combinations = check_existing_transcripts(inputs_data, target_prompts, output_dir)
         if len(missing_combinations) == 0:
             logger.info("All conversations already completed. Use --overwrite to re-run.")
             return
@@ -935,11 +1135,11 @@ def main():
         logger.info("Overwrite mode: will re-run all conversations")
         # Build all combinations for overwrite mode
         if target_prompts:
-            missing_combinations = [(persona_data, target_prompt)
-                                  for persona_data in personas_data
+            missing_combinations = [(input_data, target_prompt)
+                                  for input_data in inputs_data
                                   for target_prompt in target_prompts]
         else:
-            missing_combinations = [(persona_data, None) for persona_data in personas_data]
+            missing_combinations = [(input_data, None) for input_data in inputs_data]
 
     logger.info(f"Will process {len(missing_combinations)} conversations")
 

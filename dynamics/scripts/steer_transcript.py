@@ -17,6 +17,7 @@ uv run steer_transcript.py \
 import argparse
 import json
 import os
+import re
 import sys
 import logging
 from pathlib import Path
@@ -35,6 +36,24 @@ from utils.probing_utils import load_model
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+def strip_internal_state(message: str) -> str:
+    """
+    Remove <INTERNAL_STATE>...</INTERNAL_STATE> tags from a message.
+
+    Args:
+        message: The message potentially containing internal state tags
+
+    Returns:
+        The message with internal state tags and their content removed
+    """
+    # Remove internal state tags and everything between them
+    pattern = r'<INTERNAL_STATE>.*?</INTERNAL_STATE>'
+    cleaned = re.sub(pattern, '', message, flags=re.DOTALL)
+    # Clean up any extra whitespace that might be left
+    cleaned = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned)
+    return cleaned.strip()
 
 
 def load_multi_config(config_filepath: str) -> Tuple[Dict[str, Dict], List[Dict]]:
@@ -212,7 +231,8 @@ def replay_with_steering(
     ) as steerer:
 
         for turn_idx, user_msg in enumerate(user_turns, 1):
-            user_content = user_msg['content']
+            # Strip internal state tags before sending to target model
+            user_content = strip_internal_state(user_msg['content'])
 
             logger.info(f"Turn {turn_idx}/{len(user_turns)}: generating response...")
 

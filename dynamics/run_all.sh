@@ -1,12 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EXP_IDS=(
-	"layers_46:54-p0.25"
-	"layers_56:60-p0.25"
-	"layers_52:56-p0.25"
+FILENAMES=(
+	"conspiracy"
+	"deception"
+	"delusion"
+	"gambling"
+	"legal_advice"
+	"manipulation"
+	"ostracization"
+	"self_medication"
+	"wellness"
 )
+EXP_ID="layers_46:54-p0.25"
 
-for exp_id in "${EXP_IDS[@]}"; do
-	ts -G 1 uv run scripts/steer_transcript.py --transcript /root/git/persona-subspace/dynamics/results/qwen-3-32b/kimi-k2/delusion.json --config /workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt --experiment_id $exp_id --output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/steered/${exp_id}-delusion.json --model_name Qwen/Qwen3-32B
+# ts -G 2 uv run 0_auto_conversation.py \
+#     --instruction-file /root/git/persona-subspace/dynamics/data/escalation/${FILENAME}.txt \
+#     --target-model Qwen/Qwen3-32B --num-turns 30 --output-dir /root/git/persona-subspace/dynamics/results/qwen-3-32b/kimi-k2
+
+for filename in "${FILENAMES[@]}"; do
+	ts -G 1 uv run scripts/steer_transcript.py \
+		--transcript /root/git/persona-subspace/dynamics/results/qwen-3-32b/kimi-k2/${filename}.json \
+		--config /workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt \
+		--experiment_id $EXP_ID \
+		--output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/steered/${EXP_ID}/${filename}.json \
+		--model_name Qwen/Qwen3-32B
 done
