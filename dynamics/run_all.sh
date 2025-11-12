@@ -16,7 +16,7 @@ EXP_ID="layers_46:54-p0.25"
 
 for filename in "${FILENAMES[@]}"; do
 	ts -G 2 uv run 0_auto_conversation.py \
-    --instruction-file /root/git/persona-subspace/dynamics/data/escalation/${FILENAME}.txt \
+    --instruction-file /root/git/persona-subspace/dynamics/data/escalation/${filename}.txt \
     --target-model meta-llama/Llama-3.1-8B-Instruct --num-turns 30 --output-dir /root/git/persona-subspace/dynamics/results/llama-3.3-70b/kimi-k2
 
 	# ts -G 1 uv run scripts/steer_transcript.py \
