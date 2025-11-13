@@ -107,20 +107,31 @@ def compute_vectors(
     return result
 
 
-def process_role(role: str, min_count_threshold: int, activations_base_path: str, scores_base_path: str, output_base_path: str) -> bool:
-    """Process a single role and save vectors."""
-    activations, scores = load_data(role, activations_base_path, scores_base_path)
-    
-    if activations is None or scores is None:
-        return False
-    
-    vectors = compute_vectors(activations, scores, min_count_threshold)
-    
-    # Save vectors
+def process_role(role: str, min_count_threshold: int, activations_base_path: str, scores_base_path: str, output_base_path: str, force: bool = False) -> str:
+    """Process a single role and save vectors.
+
+    Returns:
+        "success": Vector was computed and saved
+        "skipped": Vector file already exists and force=False
+        "failed": Error occurred during processing
+    """
     output_path = f"{output_base_path}/{role}.pt"
+
+    # Check if output already exists
+    if os.path.exists(output_path) and not force:
+        return "skipped"
+
+    activations, scores = load_data(role, activations_base_path, scores_base_path)
+
+    if activations is None or scores is None:
+        return "failed"
+
+    vectors = compute_vectors(activations, scores, min_count_threshold)
+
+    # Save vectors
     torch.save(vectors, output_path)
-    
-    return True
+
+    return "success"
 
 
 def main():
@@ -137,7 +148,9 @@ def main():
                        help="Specific roles to process (default: all roles)")
     parser.add_argument("--list_roles", action="store_true",
                        help="List available roles and exit")
-    
+    parser.add_argument("--force", action="store_true",
+                       help="Force recomputation of vectors even if they already exist")
+
     args = parser.parse_args()
     
     # Get list of available roles from activations directory
@@ -171,16 +184,23 @@ def main():
     
     # Process roles with progress bar
     successful = 0
+    skipped = 0
     failed = 0
-    
+
     for role in tqdm(roles_to_process, desc="Processing roles"):
-        if process_role(role, args.min_count_threshold, args.activations_path, args.scores_path, args.output_path):
+        result = process_role(role, args.min_count_threshold, args.activations_path, args.scores_path, args.output_path, args.force)
+        if result == "success":
             successful += 1
-        else:
+        elif result == "skipped":
+            skipped += 1
+        else:  # "failed"
             failed += 1
-    
-    print(f"\nCompleted: {successful} successful, {failed} failed")
-    print(f"Vectors saved to {args.output_path}")
+
+    print(f"\nCompleted: {successful} successful, {skipped} skipped, {failed} failed")
+    if successful > 0:
+        print(f"New vectors saved to {args.output_path}")
+    if skipped > 0:
+        print(f"Skipped {skipped} existing vector(s). Use --force to recompute.")
 
 
 if __name__ == "__main__":

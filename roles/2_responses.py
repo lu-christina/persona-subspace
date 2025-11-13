@@ -29,7 +29,10 @@ Usage:
 import argparse
 import json
 import logging
+import os
 import sys
+import torch
+import torch.multiprocessing as mp
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -788,6 +791,232 @@ class RoleResponseGenerator:
             self.close_model()
 
 
+def process_roles_on_worker(worker_id, gpu_ids, role_names, args, prompt_indices=None):
+    """Process a subset of roles on a worker with tensor parallelism support."""
+    # Set CUDA_VISIBLE_DEVICES for this worker's GPU subset
+    gpu_ids_str = ','.join(map(str, gpu_ids))
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_ids_str
+
+    # Set up logging for this process
+    worker_logger = logging.getLogger(f"Worker-{worker_id}")
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(f'%(asctime)s - Worker-{worker_id}[GPUs:{gpu_ids_str}] - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    worker_logger.addHandler(handler)
+    worker_logger.setLevel(logging.INFO)
+
+    worker_logger.info(f"Starting processing on Worker {worker_id} with GPUs {gpu_ids} and {len(role_names)} roles")
+
+    try:
+        # Create generator for this worker
+        generator = RoleResponseGenerator(
+            model_name=args.model_name,
+            roles_dir=args.roles_dir,
+            output_dir=args.output_dir,
+            max_model_len=args.max_model_len,
+            tensor_parallel_size=args.tensor_parallel_size,
+            gpu_memory_utilization=args.gpu_memory_utilization,
+            question_count=args.question_count,
+            temperature=args.temperature,
+            max_tokens=args.max_tokens,
+            top_p=args.top_p,
+            prompt_indices=prompt_indices,
+            include_default=args.include_default,
+            append_mode=args.append_mode,
+            questions_file=args.questions_file,
+            roles_subset=None  # Already filtered at the worker level
+        )
+
+        # Load model
+        generator.load_model()
+
+        # Load role files
+        role_files = generator.load_role_files()
+
+        # Filter to only process assigned roles
+        roles_to_process = {name: data for name, data in role_files.items() if name in role_names}
+
+        # Process assigned roles with progress tracking
+        completed_count = 0
+        failed_count = 0
+
+        try:
+            from tqdm import tqdm
+            use_tqdm = True
+        except ImportError:
+            use_tqdm = False
+
+        if use_tqdm:
+            role_iter = tqdm(roles_to_process.items(), desc=f"Worker-{worker_id} roles", unit="role", position=worker_id)
+        else:
+            role_iter = roles_to_process.items()
+
+        for role_name, role_data in role_iter:
+            if use_tqdm:
+                role_iter.set_postfix(role=role_name[:15], refresh=True)
+
+            try:
+                # Generate responses using appropriate method
+                if generator.questions_file:
+                    responses = generator.generate_role_responses_with_central_questions(role_name, role_data)
+                else:
+                    responses = generator.generate_role_responses(role_name, role_data)
+
+                if responses:
+                    # Save responses
+                    generator.save_role_responses(role_name, responses)
+                    completed_count += 1
+                    if use_tqdm:
+                        role_iter.set_postfix(role=role_name[:15], status="✓", refresh=True)
+                else:
+                    failed_count += 1
+                    if use_tqdm:
+                        role_iter.set_postfix(role=role_name[:15], status="✗", refresh=True)
+                    worker_logger.warning(f"No responses generated for role '{role_name}'")
+
+            except Exception as e:
+                failed_count += 1
+                if use_tqdm:
+                    role_iter.set_postfix(role=role_name[:15], status="✗", refresh=True)
+                worker_logger.error(f"Exception processing role {role_name}: {e}")
+
+        worker_logger.info(f"Worker {worker_id} completed: {completed_count} successful, {failed_count} failed")
+
+    except Exception as e:
+        worker_logger.error(f"Fatal error on Worker {worker_id}: {e}")
+
+    finally:
+        # Cleanup
+        if 'generator' in locals():
+            generator.close_model()
+        worker_logger.info(f"Worker {worker_id} cleanup completed")
+
+
+def run_multi_worker(args, prompt_indices, roles_subset):
+    """Run multi-worker processing with tensor parallelism support."""
+    # Get available GPUs from CUDA_VISIBLE_DEVICES or torch.cuda
+    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+        gpu_ids = [int(x.strip()) for x in os.environ['CUDA_VISIBLE_DEVICES'].split(',') if x.strip()]
+    else:
+        gpu_ids = list(range(torch.cuda.device_count()))
+
+    total_gpus = len(gpu_ids)
+
+    if total_gpus == 0:
+        logger.error("No GPUs available. Please set CUDA_VISIBLE_DEVICES or ensure CUDA is available.")
+        return 1
+
+    # Calculate number of workers based on tensor parallel size
+    tensor_parallel_size = args.tensor_parallel_size
+
+    if tensor_parallel_size > total_gpus:
+        logger.error(f"tensor-parallel-size ({tensor_parallel_size}) cannot be greater than available GPUs ({total_gpus})")
+        return 1
+
+    num_workers = total_gpus // tensor_parallel_size
+
+    if total_gpus % tensor_parallel_size != 0:
+        logger.warning(f"Total GPUs ({total_gpus}) not evenly divisible by tensor-parallel-size ({tensor_parallel_size}). "
+                      f"Using {num_workers} workers, leaving {total_gpus % tensor_parallel_size} GPU(s) unused.")
+
+    logger.info(f"Available GPUs: {gpu_ids}")
+    logger.info(f"Tensor parallel size: {tensor_parallel_size}")
+    logger.info(f"Number of workers: {num_workers}")
+
+    # Create temporary generator to get role names
+    temp_generator = RoleResponseGenerator(
+        model_name=args.model_name,
+        roles_dir=args.roles_dir,
+        output_dir=args.output_dir,
+        max_model_len=args.max_model_len,
+        tensor_parallel_size=tensor_parallel_size,
+        gpu_memory_utilization=args.gpu_memory_utilization,
+        question_count=args.question_count,
+        temperature=args.temperature,
+        max_tokens=args.max_tokens,
+        top_p=args.top_p,
+        prompt_indices=prompt_indices,
+        include_default=args.include_default,
+        append_mode=args.append_mode,
+        questions_file=args.questions_file,
+        roles_subset=roles_subset
+    )
+
+    # Load role files to get names
+    role_files = temp_generator.load_role_files()
+    role_names = sorted(list(role_files.keys()))
+
+    if not role_names:
+        logger.error("No role files found to process")
+        return 1
+
+    # Filter out existing roles if needed (but not in append mode)
+    if not args.no_skip_existing and not args.append_mode:
+        output_dir = Path(args.output_dir)
+        roles_to_process = []
+        for role_name in role_names:
+            output_file = output_dir / f"{role_name}.jsonl"
+            if not output_file.exists():
+                roles_to_process.append(role_name)
+            else:
+                logger.info(f"Skipping role '{role_name}' (already exists)")
+        role_names = roles_to_process
+
+    if not role_names:
+        logger.info("No roles to process")
+        return 0
+
+    logger.info(f"Processing {len(role_names)} roles across {num_workers} workers")
+
+    # Partition GPUs into chunks for each worker
+    gpu_chunks = []
+    for i in range(num_workers):
+        start_gpu_idx = i * tensor_parallel_size
+        end_gpu_idx = start_gpu_idx + tensor_parallel_size
+        worker_gpus = gpu_ids[start_gpu_idx:end_gpu_idx]
+        gpu_chunks.append(worker_gpus)
+
+    # Distribute roles across workers
+    roles_per_worker = len(role_names) // num_workers
+    remainder = len(role_names) % num_workers
+
+    role_chunks = []
+    start_idx = 0
+
+    for i in range(num_workers):
+        # Give extra roles to first few workers if there's a remainder
+        chunk_size = roles_per_worker + (1 if i < remainder else 0)
+        end_idx = start_idx + chunk_size
+
+        chunk = role_names[start_idx:end_idx]
+        role_chunks.append(chunk)
+
+        logger.info(f"Worker {i} (GPUs {gpu_chunks[i]}): {len(chunk)} roles ({chunk[0] if chunk else 'none'} to {chunk[-1] if chunk else 'none'})")
+        start_idx = end_idx
+
+    # Set multiprocessing start method
+    mp.set_start_method('spawn', force=True)
+
+    # Launch worker processes
+    processes = []
+    for worker_id in range(num_workers):
+        if role_chunks[worker_id]:  # Only launch if there are roles to process
+            p = mp.Process(
+                target=process_roles_on_worker,
+                args=(worker_id, gpu_chunks[worker_id], role_chunks[worker_id], args, prompt_indices)
+            )
+            p.start()
+            processes.append(p)
+
+    # Wait for all processes to complete
+    logger.info(f"Launched {len(processes)} worker processes")
+    for p in processes:
+        p.join()
+
+    logger.info("Multi-worker processing completed!")
+    return 0
+
+
 def main():
     """Main entry point for the script."""
     parser = argparse.ArgumentParser(
@@ -823,7 +1052,7 @@ Examples:
                        help='Maximum model context length (default: 1024)')
     parser.add_argument('--tensor-parallel-size', type=int, default=None,
                        help='Number of GPUs to use (default: auto-detect)')
-    parser.add_argument('--gpu-memory-utilization', type=float, default=0.9,
+    parser.add_argument('--gpu-memory-utilization', type=float, default=0.96,
                        help='GPU memory utilization ratio (default: 0.9)')
     
     # Generation parameters
@@ -907,8 +1136,31 @@ Examples:
     logger.info(f"  Include default: {args.include_default}")
     logger.info(f"  Append mode: {args.append_mode}")
     logger.info(f"  Skip existing: {not args.no_skip_existing}")
-    
+
+    # Detect multi-worker mode
+    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+        available_gpus = [int(x.strip()) for x in os.environ['CUDA_VISIBLE_DEVICES'].split(',') if x.strip()]
+        total_gpus = len(available_gpus)
+    else:
+        total_gpus = torch.cuda.device_count()
+
+    # Determine tensor parallel size
+    tensor_parallel_size = args.tensor_parallel_size if args.tensor_parallel_size else total_gpus
+
+    # Use multi-worker mode if we have more GPUs than tensor_parallel_size and not processing single role
+    use_multi_worker = (not args.single_role and
+                       total_gpus > 1 and
+                       tensor_parallel_size > 0 and
+                       total_gpus > tensor_parallel_size)
+
+    if use_multi_worker:
+        logger.info(f"Multi-worker mode enabled: {total_gpus} GPUs with tensor_parallel_size={tensor_parallel_size}")
+        return run_multi_worker(args, prompt_indices, roles_subset)
+
     try:
+        # Single-worker mode
+        logger.info(f"Single-worker mode: Using {tensor_parallel_size} GPU(s)")
+
         # Create generator
         generator = RoleResponseGenerator(
             model_name=args.model_name,
@@ -927,7 +1179,7 @@ Examples:
             questions_file=args.questions_file,
             roles_subset=roles_subset
         )
-        
+
         # Process roles
         if args.single_role:
             # Process only the specified role
@@ -936,7 +1188,7 @@ Examples:
         else:
             # Process all roles
             generator.process_all_roles(skip_existing=not args.no_skip_existing)
-        
+
         logger.info("Role response generation completed successfully!")
         
     except Exception as e:

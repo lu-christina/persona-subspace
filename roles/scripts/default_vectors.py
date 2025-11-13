@@ -2,22 +2,30 @@
 """
 default_vectors.py - Calculate mean default activation across roles
 
-This script calculates mean default activations for roles directories.
-Processes files from any input directory and saves results to any output directory.
+This script calculates mean default activations from separate scores and activations directories.
 
-For 'roles' (detected by substring in input path):
+Usage:
+    python default_vectors.py --scores-dir <path> --activations-dir <path> [--output-dir <path>] [--processing-type roles_240]
+
+Arguments:
+    --scores-dir: Directory containing score JSON files (default: ./extract_scores)
+    --activations-dir: Directory containing activation .pt files (default: ./response_activations)
+    --output-dir: Output directory for results (default: current directory)
+    --processing-type: Either 'roles' or 'roles_240' (default: roles_240)
+
+For 'roles' processing:
 - pos_1: Mean activations where keys start with 'pos_' and score == 1
-- default_1: Mean activations where keys start with 'default_' and score == 1  
+- default_1: Mean activations where keys start with 'default_' and score == 1
 - all_1: Mean of all activations scored 1 from all role files
 
-For 'roles_240' (detected by substring in input path):
+For 'roles_240' processing (default):
 - pos_1: Mean activations where keys start with 'pos_' and score == 1
 - default_1: SPECIAL CASE - Mean ALL activations from {int}_default.pt files (e.g., 0_default.pt, 1_default.pt, 2_default.pt, etc.)
 - all_1: Mean of all activations scored 1 from role files + all default files
 
 Key format: {pos|default}_q{question_index}_p{prompt_index}
 
-Output: {output_dir}/default_activations.pt containing dict with:
+Output: {output_dir}/default_vectors.pt containing dict with:
 - 3 keys (pos_1, default_1, all_1) -> tensors of shape (num_layers, hidden_dims)
 - metadata with sample counts
 """
@@ -213,38 +221,40 @@ def calculate_mean_activations_roles_240(all_scores: Dict[str, Dict], all_activa
     return result, counts
 
 
-def process_directory(input_dir: str, output_dir: str) -> None:
-    """Process a directory with scores and activations."""
-    print(f"\n=== Processing {input_dir} ===")
-    
-    scores_dir = os.path.join(input_dir, "extract_scores")
-    activations_dir = os.path.join(input_dir, "response_activations")
+def process_directory(scores_dir: str, activations_dir: str, output_dir: str, processing_type: str = 'roles_240') -> None:
+    """Process scores and activations directories.
+
+    Args:
+        scores_dir: Directory containing score JSON files
+        activations_dir: Directory containing activation .pt files
+        output_dir: Directory to save results
+        processing_type: Either 'roles' or 'roles_240' (default: 'roles_240')
+    """
+    print(f"\n=== Processing with {processing_type} method ===")
+
     output_path = os.path.join(output_dir, "default_vectors.pt")
-    
-    # Determine processing type based on directory name
-    is_roles_240 = "roles_240" in input_dir
-    dir_type = "roles_240" if is_roles_240 else "roles"
-    
+
     try:
         # Load data
         print("Loading scores and activations...")
         all_scores, all_activations = load_scores_and_activations(scores_dir, activations_dir)
-        
+
         print(f"Loaded {len(all_scores)} score files and {len(all_activations)} activation files")
-        
-        # Calculate means based on directory type
-        if is_roles_240:
+
+        # Calculate means based on processing type
+        if processing_type == 'roles_240':
             result, counts = calculate_mean_activations_roles_240(all_scores, all_activations)
         else:
             result, counts = calculate_mean_activations_roles(all_scores, all_activations)
-        
+
         # Prepare output with metadata
         output = {
             'activations': result,
             'metadata': {
                 'counts': counts,
-                'directory_type': dir_type,
-                'input_dir': input_dir,
+                'directory_type': processing_type,
+                'scores_dir': scores_dir,
+                'activations_dir': activations_dir,
                 'output_dir': output_dir,
                 'total_files_processed': {
                     'scores': len(all_scores),
@@ -252,47 +262,50 @@ def process_directory(input_dir: str, output_dir: str) -> None:
                 }
             }
         }
-        
+
         # Save results
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
         torch.save(output, output_path)
-        
+
         print(f"Results saved to: {output_path}")
         print("Sample counts:")
         for key, count in counts.items():
             tensor_shape = result[key].shape if key in result else "N/A"
             print(f"  {key}: {count} samples, shape: {tensor_shape}")
-            
+
     except Exception as e:
-        print(f"Error processing {input_dir}: {e}")
+        print(f"Error processing directories: {e}")
 
 
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(description='Calculate mean default activations across roles')
-    parser.add_argument('--input-dir', type=str, default='/workspace/roles', 
-                       help='Input directory containing extract_scores and response_activations (default: /workspace/roles)')
-    parser.add_argument('--output-dir', type=str, default=None,
-                       help='Output directory for saving results (default: same as input-dir)')
-    parser.add_argument('--verbose', '-v', action='store_true', 
+    parser.add_argument('--scores-dir', type=str, default='./extract_scores',
+                       help='Directory containing score JSON files (default: ./extract_scores)')
+    parser.add_argument('--activations-dir', type=str, default='./response_activations',
+                       help='Directory containing activation .pt files (default: ./response_activations)')
+    parser.add_argument('--output-dir', type=str, default='.',
+                       help='Output directory for saving results (default: current directory)')
+    parser.add_argument('--processing-type', type=str, default='roles_240', choices=['roles', 'roles_240'],
+                       help='Processing type: "roles" or "roles_240" (default: roles_240)')
+    parser.add_argument('--verbose', '-v', action='store_true',
                        help='Enable verbose output')
-    
+
     args = parser.parse_args()
-    
-    # Use input directory as output directory if not specified
-    output_dir = args.output_dir if args.output_dir else args.input_dir
-    
+
     print("=== Default Vector Calculator ===")
-    print(f"Input directory: {args.input_dir}")
-    print(f"Output directory: {output_dir}")
-    
+    print(f"Scores directory: {args.scores_dir}")
+    print(f"Activations directory: {args.activations_dir}")
+    print(f"Output directory: {args.output_dir}")
+    print(f"Processing type: {args.processing_type}")
+
     try:
-        process_directory(args.input_dir, output_dir)
+        process_directory(args.scores_dir, args.activations_dir, args.output_dir, args.processing_type)
     except KeyboardInterrupt:
         print("\nInterrupted by user")
     except Exception as e:
-        print(f"Failed to process {args.input_dir}: {e}")
-    
+        print(f"Failed to process directories: {e}")
+
     print("\n=== Processing complete ===")
 
 
