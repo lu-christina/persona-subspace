@@ -17,11 +17,7 @@ Questions can be sourced from either:
 Results are saved as JSONL files (one per role) in the specified output directory.
 
 Usage:
-    # Using role-specific questions (default)
-    uv run roles/2_generate_responses.py \
-        --model-name google/gemma-2-27b-it \
-        --roles-dir /root/git/persona-subspace/roles/data/instructions \
-        --output-dir /workspace/roles/responses
+
     
     # Using central questions file
     uv run roles/2_responses.py \
