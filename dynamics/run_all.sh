@@ -11,7 +11,7 @@ FILENAMES=(
 	# "ostracization"
 	# "wellness"
 )
-EXP_ID="layers_56:72-p0.25"
+EXP_ID="layers_64:72-p0.25"
 
 # for filename in "${FILENAMES[@]}"; do
 # 	ts -G 2 uv run 0_auto_conversation.py \
