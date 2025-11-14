@@ -10,7 +10,7 @@ FILENAMES=(
 	# "manipulation"
 	# "ostracization"
 	# "wellness"
-	"oblivion"
+	"isolation"
 )
 EXP_IDS=(
 	"layers_32:56-p0.25"
@@ -36,3 +36,8 @@ for filename in "${FILENAMES[@]}"; do
 	done
 done
 
+
+ts -G 2 uv run replay/steer_transcript.py \
+	--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/isolation.json \
+	--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/unsteered/isolation.json \
+	--model_name meta-llama/Llama-3.3-70B-Instruct

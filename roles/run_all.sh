@@ -61,25 +61,25 @@
 # uv run 2_responses_api_retrieve.py \
 #     --output-dir /workspace/sonnet-4.5/roles_240/responses
 
-ts -G 4 uv run 3_response_activations.py \
-    --model-name meta-llama/Llama-3.3-70B-Instruct \
-    --responses-dir /workspace/sonnet-4.5/roles_240/responses \
-    --output-dir /workspace/llama-3.3-70b/sonnet_roles/response_activations --batch-size 48 \
-	--tensor-parallel-size 2
+# ts -G 4 uv run 3_response_activations.py \
+#     --model-name meta-llama/Llama-3.3-70B-Instruct \
+#     --responses-dir /workspace/sonnet-4.5/roles_240/responses \
+#     --output-dir /workspace/llama-3.3-70b/sonnet_roles/response_activations --batch-size 48 \
+# 	--tensor-parallel-size 2
 
-uv run 4_judge.py \
-    --responses-dir /workspace/sonnet-4.5/roles_240/responses \
-    --output-dir /workspace/sonnet-4.5/roles_240/extract_scores
+# uv run 4_judge.py \
+#     --responses-dir /workspace/sonnet-4.5/roles_240/responses \
+#     --output-dir /workspace/sonnet-4.5/roles_240/extract_scores
 
-uv run 5_vectors.py \
-    --activations_path /workspace/llama-3.3-70b/sonnet_roles/response_activations \
-    --scores_path /workspace/sonnet-4.5/roles_240/extract_scores \
-    --output_path /workspace/llama-3.3-70b/sonnet_roles/vectors
+# uv run 5_vectors.py \
+#     --activations_path /workspace/llama-3.3-70b/sonnet_roles/response_activations \
+#     --scores_path /workspace/sonnet-4.5/roles_240/extract_scores \
+#     --output_path /workspace/llama-3.3-70b/sonnet_roles/vectors
 
-uv run scripts/default_vectors.py \
-    --scores-dir /workspace/sonnet-4.5/roles_240/extract_scores \
-    --activations-dir /workspace/llama-3.3-70b/sonnet_roles/response_activations \
-    --output-dir /workspace/llama-3.3-70b/sonnet_roles
+# uv run scripts/default_vectors.py \
+#     --scores-dir /workspace/sonnet-4.5/roles_240/extract_scores \
+#     --activations-dir /workspace/llama-3.3-70b/sonnet_roles/response_activations \
+#     --output-dir /workspace/llama-3.3-70b/sonnet_roles
 
 uv run scripts/role_trait_projections.py \
     --activations_dir /workspace/llama-3.3-70b/sonnet_roles/response_activations \
@@ -89,22 +89,22 @@ uv run scripts/role_trait_projections.py \
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LLAMA 3.1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-ts -G 2 uv run 3_response_activations.py \
-    --model-name meta-llama/Llama-3.1-70B-Instruct \
-    --responses-dir /workspace/llama-3.1-70b/roles_240/responses \
-    --output-dir /workspace/llama-3.1-70b/roles_240/response_activations --batch-size 48 \
-	--tensor-parallel-size 2
+# ts -G 4 uv run 3_response_activations.py \
+#     --model-name meta-llama/Llama-3.1-70B-Instruct \
+#     --responses-dir /workspace/llama-3.1-70b/roles_240/responses \
+#     --output-dir /workspace/llama-3.1-70b/roles_240/response_activations --batch-size 48 \
+# 	--tensor-parallel-size 2
 
 # uv run 4_judge.py \
 #     --responses-dir /workspace/llama-3.1-70b/roles_240/responses \
 #     --output-dir /workspace/llama-3.1-70b/roles_240/extract_scores
 
-uv run 5_vectors.py \
-    --activations_path /workspace/llama-3.1-70b/roles_240/response_activations \
-    --scores_path /workspace/llama-3.1-70b/roles_240/extract_scores \
-    --output_path /workspace/llama-3.1-70b/roles_240/vectors
+# uv run 5_vectors.py \
+#     --activations_path /workspace/llama-3.1-70b/roles_240/response_activations \
+#     --scores_path /workspace/llama-3.1-70b/roles_240/extract_scores \
+#     --output_path /workspace/llama-3.1-70b/roles_240/vectors
 
-uv run scripts/default_vectors.py \
-    --scores-dir /workspace/llama-3.1-70b/roles_240/extract_scores \
-    --activations-dir /workspace/llama-3.1-70b/roles_240/response_activations \
-    --output-dir /workspace/llama-3.1-70b/roles_240
+# uv run scripts/default_vectors.py \
+#     --scores-dir /workspace/llama-3.1-70b/roles_240/extract_scores \
+#     --activations-dir /workspace/llama-3.1-70b/roles_240/response_activations \
+#     --output-dir /workspace/llama-3.1-70b/roles_240

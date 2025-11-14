@@ -175,16 +175,16 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--vllm_batch_size",
-        type=int,
-        default=256,
-        help="Batch size for VLLM generation (to avoid OOM)"
-    )
-
-    parser.add_argument(
         "--test_mode",
         action="store_true",
         help="Test mode: only process first 10 prompts"
+    )
+
+    parser.add_argument(
+        "--concurrent_batch_size",
+        type=int,
+        default=64,
+        help="Number of prompts to generate concurrently (higher = faster but more VRAM). Default: 64"
     )
 
     parser.add_argument(
@@ -227,6 +227,14 @@ def parse_arguments():
         help="Number of samples to generate for each unique prompt x experiment combination"
     )
 
+    parser.add_argument(
+        "--experiment_ids",
+        type=str,
+        nargs="*",
+        default=["all"],
+        help="Experiment IDs to run; use 'all' (default) to expand all in config, or provide specific IDs (space-separated)"
+    )
+
     # VLLM-specific parameters
     parser.add_argument(
         "--tensor_parallel_size",
@@ -238,7 +246,7 @@ def parse_arguments():
     parser.add_argument(
         "--gpu_memory_utilization",
         type=float,
-        default=0.9,
+        default=0.95,
         help="GPU memory utilization (0.0-1.0)"
     )
 
@@ -468,11 +476,11 @@ def worker_process(
     max_new_tokens: int,
     temperature: float,
     samples_per_prompt: int,
-    vllm_batch_size: int,
     tensor_parallel_size: int,
     gpu_memory_utilization: float,
     max_model_len: Optional[int],
     dtype: str,
+    concurrent_batch_size: int,
     progress_queue: mp.Queue
 ):
     """
@@ -519,143 +527,171 @@ def worker_process(
 
         # Initialize VLLMSteerModel on assigned GPUs
         vllm_model = VLLMSteerModel(vllm_cfg, enforce_eager=True)
-        tokenizer = vllm_model.llm.get_tokenizer()
-        logger.info(f"VLLM model loaded on GPUs {gpu_str}")
+
+        # Get tokenizer (lazy-loads, no engine required)
+        tokenizer = vllm_model.tokenizer
+        logger.info(f"VLLM model created on GPUs {gpu_str}")
         logger.info(f"Hidden size: {vllm_model.hidden_size}, Layer count: {vllm_model.layer_count}")
 
         # Initialize JSONL handler
         jsonl_handler = JSONLHandler(output_jsonl, samples_per_prompt)
 
-        total_processed = 0
+        # ALL async operations in ONE function
+        import asyncio
 
-        # Process experiments from queue until empty
-        while True:
-            try:
-                # Get experiment ID from queue with timeout
-                experiment_id = experiment_queue.get(timeout=5)
-                if experiment_id is None:  # Sentinel value
-                    logger.info("Received stop signal")
-                    experiment_queue.put(None)  # Re-add for other workers
+        async def worker_main_async():
+            """Main async worker loop - initialize engine and process all experiments."""
+            # Initialize async engine ONCE
+            await vllm_model._ensure_engine_initialized()
+            logger.info(f"VLLM async engine initialized")
+
+            total_processed = 0
+
+            # Process experiments from queue until empty
+            while True:
+                try:
+                    # Get experiment ID from queue with timeout
+                    experiment_id = experiment_queue.get(timeout=5)
+                    if experiment_id is None:  # Sentinel value
+                        logger.info("Received stop signal")
+                        experiment_queue.put(None)  # Re-add for other workers
+                        break
+                except:
+                    # Queue empty or timeout
+                    logger.info("Queue empty, exiting")
                     break
-            except:
-                # Queue empty or timeout
-                logger.info("Queue empty, exiting")
-                break
 
-            # Get experiment object
-            if experiment_id not in experiments_by_id:
-                logger.error(f"Unknown experiment ID: {experiment_id}")
-                continue
+                # Get experiment object
+                if experiment_id not in experiments_by_id:
+                    logger.error(f"Unknown experiment ID: {experiment_id}")
+                    continue
 
-            experiment = experiments_by_id[experiment_id]
-            steering_spec = experiment.spec
+                experiment = experiments_by_id[experiment_id]
+                steering_spec = experiment.spec
 
-            unique_layers = sorted(steering_spec.layers.keys())
-            num_interventions = len(steering_spec.layers)
-            logger.info(f"\n{'='*60}")
-            logger.info(f"Processing experiment '{experiment_id}'")
-            logger.info(f"Projection caps on {num_interventions} layer(s): {unique_layers}")
+                unique_layers = sorted(steering_spec.layers.keys())
+                num_interventions = len(steering_spec.layers)
+                logger.info(f"\n{'='*60}")
+                logger.info(f"Processing experiment '{experiment_id}'")
+                logger.info(f"Projection caps on {num_interventions} layer(s): {unique_layers}")
 
-            # Filter out already completed work for this experiment
-            work_items = []
-            for prompt_data in base_prompts:
-                for sample_id in range(samples_per_prompt):
-                    # Create combination key
-                    if samples_per_prompt > 1:
-                        key = (prompt_data.get('id'), experiment_id, sample_id)
+                # Filter out already completed work for this experiment
+                work_items = []
+                for prompt_data in base_prompts:
+                    for sample_id in range(samples_per_prompt):
+                        # Create combination key
+                        if samples_per_prompt > 1:
+                            key = (prompt_data.get('id'), experiment_id, sample_id)
+                        else:
+                            key = (prompt_data.get('id'), experiment_id)
+
+                        if key not in existing_combinations:
+                            work_items.append((prompt_data, sample_id if samples_per_prompt > 1 else None))
+
+                if not work_items:
+                    logger.info(f"All work already completed for experiment '{experiment_id}', skipping")
+                    continue
+
+                logger.info(f"Processing {len(work_items)} work items for experiment '{experiment_id}'")
+
+                # Format all prompts for this experiment
+                formatted_prompts = []
+                for prompt_data, _ in work_items:
+                    formatted_prompt = format_prompt_for_chat(prompt_data, tokenizer)
+                    formatted_prompts.append(formatted_prompt)
+
+                # Apply steering and generate - we're already in async context
+                # Send prompts in concurrent batches to utilize vLLM's continuous batching
+                try:
+                    # Push steering spec
+                    await vllm_model.push_steering_spec(steering_spec)
+                    logger.info(f"[steer] Steering context active for experiment '{experiment_id}'")
+
+                    sampling_params = SamplingParams(
+                        max_tokens=max_new_tokens,
+                        temperature=temperature,
+                    )
+
+                    # Send prompts in concurrent waves for better throughput
+                    # This allows vLLM's continuous batching to work effectively
+                    all_responses = []
+
+                    logger.info(f"[steer] Generating {len(formatted_prompts)} responses with concurrent batching (batch_size={concurrent_batch_size})")
+                    with tqdm(total=len(formatted_prompts), desc=f"Worker-{worker_id} exp={experiment_id}",
+                             unit="prompts", leave=False, position=worker_id) as pbar:
+
+                        for i in range(0, len(formatted_prompts), concurrent_batch_size):
+                            batch_prompts = formatted_prompts[i:i + concurrent_batch_size]
+
+                            # Create concurrent tasks for this batch
+                            tasks = [
+                                vllm_model.generate([prompt], sampling_params)
+                                for prompt in batch_prompts
+                            ]
+
+                            # Wait for all concurrent requests to complete
+                            batch_results = await asyncio.gather(*tasks)
+
+                            # Extract text from results (each is a list with one item)
+                            batch_texts = [result[0].strip() for result in batch_results]
+                            all_responses.extend(batch_texts)
+                            pbar.update(len(batch_texts))
+
+                    logger.info(f"[steer] Generated {len(all_responses)} responses")
+
+                finally:
+                    # Pop steering spec
+                    await vllm_model.pop_steering_spec()
+                    logger.info(f"[steer] Steering context released for experiment '{experiment_id}'")
+
+                # Prepare output rows
+                output_rows = []
+                for (prompt_data, sample_id), response in zip(work_items, all_responses):
+                    if response.strip():
+                        row_data = prompt_data.copy()
+                        row_data['response'] = response
+                        row_data['experiment_id'] = experiment_id
+
+                        if sample_id is not None:
+                            row_data['sample_id'] = sample_id
+
+                        # Remove underscore fields
+                        fields_to_remove = [k for k in row_data.keys() if k.startswith('_')]
+                        for field in fields_to_remove:
+                            del row_data[field]
+
+                        output_rows.append(row_data)
                     else:
-                        key = (prompt_data.get('id'), experiment_id)
+                        logger.warning(f"Empty response for id={prompt_data.get('id')}, experiment={experiment_id}")
 
-                    if key not in existing_combinations:
-                        work_items.append((prompt_data, sample_id if samples_per_prompt > 1 else None))
+                # Write all results for this experiment
+                if output_rows:
+                    if jsonl_handler.write_rows(output_rows):
+                        logger.info(f"Wrote {len(output_rows)} rows for experiment '{experiment_id}'")
+                        total_processed += len(output_rows)
 
-            if not work_items:
-                logger.info(f"All work already completed for experiment '{experiment_id}', skipping")
-                continue
+                        # Report progress
+                        progress_queue.put({
+                            'worker_id': worker_id,
+                            'experiment_id': experiment_id,
+                            'processed': len(output_rows)
+                        })
+                    else:
+                        logger.error(f"Failed to write results for experiment '{experiment_id}'")
 
-            logger.info(f"Processing {len(work_items)} work items for experiment '{experiment_id}'")
+                # Cleanup after each experiment
+                gc.collect()
+                torch.cuda.empty_cache()
 
-            # Format all prompts for this experiment
-            formatted_prompts = []
-            for prompt_data, _ in work_items:
-                formatted_prompt = format_prompt_for_chat(prompt_data, tokenizer)
-                formatted_prompts.append(formatted_prompt)
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Worker completed. Processed {total_processed} total items")
 
-            # Apply steering ONCE for this entire experiment
-            with vllm_model.steering(steering_spec):
-                logger.info(f"[steer] Steering context active for experiment '{experiment_id}'")
+            # Signal completion
+            progress_queue.put({'worker_id': worker_id, 'done': True})
+            return total_processed
 
-                # Generate ALL responses for this experiment in one steering context
-                # Process in batches with progress bar
-                all_responses = []
-                with tqdm(total=len(formatted_prompts), desc=f"Worker-{worker_id} exp={experiment_id}",
-                         unit="prompts", leave=False, position=worker_id) as pbar:
-                    for i in range(0, len(formatted_prompts), vllm_batch_size):
-                        batch_prompts = formatted_prompts[i:i + vllm_batch_size]
-
-                        sampling_params = SamplingParams(
-                            max_tokens=max_new_tokens,
-                            temperature=temperature,
-                        )
-
-                        outputs = vllm_model.llm.generate(
-                            prompts=batch_prompts,
-                            sampling_params=sampling_params,
-                            use_tqdm=False
-                        )
-
-                        batch_responses = [output.outputs[0].text.strip() for output in outputs]
-                        all_responses.extend(batch_responses)
-                        pbar.update(len(batch_prompts))
-
-                logger.info(f"[steer] Generated {len(all_responses)} responses")
-
-            logger.info(f"[steer] Steering context released for experiment '{experiment_id}'")
-
-            # Prepare output rows
-            output_rows = []
-            for (prompt_data, sample_id), response in zip(work_items, all_responses):
-                if response.strip():
-                    row_data = prompt_data.copy()
-                    row_data['response'] = response
-                    row_data['experiment_id'] = experiment_id
-
-                    if sample_id is not None:
-                        row_data['sample_id'] = sample_id
-
-                    # Remove underscore fields
-                    fields_to_remove = [k for k in row_data.keys() if k.startswith('_')]
-                    for field in fields_to_remove:
-                        del row_data[field]
-
-                    output_rows.append(row_data)
-                else:
-                    logger.warning(f"Empty response for id={prompt_data.get('id')}, experiment={experiment_id}")
-
-            # Write all results for this experiment
-            if output_rows:
-                if jsonl_handler.write_rows(output_rows):
-                    logger.info(f"Wrote {len(output_rows)} rows for experiment '{experiment_id}'")
-                    total_processed += len(output_rows)
-
-                    # Report progress
-                    progress_queue.put({
-                        'worker_id': worker_id,
-                        'experiment_id': experiment_id,
-                        'processed': len(output_rows)
-                    })
-                else:
-                    logger.error(f"Failed to write results for experiment '{experiment_id}'")
-
-            # Cleanup after each experiment
-            gc.collect()
-            torch.cuda.empty_cache()
-
-        logger.info(f"\n{'='*60}")
-        logger.info(f"Worker completed. Processed {total_processed} total items")
-
-        # Signal completion
-        progress_queue.put({'worker_id': worker_id, 'done': True})
+        # Run the async worker main function
+        asyncio.run(worker_main_async())
 
     except Exception as e:
         logger.error(f"Fatal error in worker: {e}")
@@ -718,6 +754,24 @@ def main():
     logger.info(f"Loading legacy config: {args.config_filepath}")
     all_experiments = load_legacy_role_trait_config(args.config_filepath)
     logger.info(f"Loaded {len(all_experiments)} experiments")
+
+    # Expand 'all' and validate experiment IDs
+    exp_ids: List[str] = []
+    for exp_id in args.experiment_ids:
+        if exp_id.lower() == 'all':
+            all_ids = [exp.id for exp in all_experiments]
+            exp_ids.extend(all_ids)
+            logger.info(f"Expanded 'all' → {len(all_ids)} experiments")
+        else:
+            exp_ids.append(exp_id)
+
+    logger.info(f"Selected {len(exp_ids)} experiment(s) to run: {exp_ids}")
+
+    # Validate that all requested experiments exist
+    experiments_by_id = {exp.id: exp for exp in all_experiments}
+    for exp_id in exp_ids:
+        if exp_id not in experiments_by_id:
+            raise ValueError(f"Experiment ID '{exp_id}' not found in config. Available: {list(experiments_by_id.keys())}")
 
     # Load prompts
     if args.prompts_file:
@@ -795,15 +849,15 @@ def main():
     experiment_queue = mp.Queue()
     progress_queue = mp.Queue()
 
-    # Populate experiment queue with all experiment IDs
-    for experiment in all_experiments:
-        experiment_queue.put(experiment.id)
+    # Populate experiment queue with filtered experiment IDs
+    for exp_id in exp_ids:
+        experiment_queue.put(exp_id)
 
     # Add sentinel values for workers to know when to stop
     for _ in range(n_workers):
         experiment_queue.put(None)
 
-    print(f"\nPopulated queue with {len(all_experiments)} experiments")
+    print(f"\nPopulated queue with {len(exp_ids)} experiments")
     print(f"Workers will pull experiments dynamically for load balancing")
 
     # Launch worker processes
@@ -823,11 +877,11 @@ def main():
                 args.max_new_tokens,
                 args.temperature,
                 args.samples_per_prompt,
-                args.vllm_batch_size,
                 args.tensor_parallel_size,
                 args.gpu_memory_utilization,
                 args.max_model_len,
                 args.dtype,
+                args.concurrent_batch_size,
                 progress_queue
             )
         )
@@ -839,7 +893,7 @@ def main():
     # Start progress monitor
     monitor_process = mp.Process(
         target=progress_monitor,
-        args=(progress_queue, len(all_experiments), len(processes))
+        args=(progress_queue, len(exp_ids), len(processes))
     )
     monitor_process.start()
 

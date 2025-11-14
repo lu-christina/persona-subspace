@@ -65,7 +65,7 @@ class VLLMSteeringLM(TemplateLM):
     expected by lm-eval, implementing the required methods for evaluation.
     """
 
-    def __init__(self, vllm_steer_model: VLLMSteerModel, batch_size: int | str = 1):
+    def __init__(self, vllm_steer_model: VLLMSteerModel, batch_size: int | str = 1, concurrent_batch_size: int = 64):
         super().__init__()
         self.model = vllm_steer_model
         self.tokenizer = vllm_steer_model.tokenizer
@@ -76,6 +76,7 @@ class VLLMSteeringLM(TemplateLM):
         else:
             self._batch_size = int(batch_size)
         self._max_gen_toks = None
+        self._concurrent_batch_size = concurrent_batch_size
 
     def _ensure_engine_initialized(self):
         """Synchronous wrapper to ensure async engine is initialized."""
@@ -114,7 +115,6 @@ class VLLMSteeringLM(TemplateLM):
 
         async def _async_generate():
             await self.model._ensure_engine_initialized()
-            results = []
 
             # Determine input type and normalize to list
             if prompt_token_ids is not None:
@@ -134,18 +134,38 @@ class VLLMSteeringLM(TemplateLM):
             else:
                 raise ValueError("Must provide either prompts or prompt_token_ids")
 
-            # Wrap with tqdm if requested
-            iterator = tqdm(inputs_list, desc="Generating") if use_tqdm else inputs_list
+            # Process in concurrent batches for better throughput
+            all_results = []
 
-            for inp in iterator:
+            # Helper to generate a single prompt
+            async def _generate_one(inp):
                 request_id = f"gen_{uuid.uuid4().hex}"
                 final_output = None
                 async for output in self.model._engine.generate(inp, sampling_params, request_id=request_id):
                     final_output = output
                 if final_output is None:
                     raise RuntimeError(f"No output for prompt")
-                results.append(final_output)
-            return results
+                return final_output
+
+            # Process in batches with optional progress bar
+            if use_tqdm:
+                pbar = tqdm(total=len(inputs_list), desc="Generating")
+
+            for i in range(0, len(inputs_list), self._concurrent_batch_size):
+                batch = inputs_list[i:i + self._concurrent_batch_size]
+
+                # Generate all prompts in batch concurrently
+                tasks = [_generate_one(inp) for inp in batch]
+                batch_results = await asyncio.gather(*tasks)
+                all_results.extend(batch_results)
+
+                if use_tqdm:
+                    pbar.update(len(batch))
+
+            if use_tqdm:
+                pbar.close()
+
+            return all_results
 
         return asyncio.run(_async_generate())
 
@@ -697,7 +717,8 @@ def main() -> None:
     print(f"[init] Layer count: {vllm_model.layer_count}\n")
 
     # Wrap in lm-eval compatible interface with auto batch size
-    lm = VLLMSteeringLM(vllm_model, batch_size="auto")
+    # concurrent_batch_size=64 for better GPU utilization
+    lm = VLLMSteeringLM(vllm_model, batch_size="auto", concurrent_batch_size=64)
 
     # Use try-finally to ensure cleanup happens even on errors or Ctrl+C
     try:
