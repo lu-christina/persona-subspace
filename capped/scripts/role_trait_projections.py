@@ -8,7 +8,8 @@ projects onto specified vectors at their designated layers.
 
 Usage:
         uv run role_projections.py \
-            --base_dir /workspace/gemma-2-27b/roles_240 \
+            --activations_dir /workspace/gemma-2-27b/roles_240/response_activations \
+            --scores_dir /workspace/gemma-2-27b/roles_240/extract_scores \
             --target_vectors /workspace/gemma-2-27b/evals/multi_contrast_vectors.pt \
             --output_jsonl /workspace/gemma-2-27b/roles_240/role_projections.jsonl
 """
@@ -35,10 +36,17 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--base_dir",
+        "--activations_dir",
         type=str,
         required=True,
-        help="Base directory containing response_activations and extract_scores subdirectories"
+        help="Directory containing response activation .pt files"
+    )
+
+    parser.add_argument(
+        "--scores_dir",
+        type=str,
+        required=True,
+        help="Directory containing score .json files"
     )
 
     parser.add_argument(
@@ -99,16 +107,20 @@ def load_target_vectors(filepath: str) -> List[Dict[str, Any]]:
     return vectors
 
 
-def get_role_files(base_dir: str) -> List[Tuple[str, Path, Optional[Path]]]:
+def get_role_files(activations_dir: str, scores_dir: str) -> List[Tuple[str, Path, Optional[Path]]]:
     """
     Get list of role files with their corresponding score files.
+
+    Args:
+        activations_dir: Directory containing response activation .pt files
+        scores_dir: Directory containing score .json files
 
     Returns:
         List of (role_name, activation_path, score_path) tuples.
         score_path may be None if the file doesn't exist.
     """
-    activations_dir = Path(base_dir) / "response_activations"
-    scores_dir = Path(base_dir) / "extract_scores"
+    activations_dir = Path(activations_dir)
+    scores_dir = Path(scores_dir)
 
     if not activations_dir.exists():
         raise FileNotFoundError(f"Activations directory not found: {activations_dir}")
@@ -241,7 +253,8 @@ def main():
     logger.info("="*60)
     logger.info("Role Projections Analysis")
     logger.info("="*60)
-    logger.info(f"Base directory: {args.base_dir}")
+    logger.info(f"Activations directory: {args.activations_dir}")
+    logger.info(f"Scores directory: {args.scores_dir}")
     logger.info(f"Target vectors: {args.target_vectors}")
     logger.info(f"Output JSONL: {args.output_jsonl}")
 
@@ -249,7 +262,7 @@ def main():
     target_vectors = load_target_vectors(args.target_vectors)
 
     # Get list of role files
-    role_files = get_role_files(args.base_dir)
+    role_files = get_role_files(args.activations_dir, args.scores_dir)
 
     if not role_files:
         logger.error("No role files found")

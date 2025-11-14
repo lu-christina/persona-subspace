@@ -10,7 +10,7 @@ FILENAMES=(
 	# "manipulation"
 	# "ostracization"
 	# "wellness"
-	"suicidal"
+	"angelicism"
 )
 EXP_IDS=(
 	"layers_32:56-p0.25"
