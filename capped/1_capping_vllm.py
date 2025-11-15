@@ -183,8 +183,8 @@ def parse_arguments():
     parser.add_argument(
         "--concurrent_batch_size",
         type=int,
-        default=64,
-        help="Number of prompts to generate concurrently (higher = faster but more VRAM). Default: 64"
+        default=128,
+        help="Number of prompts to generate concurrently (higher = faster but more VRAM). Default: 128"
     )
 
     parser.add_argument(
@@ -701,7 +701,17 @@ def worker_process(
     finally:
         # Final cleanup
         if 'vllm_model' in locals():
+            try:
+                # Properly destroy vLLM's distributed workers
+                from vllm.distributed.parallel_state import destroy_model_parallel
+                destroy_model_parallel()
+                logger.info("vLLM model parallel destroyed")
+            except Exception as e:
+                logger.warning(f"Error destroying model parallel: {e}")
+
+            # Delete model object
             del vllm_model
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
