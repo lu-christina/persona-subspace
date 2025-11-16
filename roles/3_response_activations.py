@@ -37,7 +37,7 @@ from tqdm import tqdm
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, get_response_indices, get_model_layers
+from utils.internals import ProbingModel, ConversationEncoder
 from transformers import AutoTokenizer
 
 # Set up logging
@@ -59,10 +59,11 @@ def get_response_indices_batch(conversations, tokenizer, model_name=None, **chat
         List of response_indices for each conversation
     """
     batch_response_indices = []
-    
+
+    encoder = ConversationEncoder(tokenizer, model_name)
     for conversation in conversations:
-        # Use the improved utils function for each conversation
-        response_indices = get_response_indices(conversation, tokenizer, model_name, **chat_kwargs)
+        # Use the encoder function for each conversation
+        response_indices = encoder.response_indices(conversation, per_turn=False, **chat_kwargs)
         batch_response_indices.append(response_indices)
     
     return batch_response_indices
@@ -85,7 +86,8 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
         List of activation tensors, one per conversation
     """
     if layers is None:
-        layers = list(range(len(get_model_layers(model))))
+        pm = ProbingModel.from_existing(model, None)
+        layers = list(range(len(pm.get_layers())))
     elif isinstance(layers, int):
         layers = [layers]
     
@@ -140,9 +142,10 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
                     # Keep on GPU - don't transfer to CPU during forward pass!
                     layer_outputs[layer_idx] = act_tensor
                 return hook_fn
-            
+
             # Register hooks for target layers
-            model_layers = get_model_layers(model)
+            pm_temp = ProbingModel.from_existing(model, None)
+            model_layers = pm_temp.get_layers()
             for layer_idx in layers:
                 target_layer = model_layers[layer_idx]
                 handle = target_layer.register_forward_hook(create_hook_fn(layer_idx))
@@ -313,20 +316,17 @@ class OptimizedRoleActivationExtractor:
     def load_model(self, device=None):
         """Load model and tokenizer."""
         if self.model is None:
+            logger.info(f"Loading model: {self.model_name}")
             if self.chat_model_name is not None:
-                # Load tokenizer from chat model, model from activation model
-                logger.info(f"Loading model from: {self.model_name}")
-                logger.info(f"Loading tokenizer from: {self.chat_model_name}")
-                self.model, _ = load_model(self.model_name, device=device)
-                self.tokenizer = AutoTokenizer.from_pretrained(self.chat_model_name)
-                # Set padding token if not set
-                if self.tokenizer.pad_token is None:
-                    self.tokenizer.pad_token = self.tokenizer.eos_token
-                self.tokenizer.padding_side = "right"
-            else:
-                # Load both from same model (backward compatible)
-                logger.info(f"Loading model: {self.model_name}")
-                self.model, self.tokenizer = load_model(self.model_name, device=device)
+                logger.info(f"Using separate chat tokenizer: {self.chat_model_name}")
+
+            self.probing_model = ProbingModel(
+                self.model_name,
+                device=device,
+                chat_model_name=self.chat_model_name
+            )
+            self.model = self.probing_model.model
+            self.tokenizer = self.probing_model.tokenizer
             logger.info("Model loaded successfully")
     
     def close_model(self):

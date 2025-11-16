@@ -25,7 +25,7 @@ from typing import Dict, List, Any, Tuple
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, extract_activations_for_prompts
+from utils.internals import ProbingModel, ActivationExtractor, ConversationEncoder
 
 
 def load_traits_data(traits_file: str) -> Tuple[List[Dict[str, Any]], List[str]]:
@@ -120,9 +120,10 @@ def extract_all_activations(model, tokenizer, prompts: List[str], verbose: bool 
     
     # Extract from all layers
     layer_range = list(range(num_hidden_layers))
-    activations_dict = extract_activations_for_prompts(
-        model, tokenizer, prompts, layer=layer_range, swap=False
-    )
+    pm = ProbingModel.from_existing(model, tokenizer)
+    encoder = ConversationEncoder(pm.tokenizer, pm.model_name)
+    extractor = ActivationExtractor(pm, encoder)
+    activations_dict = extractor.for_prompts(prompts, layer=layer_range, swap=False)
     
     if verbose:
         print(f"Successfully extracted activations for {len(prompts)} prompts")
@@ -289,7 +290,9 @@ Examples:
         
         # Load model with multi-GPU support
         print(f"Loading model: {args.model_name}")
-        model, tokenizer = load_model(args.model_name)
+        pm = ProbingModel(args.model_name)
+        model = pm.model
+        tokenizer = pm.tokenizer
         print(f"Model loaded successfully on device: {model.device}")
         
         # Extract activations from all layers

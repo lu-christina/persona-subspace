@@ -36,7 +36,7 @@ sys.path.append(str(project_root / 'utils'))
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, process_batch_conversations
+from utils.internals import ProbingModel, process_batch_conversations
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -471,8 +471,7 @@ def process_conversations(
 
                 # Extract activations
                 batch_activations = process_batch_conversations(
-                    model=model,
-                    tokenizer=tokenizer,
+                    probing_model=pm,
                     conversations=batch_convs,
                     max_length=max_length
                 )
@@ -688,12 +687,13 @@ def main():
 
     # Load model first to get number of layers
     logger.info("Loading model and tokenizer...")
-    model, tokenizer = load_model(args.model_name)
+    pm = ProbingModel(args.model_name)
+    model = pm.model
+    tokenizer = pm.tokenizer
     model.eval()
 
     # Get number of layers
-    from utils.probing_utils import get_model_layers
-    n_layers = len(get_model_layers(model))
+    n_layers = len(pm.get_layers())
     logger.info(f"Model has {n_layers} layers")
 
     # Validate target layer

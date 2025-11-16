@@ -21,7 +21,7 @@ from typing import Dict, List, Any
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, extract_full_activations
+from utils.internals import ProbingModel, ActivationExtractor, ConversationEncoder
 
 
 def load_single_shot_transcript(file_path: str) -> Dict[str, Any]:
@@ -84,12 +84,13 @@ def extract_activations_for_conversations(
         
         try:
             # Extract full activations for this conversation
-            # extract_full_activations expects layer=None for all layers
-            activations = extract_full_activations(
-                model=model,
-                tokenizer=tokenizer, 
+            pm = ProbingModel.from_existing(model, tokenizer)
+            encoder = ConversationEncoder(pm.tokenizer, pm.model_name)
+            extractor = ActivationExtractor(pm, encoder)
+            activations = extractor.full_conversation(
                 conversation=conversation,
-                layer=None  # Extract from all layers
+                layer=None,  # Extract from all layers
+                chat_format=True
             )
             
             activations_list.append(activations)
@@ -172,7 +173,9 @@ def main():
     try:
         # Load model and tokenizer
         print("\nLoading model: google/gemma-2-27b-it")
-        model, tokenizer = load_model("google/gemma-2-27b-it")
+        pm = ProbingModel("google/gemma-2-27b-it")
+        model = pm.model
+        tokenizer = pm.tokenizer
         print("✓ Model loaded successfully!")
         
         # Process each transcript file

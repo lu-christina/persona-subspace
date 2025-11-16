@@ -78,6 +78,65 @@ class VLLMSteeringLM(TemplateLM):
         self._max_gen_toks = None
         self._concurrent_batch_size = concurrent_batch_size
 
+        # Initialize background thread with persistent event loop
+        self._loop = None
+        self._thread = None
+        self._init_loop()
+
+    def _init_loop(self):
+        """Initialize background thread with persistent event loop."""
+        import threading
+        import asyncio
+
+        ready_event = threading.Event()
+
+        def run_loop():
+            """Run event loop in background thread."""
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+            ready_event.set()
+            self._loop.run_forever()  # Keep loop alive
+
+        self._thread = threading.Thread(target=run_loop, daemon=True, name="vllm-event-loop")
+        self._thread.start()
+        ready_event.wait()  # Wait for loop to be ready
+
+        # Initialize engine in the background loop
+        print("[init] Initializing vLLM async engine in background thread...")
+        future = asyncio.run_coroutine_threadsafe(
+            self.model._ensure_engine_initialized(),
+            self._loop
+        )
+        future.result()  # Wait for init to complete
+        print("[init] vLLM async engine initialized successfully")
+
+    def _run_async(self, coro):
+        """Run coroutine in background loop from sync context."""
+        import asyncio
+        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        return future.result()
+
+    def cleanup(self):
+        """Cleanup method to stop background loop and thread."""
+        if self._loop:
+            print("[cleanup] Stopping background event loop...")
+
+            # Cancel all pending tasks in the loop
+            def cancel_tasks():
+                import asyncio
+                tasks = [t for t in asyncio.all_tasks(self._loop) if not t.done()]
+                if tasks:
+                    print(f"[cleanup] Cancelling {len(tasks)} pending tasks...")
+                    for task in tasks:
+                        task.cancel()
+                self._loop.stop()
+
+            self._loop.call_soon_threadsafe(cancel_tasks)
+
+            if self._thread and self._thread.is_alive():
+                self._thread.join(timeout=5)
+            print("[cleanup] Background loop stopped")
+
     def _ensure_engine_initialized(self):
         """Synchronous wrapper to ensure async engine is initialized."""
         import asyncio
@@ -114,7 +173,7 @@ class VLLMSteeringLM(TemplateLM):
         from tqdm import tqdm
 
         async def _async_generate():
-            await self.model._ensure_engine_initialized()
+            # Engine already initialized in background thread
 
             # Determine input type and normalize to list
             if prompt_token_ids is not None:
@@ -167,7 +226,7 @@ class VLLMSteeringLM(TemplateLM):
 
             return all_results
 
-        return asyncio.run(_async_generate())
+        return self._run_async(_async_generate())
 
     @property
     def eot_token_id(self):
@@ -718,6 +777,7 @@ def main() -> None:
 
     # Wrap in lm-eval compatible interface with auto batch size
     # concurrent_batch_size=64 for better GPU utilization
+    # Engine initialization happens automatically in __init__
     lm = VLLMSteeringLM(vllm_model, batch_size="auto", concurrent_batch_size=64)
 
     # Use try-finally to ensure cleanup happens even on errors or Ctrl+C
@@ -754,9 +814,8 @@ def main() -> None:
                     num_interventions = len(steering_spec.layers)
                     print(f"[steer] Applying {num_interventions} projection cap(s) on layers {unique_layers}")
 
-                    # Apply steering manually since we're in sync context
-                    import asyncio
-                    asyncio.run(vllm_model.push_steering_spec(steering_spec))
+                    # Apply steering manually (engine already initialized)
+                    lm._run_async(vllm_model.push_steering_spec(steering_spec))
                     try:
                         print("[steer] Steering active (projection capping only)")
                         results = run_evaluation(
@@ -777,7 +836,7 @@ def main() -> None:
                             apply_chat_template=args.apply_chat_template,
                         )
                     finally:
-                        asyncio.run(vllm_model.pop_steering_spec())
+                        lm._run_async(vllm_model.pop_steering_spec())
                         print("[steer] Steering removed")
                 else:
                     # Baseline: no steering
@@ -837,6 +896,7 @@ def main() -> None:
                 continue
     finally:
         # Always clean up vLLM resources, even if interrupted with Ctrl+C
+        lm.cleanup()
         cleanup_vllm_model(vllm_model)
 
 

@@ -84,7 +84,7 @@
 uv run scripts/role_trait_projections.py \
     --activations_dir /workspace/llama-3.3-70b/sonnet_roles/response_activations \
     --scores_dir /workspace/sonnet-4.5/roles_240/extract_scores \
-    --target_vectors /workspace/llama-3.3-70b/capped/configs/sonnet_contrast_vectors.pt \
+    --target_vectors /workspace/llama-3.3-70b/capped/configs/contrast/sonnet_contrast_vectors.pt \
     --output_jsonl /workspace/llama-3.3-70b/capped/projections/contrast/sonnet_roles_projections.jsonl
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LLAMA 3.1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

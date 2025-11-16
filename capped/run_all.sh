@@ -33,27 +33,24 @@ EXP_IDS=(
 )
 
 
-ts -G 4 uv run 1_capping_vllm.py \
-    --config_filepath /workspace/llama-3.3-70b/capped/configs/contrast/gemma_role_config.pt \
-    --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
-    --output_jsonl /workspace/llama-3.3-70b/capped/results/gemma_role_jailbreak_1100.jsonl \
-    --model_name meta-llama/Llama-3.3-70B-Instruct --company Meta --max_model_len 4096 \
-    --tensor_parallel_size 2 --experiment_ids ${EXP_IDS[@]}
-
-# ts -G 2 uv run 1_capping_vllm.py \
+# ts -G 4 uv run 1_capping_vllm.py \
 #     --config_filepath /workspace/llama-3.3-70b/capped/configs/contrast/gemma_role_config.pt \
 #     --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
-#     --output_jsonl /workspace/llama-3.3-70b/capped/results/gemma_role_default_1100.jsonl \
-#     --model_name meta-llama/Llama-3.3-70B-Instruct --max_model_len 4096 --no_system_prompt
+#     --output_jsonl /workspace/llama-3.3-70b/capped/results/gemma_role_jailbreak_1100.jsonl \
+#     --model_name meta-llama/Llama-3.3-70B-Instruct --company Meta --max_model_len 4096 \
+#     --tensor_parallel_size 2 --experiment_ids ${EXP_IDS[@]}
 
-# ts -G 2 uv run 1_capping_vllm.py \
+
+# ts -G 4 uv run 1_capping_vllm.py \
 #     --config_filepath /workspace/llama-3.3-70b/capped/configs/contrast/qwen_role_config.pt \
 #     --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
 #     --output_jsonl /workspace/llama-3.3-70b/capped/results/qwen_role_jailbreak_1100.jsonl \
-#     --model_name meta-llama/Llama-3.3-70B-Instruct --company Meta --max_model_len 4096
+#     --model_name meta-llama/Llama-3.3-70B-Instruct --company Meta --max_model_len 4096 \
+#     --tensor_parallel_size 2 --experiment_ids ${EXP_IDS[@]}
 
-# ts -G 2 uv run 1_capping_vllm.py \
-#     --config_filepath /workspace/llama-3.3-70b/capped/configs/contrast/qwen_role_config.pt \
-#     --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
-#     --output_jsonl /workspace/llama-3.3-70b/capped/results/qwen_role_default_1100.jsonl \
-#     --model_name meta-llama/Llama-3.3-70B-Instruct --max_model_len 4096 --no_system_prompt
+ts -G 4 uv run 1_capping_vllm.py \
+    --config_filepath /workspace/llama-3.3-70b/capped/configs/contrast/sonnet_role_config.pt \
+    --prompts_file /root/git/persona-subspace/evals/jailbreak/jailbreak_1100.jsonl \
+    --output_jsonl /workspace/llama-3.3-70b/capped/results/sonnet_role_jailbreak_1100.jsonl \
+    --model_name meta-llama/Llama-3.3-70B-Instruct --company Meta --max_model_len 4096 \
+    --tensor_parallel_size 2 --experiment_ids ${EXP_IDS[@]}

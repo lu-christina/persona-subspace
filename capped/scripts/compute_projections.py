@@ -31,7 +31,7 @@ sys.path.append(str(project_root / 'utils'))
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, process_batch_conversations, is_gemma_model
+from utils.internals import ProbingModel, process_batch_conversations
 from utils.pca_utils import L2MeanScaler, MeanScaler
 
 # Set up logging
@@ -158,13 +158,13 @@ def load_jsonl(filepath: str) -> List[Dict[str, Any]]:
     return records
 
 
-def reconstruct_conversation(record: Dict[str, Any], is_gemma: bool) -> List[Dict[str, str]]:
+def reconstruct_conversation(record: Dict[str, Any], supports_system_prompt: bool) -> List[Dict[str, str]]:
     """
     Reconstruct conversation from JSONL record.
 
     Args:
         record: Dictionary with 'prompt', 'question', and 'response' fields
-        is_gemma: Whether this is a Gemma model (no system prompt support)
+        supports_system_prompt: Whether the model supports system prompts (False for Gemma 2)
 
     Returns:
         List of conversation messages
@@ -186,8 +186,8 @@ def reconstruct_conversation(record: Dict[str, Any], is_gemma: bool) -> List[Dic
             system_prompt = prompt
 
     # Build conversation
-    if is_gemma or not system_prompt:
-        # Gemma doesn't support system prompts, so combine system + question
+    if not supports_system_prompt or not system_prompt:
+        # Model doesn't support system prompts (e.g., Gemma 2), so combine system + question
         combined_content = f"{system_prompt} {question}".strip() if system_prompt else question
         conversation = [
             {"role": "user", "content": combined_content},
@@ -262,10 +262,8 @@ def compute_projection(activation: torch.Tensor, target_vector: torch.Tensor, sc
 
 def process_batch(
     records: List[Dict[str, Any]],
-    model,
-    tokenizer,
+    probing_model: ProbingModel,
     target_vectors_data: Dict[str, Any],
-    is_gemma: bool,
     max_length: int,
     thinking: bool
 ) -> List[Dict[str, Any]]:
@@ -274,10 +272,8 @@ def process_batch(
 
     Args:
         records: List of JSONL records
-        model: Loaded model
-        tokenizer: Tokenizer
+        probing_model: ProbingModel instance with loaded model and tokenizer
         target_vectors_data: Dictionary with target vectors
-        is_gemma: Whether this is a Gemma model
         max_length: Maximum sequence length
         thinking: Enable thinking mode
 
@@ -287,19 +283,18 @@ def process_batch(
     # Reconstruct conversations
     conversations = []
     for record in records:
-        conv = reconstruct_conversation(record, is_gemma)
+        conv = reconstruct_conversation(record, probing_model.supports_system_prompt())
         conversations.append(conv)
 
     # Set up chat kwargs
     chat_kwargs = {}
-    if thinking and 'qwen' in tokenizer.name_or_path.lower():
+    if thinking and probing_model.is_qwen:
         chat_kwargs['enable_thinking'] = thinking
 
     # Extract activations for all conversations
     try:
         batch_activations = process_batch_conversations(
-            model=model,
-            tokenizer=tokenizer,
+            probing_model=probing_model,
             conversations=conversations,
             max_length=max_length,
             **chat_kwargs
@@ -357,8 +352,7 @@ def process_batch(
 
 def bucket_records_by_length(
     records: List[Dict[str, Any]],
-    tokenizer,
-    is_gemma: bool,
+    probing_model: ProbingModel,
     thinking: bool
 ) -> List[Dict[str, Any]]:
     """
@@ -366,8 +360,7 @@ def bucket_records_by_length(
 
     Args:
         records: List of JSONL records
-        tokenizer: Tokenizer for length calculation
-        is_gemma: Whether this is a Gemma model
+        probing_model: ProbingModel instance with loaded model and tokenizer
         thinking: Enable thinking mode
 
     Returns:
@@ -377,17 +370,17 @@ def bucket_records_by_length(
 
     # Set up chat kwargs
     chat_kwargs = {}
-    if thinking and 'qwen' in tokenizer.name_or_path.lower():
+    if thinking and probing_model.is_qwen:
         chat_kwargs['enable_thinking'] = thinking
 
     record_lengths = []
     for record in records:
         try:
             # Reconstruct conversation
-            conversation = reconstruct_conversation(record, is_gemma)
+            conversation = reconstruct_conversation(record, probing_model.supports_system_prompt())
 
             # Calculate tokenized length
-            tokenized = tokenizer.apply_chat_template(
+            tokenized = probing_model.tokenizer.apply_chat_template(
                 conversation,
                 tokenize=True,
                 add_generation_prompt=False,
@@ -446,19 +439,18 @@ def main():
 
     # Load model and tokenizer
     logger.info("Loading model and tokenizer...")
-    model, tokenizer = load_model(args.model_name)
-    model.eval()
+    pm = ProbingModel(args.model_name)
+    pm.model.eval()
     logger.info("Model loaded successfully")
 
-    # Check if this is a Gemma model
-    is_gemma = is_gemma_model(args.model_name)
-    logger.info(f"Is Gemma model: {is_gemma}")
+    # Check system prompt support
+    logger.info(f"Model type: {pm.detect_type()}")
+    logger.info(f"Supports system prompts: {pm.supports_system_prompt()}")
 
     # Sort records by length for efficient batching
     records_to_process = bucket_records_by_length(
         records_to_process,
-        tokenizer,
-        is_gemma,
+        pm,
         args.thinking
     )
 
@@ -479,10 +471,8 @@ def main():
             try:
                 batch_results = process_batch(
                     records=batch,
-                    model=model,
-                    tokenizer=tokenizer,
+                    probing_model=pm,
                     target_vectors_data=target_vectors_data,
-                    is_gemma=is_gemma,
                     max_length=args.max_length,
                     thinking=args.thinking
                 )

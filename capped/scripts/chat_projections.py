@@ -34,7 +34,7 @@ sys.path.append(str(project_root / 'utils'))
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, process_batch_conversations, is_gemma_model
+from utils.internals import ProbingModel, process_batch_conversations
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -390,8 +390,7 @@ def compute_projections_from_activations(
 def process_conversations(
     conversations: List[List[Dict[str, str]]],
     sorted_indices: List[int],
-    model,
-    tokenizer,
+    probing_model: ProbingModel,
     target_vectors: List[Dict[str, Any]],
     batch_size: int,
     max_length: int,
@@ -408,7 +407,6 @@ def process_conversations(
     Returns:
         Total number of assistant responses processed
     """
-    is_gemma = is_gemma_model(tokenizer.name_or_path)
 
     # Process in batches
     total_assistant_responses = streaming_stats.stats[target_vectors[0]['name']]['count']
@@ -436,8 +434,7 @@ def process_conversations(
 
                 # Extract activations
                 batch_activations = process_batch_conversations(
-                    model=model,
-                    tokenizer=tokenizer,
+                    probing_model=probing_model,
                     conversations=batch_convs,
                     max_length=max_length
                 )
@@ -603,20 +600,19 @@ def main():
 
     # Load model
     logger.info("Loading model and tokenizer...")
-    model, tokenizer = load_model(args.model_name)
-    model.eval()
+    pm = ProbingModel(args.model_name)
+    pm.model.eval()
     logger.info("Model loaded successfully")
 
     # Sort conversations by length for efficient batching
-    sorted_indices = bucket_conversations_by_length(conversations, tokenizer)
+    sorted_indices = bucket_conversations_by_length(conversations, pm.tokenizer)
 
     # Process conversations
     try:
         total_assistant_responses = process_conversations(
             conversations=conversations,
             sorted_indices=sorted_indices,
-            model=model,
-            tokenizer=tokenizer,
+            probing_model=pm,
             target_vectors=target_vectors,
             batch_size=args.batch_size,
             max_length=args.max_length,

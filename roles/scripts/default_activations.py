@@ -27,7 +27,7 @@ import jsonlines
 sys.path.append(str(Path(__file__).parent.parent))
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from utils.probing_utils import load_model, get_model_layers
+from utils.internals import ProbingModel
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -221,7 +221,8 @@ def extract_response_activations(
         return hook
 
     # Register hooks
-    layers = get_model_layers(model)
+    pm_temp = ProbingModel.from_existing(model, None)
+    layers = pm_temp.get_layers()
     hooks = []
     for layer_idx, layer in enumerate(layers):
         hook = layer.register_forward_hook(make_hook(layer_idx))
@@ -355,9 +356,11 @@ def main():
 
     # Load model
     logger.info("Loading model...")
-    model, tokenizer = load_model(args.model_name, device=args.device)
+    pm = ProbingModel(args.model_name, device=args.device)
+    model = pm.model
+    tokenizer = pm.tokenizer
     model.eval()
-    n_layers = len(get_model_layers(model))
+    n_layers = len(pm.get_layers())
     logger.info(f"Model loaded with {n_layers} layers")
 
     # Load PCA

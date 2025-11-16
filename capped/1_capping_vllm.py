@@ -183,7 +183,7 @@ def parse_arguments():
     parser.add_argument(
         "--concurrent_batch_size",
         type=int,
-        default=128,
+        default=256,
         help="Number of prompts to generate concurrently (higher = faster but more VRAM). Default: 128"
     )
 

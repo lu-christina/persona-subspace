@@ -30,7 +30,7 @@ from tqdm import tqdm
 sys.path.append('.')
 sys.path.append('..')
 
-from utils.probing_utils import load_model, process_batch_conversations, process_batch_conversations_no_code
+from utils.internals import ProbingModel, process_batch_conversations
 from transformers import AutoTokenizer
 
 # Set up logging
@@ -120,15 +120,18 @@ class DynamicsActivationExtractor:
             # Load tokenizer first if not already loaded
             if self.tokenizer is None:
                 self.load_tokenizer()
-            
-            if self.chat_model_name is not None:
-                # Load model from activation model (tokenizer already loaded)
-                logger.info(f"Loading model from: {self.model_name}")
-                self.model, _ = load_model(self.model_name, device=device)
-            else:
-                # Load model (tokenizer already loaded)
-                logger.info(f"Loading model: {self.model_name}")
-                self.model, _ = load_model(self.model_name, device=device)
+
+            # Load model using ProbingModel
+            logger.info(f"Loading model: {self.model_name}")
+            self.probing_model = ProbingModel(
+                self.model_name,
+                device=device,
+                chat_model_name=self.chat_model_name
+            )
+            self.model = self.probing_model.model
+            # Don't override tokenizer if already loaded (for bucketing)
+            if self.tokenizer is None:
+                self.tokenizer = self.probing_model.tokenizer
             logger.info("Model loaded successfully")
 
     def close_model(self):
@@ -340,23 +343,15 @@ class DynamicsActivationExtractor:
                            f"avg_turns={avg_turns:.1f}, effective_batch_size={len(conversations)}")
 
             # Extract batch activations using the new span-based approach
+            batch_activations = process_batch_conversations(
+                probing_model=self.probing_model,
+                conversations=conversations,
+                exclude_code=self.no_code,
+                max_length=self.max_length,
+                **self.chat_kwargs
+            )
             if self.no_code:
-                batch_activations = process_batch_conversations_no_code(
-                    model=self.model,
-                    tokenizer=self.tokenizer,
-                    conversations=conversations,
-                    max_length=self.max_length,
-                    **self.chat_kwargs
-                )
                 logger.info("Using no-code processing (excluding code blocks from averaging)")
-            else:
-                batch_activations = process_batch_conversations(
-                    model=self.model,
-                    tokenizer=self.tokenizer,
-                    conversations=conversations,
-                    max_length=self.max_length,
-                    **self.chat_kwargs
-                )
 
             logger.info(f"Extracted activations for {len(batch_activations)} conversations")
 

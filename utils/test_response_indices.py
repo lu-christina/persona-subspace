@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.append('.')
 
 from transformers import AutoTokenizer
-from probing_utils import get_response_indices, build_turn_spans
+from utils.internals import ConversationEncoder
 
 
 def get_gemma_test_conversation():
@@ -216,7 +216,8 @@ def test_gemma():
         
         # Extract response indices (no thinking for Gemma)
         print("\nExtracting response indices...")
-        response_indices = get_response_indices(conversation, tokenizer, model_name)
+        encoder = ConversationEncoder(tokenizer, model_name)
+        response_indices = encoder.response_indices(conversation)
         
         if not response_indices:
             print("❌ FAIL: No response indices found!")
@@ -271,7 +272,8 @@ def test_qwen_single(conversation, test_name, model_name):
         # Extract response indices (no thinking for Qwen)
         print("\nExtracting response indices...")
         chat_kwargs = {'enable_thinking': False}
-        response_indices = get_response_indices(conversation, tokenizer, model_name, **chat_kwargs)
+        encoder = ConversationEncoder(tokenizer, model_name)
+        response_indices = encoder.response_indices(conversation, **chat_kwargs)
         
         if not response_indices:
             print("❌ FAIL: No response indices found!")
@@ -353,7 +355,8 @@ def test_llama_single(conversation, test_name, model_name):
         
         # Extract response indices
         print("\nExtracting response indices...")
-        response_indices = get_response_indices(conversation, tokenizer, model_name)
+        encoder = ConversationEncoder(tokenizer, model_name)
+        response_indices = encoder.response_indices(conversation)
         
         if not response_indices:
             print("❌ FAIL: No response indices found!")
@@ -439,7 +442,8 @@ def test_user_and_assistant_separation(conversation, model_name, test_name):
             chat_kwargs = {'enable_thinking': False}
 
         # Use the span-based approach to test
-        full_ids, spans = build_turn_spans(conversation, tokenizer, **chat_kwargs)
+        encoder = ConversationEncoder(tokenizer, model_name)
+        full_ids, spans = encoder.build_turn_spans(conversation, **chat_kwargs)
 
         print(f"Full conversation has {len(full_ids)} tokens")
 

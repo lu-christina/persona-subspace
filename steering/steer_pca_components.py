@@ -28,7 +28,7 @@ sys.path.append(str(project_root / 'utils'))
 torch.set_float32_matmul_precision('high')
 
 from utils.steering_utils import ActivationSteering
-from utils.probing_utils import load_model, generate_text
+from utils.internals import ProbingModel
 
 
 def parse_arguments():
@@ -404,10 +404,12 @@ def generate_batched_responses(
         # Fallback to sequential processing
         print("Falling back to sequential processing")
         try:
+            # Wrap model/tokenizer for sequential generation
+            pm_fallback = ProbingModel.from_existing(model, tokenizer)
             batch_responses = []
             for question in questions:
-                response = generate_text(
-                    model, tokenizer, question,
+                response = pm_fallback.generate(
+                    question,
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
                     chat_format=True
@@ -556,7 +558,9 @@ def worker_process(
         
         # Load model on assigned GPU
         device = f"cuda:{gpu_id}"
-        model, tokenizer = load_model(model_name, device=device)
+        pm = ProbingModel(model_name, device=device)
+        model = pm.model
+        tokenizer = pm.tokenizer
         print(f"Worker GPU {gpu_id}: Model loaded on {device}")
         
         # Load PCA results

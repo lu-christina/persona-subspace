@@ -44,7 +44,7 @@ sys.path.append(str(project_root / 'utils'))
 torch.set_float32_matmul_precision('high')
 
 from utils.steering_utils import ActivationSteering
-from utils.probing_utils import load_model
+from utils.internals import ProbingModel
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -601,41 +601,16 @@ def load_model_with_tensor_parallelism(model_name: str, gpu_ids: List[int], chat
     if len(gpu_ids) == 1:
         # Single GPU - simple loading
         device = f"cuda:{gpu_ids[0]}"
-        model, tokenizer = load_model(model_name, device=device, chat_model_name=chat_model_name, dtype=dtype_value)
-        model.eval()
-        return model, tokenizer
+        pm = ProbingModel(model_name, device=device, chat_model_name=chat_model_name, dtype=dtype_value)
+        pm.model.eval()
+        return pm.model, pm.tokenizer
     else:
-        # Multi-GPU tensor parallelism using accelerate
-        try:
-            from accelerate import init_empty_weights, load_checkpoint_and_dispatch
-            from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
-
-            logger.info(f"Loading model with tensor parallelism across GPUs: {gpu_ids}")
-
-            # Load tokenizer
-            tokenizer_name = chat_model_name if chat_model_name else model_name
-            tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-            if tokenizer.pad_token is None:
-                tokenizer.pad_token = tokenizer.eos_token
-
-            # Load model with automatic device map (handles tied parameters correctly)
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                device_map='auto',
-                dtype=dtype_value,
-                low_cpu_mem_usage=True
-            )
-            model.eval()
-
-            logger.info(f"Model loaded with layers distributed across {len(gpu_ids)} GPUs")
-            return model, tokenizer
-
-        except ImportError:
-            logger.warning("accelerate library not found, falling back to single GPU")
-            device = f"cuda:{gpu_ids[0]}"
-            model, tokenizer = load_model(model_name, device=device, chat_model_name=chat_model_name, dtype=dtype_value)
-            model.eval()
-            return model, tokenizer
+        # Multi-GPU tensor parallelism - use ProbingModel with device=None for auto sharding
+        logger.info(f"Loading model with tensor parallelism across GPUs: {gpu_ids}")
+        pm = ProbingModel(model_name, device=None, chat_model_name=chat_model_name, dtype=dtype_value)
+        pm.model.eval()
+        logger.info(f"Model loaded with layers distributed across available GPUs")
+        return pm.model, pm.tokenizer
 
 
 def worker_process(

@@ -28,7 +28,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 sys.path.append(str(project_root / 'utils'))
 
-from utils.probing_utils import load_model
+from utils.internals import ProbingModel
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -286,7 +286,9 @@ def main():
 
     # Load model
     logger.info(f"Loading model {args.model} on {args.device}")
-    model, tokenizer = load_model(args.model, device=args.device)
+    pm = ProbingModel(args.model, device=args.device)
+    model = pm.model
+    tokenizer = pm.tokenizer
     model.eval()
 
     # Detect if Qwen model (disable thinking)
