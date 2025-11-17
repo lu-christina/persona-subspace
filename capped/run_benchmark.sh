@@ -43,12 +43,12 @@ BASEDIR="/workspace/llama-3.3-70b/capped/benchmarks"
 # Associative array: cap_from -> config_path
 declare -A CONFIGS=(
   ["gemma_role"]="/workspace/llama-3.3-70b/capped/configs/contrast/gemma_role_config.pt"
-  ["qwen_role"]="/workspace/llama-3.3-70b/capped/configs/contrast/qwen_role_config.pt"
-  ["sonnet_role"]="/workspace/llama-3.3-70b/capped/configs/contrast/sonnet_role_config.pt"
+  # ["qwen_role"]="/workspace/llama-3.3-70b/capped/configs/contrast/qwen_role_config.pt"
+  # ["sonnet_role"]="/workspace/llama-3.3-70b/capped/configs/contrast/sonnet_role_config.pt"
 )
 
 # ===== Eval settings =====
-TASKS="eq_bench"
+TASKS="gsm8k"
 LIMIT=1000
 SEED=42
 FEWSHOT=0
@@ -107,7 +107,7 @@ for CAP_FROM in "${!CONFIGS[@]}"; do
 
   ts -G 2 uv run 2_benchmark_vllm.py \
     --config_filepath "$CFG" \
-    --experiment_ids "${SELECTED_IDS[@]}" \
+    --experiment_ids baseline \
     --model_name "$MODEL" \
     --tasks "$TASKS" \
     --output_dir "$BASEDIR" \

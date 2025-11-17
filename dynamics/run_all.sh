@@ -11,10 +11,12 @@ FILENAMES=(
 	# "ostracization"
 	# "wellness"
 	"isolation"
+	"angelicism"
+	"oblivion"
+	"suicidal"
 )
 EXP_IDS=(
 	"layers_32:56-p0.25"
-	"layers_56:72-p0.25"
 )
 
 # for filename in "${FILENAMES[@]}"; do
@@ -29,15 +31,15 @@ for filename in "${FILENAMES[@]}"; do
 	for exp_id in "${EXP_IDS[@]}"; do
 		ts -G 2 uv run scripts/steer_transcript.py \
 			--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/${filename}.json \
-			--config /workspace/llama-3.3-70b/capped/configs/contrast/role_trait_config.pt \
+			--config /workspace/llama-3.3-70b/capped/configs/contrast/sonnet_role_config.pt \
 			--experiment_id $exp_id \
-			--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/steered/${exp_id}/${filename}.json \
+			--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/steered/sonnet_role/${exp_id}/${filename}.json \
 			--model_name meta-llama/Llama-3.3-70B-Instruct
 	done
 done
 
 
-ts -G 2 uv run scripts/replay_transcript.py \
-	--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/isolation.json \
-	--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/unsteered/isolation.json \
-	--model_name meta-llama/Llama-3.3-70B-Instruct
+# ts -G 2 uv run scripts/replay_transcript.py \
+# 	--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/isolation.json \
+# 	--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/unsteered/isolation.json \
+# 	--model_name meta-llama/Llama-3.3-70B-Instruct

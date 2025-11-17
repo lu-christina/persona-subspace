@@ -12,19 +12,23 @@ for analyzing and visualizing projection capping experiments.
 # Color scheme for different configs
 CONFIG_COLORS = {
     'baseline': '#2ca02c',      # green
-    'role_trait': '#ff7f0e',    # orange
+    'role_trait': '#2ca02c',    # green
     'jailbreak': '#d62728',     # red
     'lmsys_10000': '#9467bd',   # purple
-    'pc1_role_trait': '#1f77b4' # blue
+    'pc1_role_trait': '#1f77b4', # blue
+    'sonnet_role': '#ff7f0e', # orange
+    'qwen_role': '#9467bd' # purple
 }
 
 # Display names for configs
 CONFIG_DISPLAY_NAMES = {
     'baseline': 'Baseline',
-    'role_trait': 'Contrast Vector',
+    'role_trait': 'On-Policy Role/Trait Rollouts',
     'jailbreak': 'Jailbreak Rollouts',
     'lmsys_10000': 'LMSYS-10K Rollouts',
-    'pc1_role_trait': 'Role PC1'
+    'pc1_role_trait': 'Role PC1',
+    'sonnet_role': 'Sonnet Role Rollouts',
+    'qwen_role': 'Qwen Role Rollouts'
 }
 
 # Config ordering for consistent sorting (baseline first)
@@ -33,7 +37,9 @@ CONFIG_ORDER = {
     'role_trait': 1,
     'jailbreak': 2,
     'lmsys_10000': 3,
-    'pc1_role_trait': 4
+    'pc1_role_trait': 4,
+    'sonnet_role': 5,
+    'qwen_role': 6
 }
 
 
