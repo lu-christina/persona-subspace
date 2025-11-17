@@ -373,8 +373,9 @@ def main():
         logger.error(f"No default files found in {args.input_dir}")
         return
 
-    # Process each file
-    all_activations_for_mean = []
+    # Process each file with streaming mean computation
+    running_mean = None
+    total_count = 0
 
     for file_idx, filepath in tqdm(default_files, desc="Processing files"):
         logger.info(f"\nProcessing {filepath.name}...")
@@ -406,7 +407,15 @@ def main():
             question_idx = resp['question_index']
             key = f"{label}_p{prompt_idx}_q{question_idx}"
             activations_dict[key] = act
-            all_activations_for_mean.append(act)
+
+            # Update running mean (streaming computation)
+            if running_mean is None:
+                running_mean = act.clone().float()
+                total_count = 1
+            else:
+                total_count += 1
+                # Welford's online algorithm: new_mean = old_mean + (value - old_mean) / count
+                running_mean += (act.float() - running_mean) / total_count
 
         # Save per-file activations
         output_path = os.path.join(args.output_dir, f"{file_idx}_default.pt")
@@ -415,10 +424,10 @@ def main():
 
     # Compute overall mean
     logger.info("\nComputing overall statistics...")
-    logger.info(f"Total responses: {len(all_activations_for_mean)}")
+    logger.info(f"Total responses: {total_count}")
 
-    if all_activations_for_mean:
-        overall_mean = torch.stack(all_activations_for_mean).mean(dim=0)  # [n_layers, hidden_dim]
+    if running_mean is not None:
+        overall_mean = running_mean  # Already computed via streaming
 
         # Project to PC space
         overall_mean_projected = project_activation_to_pc(
@@ -433,7 +442,7 @@ def main():
             'mean_activation': overall_mean,
             'mean_activation_projected': overall_mean_projected,
             'target_layer': args.target_layer,
-            'n_responses': len(all_activations_for_mean)
+            'n_responses': total_count
         }
 
         overall_path = os.path.join(args.output_dir, "overall_mean.pt")

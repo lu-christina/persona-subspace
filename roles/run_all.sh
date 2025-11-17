@@ -89,7 +89,7 @@
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LLAMA 3.1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-ts -G 2 uv run 3_response_activations.py \
+ts -G 4 uv run 3_response_activations.py \
     --model-name meta-llama/Llama-3.1-70B \
     --chat-model meta-llama/Llama-3.1-70B-Instruct \
     --responses-dir /workspace/llama-3.1-70b/roles_240/responses \
@@ -105,7 +105,7 @@ ts -G 2 uv run 3_response_activations.py \
 #     --scores_path /workspace/llama-3.1-70b/roles_240/extract_scores \
 #     --output_path /workspace/llama-3.1-70b/roles_240/vectors
 
-# uv run scripts/default_vectors.py \
-#     --scores-dir /workspace/llama-3.1-70b/roles_240/extract_scores \
-#     --activations-dir /workspace/llama-3.1-70b/roles_240/response_activations \
-#     --output-dir /workspace/llama-3.1-70b/roles_240
+uv run scripts/default_vectors.py \
+    --scores-dir /workspace/llama-3.1-70b/roles_240/extract_scores \
+    --activations-dir /workspace/llama-3.1-70b/roles_240/response_activations \
+    --output-dir /workspace/llama-3.1-70b/roles_240

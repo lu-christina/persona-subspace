@@ -6,7 +6,7 @@ Collects activation statistics from a HuggingFace chat dataset and computes
 explained variance ratios for persona subspaces (roles/traits).
 
 Usage:
-    uv run scripts/dataset_activation_analysis.py \
+    uv run scripts/dataset_activation.py \
         --hf_dataset lmsys/lmsys-chat-1m \
         --model_name Qwen/Qwen2.5-32B-Instruct \
         --target_layer 32 \
@@ -429,8 +429,7 @@ def extract_mean_activations_and_compute_norms(
 def process_conversations(
     conversations: List[List[Dict[str, str]]],
     sorted_indices: List[int],
-    model,
-    tokenizer,
+    probing_model,
     batch_size: int,
     max_length: int,
     streaming_stats: LayerStreamingStats,
@@ -471,7 +470,7 @@ def process_conversations(
 
                 # Extract activations
                 batch_activations = process_batch_conversations(
-                    probing_model=pm,
+                    probing_model=probing_model,
                     conversations=batch_convs,
                     max_length=max_length
                 )
@@ -756,8 +755,7 @@ def main():
         total_assistant_responses = process_conversations(
             conversations=conversations,
             sorted_indices=sorted_indices,
-            model=model,
-            tokenizer=tokenizer,
+            probing_model=pm,
             batch_size=args.batch_size,
             max_length=args.max_length,
             streaming_stats=streaming_stats,

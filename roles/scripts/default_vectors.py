@@ -38,6 +38,27 @@ from typing import Dict, List, Tuple, Optional, Union
 import torch
 from tqdm import tqdm
 import re
+import gc
+
+
+def update_running_mean(running_mean: Optional[torch.Tensor], new_value: torch.Tensor, count: int) -> Tuple[torch.Tensor, int]:
+    """
+    Update running mean using Welford's online algorithm.
+
+    Args:
+        running_mean: Current running mean (None if first value)
+        new_value: New tensor to incorporate
+        count: Current count of values
+
+    Returns:
+        Tuple of (updated_mean, updated_count)
+    """
+    if running_mean is None:
+        return new_value.clone().float(), 1
+    else:
+        count += 1
+        running_mean = running_mean + (new_value.float() - running_mean) / count
+        return running_mean, count
 
 
 def parse_key_prefix(key: str) -> Optional[str]:
@@ -46,17 +67,17 @@ def parse_key_prefix(key: str) -> Optional[str]:
     return match.group(1) if match else None
 
 
-def load_scores_and_activations(scores_dir: str, activations_dir: str) -> Tuple[Dict[str, Dict[str, Union[int, str]]], Dict[str, Dict[str, torch.Tensor]]]:
-    """Load all score and activation files from directories."""
+def load_scores_and_activations(scores_dir: str, activations_dir: str) -> Tuple[Dict[str, Dict[str, Union[int, str]]], Dict[str, Path]]:
+    """Load all score files and get activation file paths (without loading tensors)."""
     scores_path = Path(scores_dir)
     activations_path = Path(activations_dir)
-    
+
     if not scores_path.exists():
         raise FileNotFoundError(f"Scores directory not found: {scores_dir}")
     if not activations_path.exists():
         raise FileNotFoundError(f"Activations directory not found: {activations_dir}")
-    
-    # Load all score files
+
+    # Load all score files (these are small JSON files, ok to keep in memory)
     all_scores = {}
     for score_file in scores_path.glob("*.json"):
         role_name = score_file.stem
@@ -65,17 +86,14 @@ def load_scores_and_activations(scores_dir: str, activations_dir: str) -> Tuple[
                 all_scores[role_name] = json.load(f)
         except Exception as e:
             print(f"Warning: Failed to load scores for {role_name}: {e}")
-    
-    # Load all activation files (including those without corresponding scores)
-    all_activations = {}
+
+    # Get activation file paths (don't load the tensors yet - streaming approach)
+    activation_file_paths = {}
     for activation_file in activations_path.glob("*.pt"):
         role_name = activation_file.stem
-        try:
-            all_activations[role_name] = torch.load(activation_file, map_location='cpu')
-        except Exception as e:
-            print(f"Warning: Failed to load activations for {role_name}: {e}")
-    
-    return all_scores, all_activations
+        activation_file_paths[role_name] = activation_file
+
+    return all_scores, activation_file_paths
 
 
 def filter_activations_by_score(
@@ -97,127 +115,173 @@ def filter_activations_by_score(
     return filtered
 
 
-def calculate_mean_activations_roles(all_scores: Dict[str, Dict], all_activations: Dict[str, Dict]) -> Tuple[Dict[str, torch.Tensor], Dict[str, int]]:
-    """Calculate mean activations for 'roles' directory."""
-    pos_activations = []
-    default_activations = []
-    all_activations_list = []
-    
-    # Process each role
-    for role_name in all_scores.keys():
-        if role_name not in all_activations:
+def calculate_mean_activations_roles(all_scores: Dict[str, Dict], activation_file_paths: Dict[str, Path]) -> Tuple[Dict[str, torch.Tensor], Dict[str, int]]:
+    """Calculate mean activations for 'roles' directory with streaming."""
+    # Initialize running means
+    pos_mean = None
+    pos_count = 0
+    default_mean = None
+    default_count = 0
+    all_mean = None
+    all_count = 0
+
+    # Process each role with streaming
+    print("Processing role files...")
+    for role_name in tqdm(all_scores.keys(), desc="Role files"):
+        if role_name not in activation_file_paths:
             print(f"Warning: No activations found for role {role_name}")
             continue
-            
+
+        # Load activations for this file only
+        try:
+            activations = torch.load(activation_file_paths[role_name], map_location='cpu')
+        except Exception as e:
+            print(f"Warning: Failed to load activations for {role_name}: {e}")
+            continue
+
         scores = all_scores[role_name]
-        activations = all_activations[role_name]
-        
-        # Collect pos activations with score == 1
-        pos_acts = filter_activations_by_score(scores, activations, 'pos', 1)
-        pos_activations.extend(pos_acts)
-        all_activations_list.extend(pos_acts)
-        
-        # Collect default activations with score == 1
-        default_acts = filter_activations_by_score(scores, activations, 'default', 1)
-        default_activations.extend(default_acts)
-        all_activations_list.extend(default_acts)
-    
-    # Calculate means
+
+        # Process activations with streaming
+        for key, activation in activations.items():
+            key_prefix = parse_key_prefix(key)
+            if key_prefix is None or key not in scores or scores[key] != 1:
+                continue
+
+            # Update running means
+            if key_prefix == 'pos':
+                pos_mean, pos_count = update_running_mean(pos_mean, activation, pos_count)
+                all_mean, all_count = update_running_mean(all_mean, activation, all_count)
+            elif key_prefix == 'default':
+                default_mean, default_count = update_running_mean(default_mean, activation, default_count)
+                all_mean, all_count = update_running_mean(all_mean, activation, all_count)
+
+        # Clear memory
+        del activations
+        gc.collect()
+
+    # Prepare results
     result = {}
     counts = {}
-    
-    if pos_activations:
-        result['pos_1'] = torch.stack(pos_activations).mean(dim=0)
-        counts['pos_1'] = len(pos_activations)
+
+    if pos_mean is not None:
+        result['pos_1'] = pos_mean
+        counts['pos_1'] = pos_count
     else:
         print("Warning: No pos activations with score 1 found")
-        
-    if default_activations:
-        result['default_1'] = torch.stack(default_activations).mean(dim=0)
-        counts['default_1'] = len(default_activations)
+
+    if default_mean is not None:
+        result['default_1'] = default_mean
+        counts['default_1'] = default_count
     else:
         print("Warning: No default activations with score 1 found")
-        
-    if all_activations_list:
-        result['all_1'] = torch.stack(all_activations_list).mean(dim=0)
-        counts['all_1'] = len(all_activations_list)
+
+    if all_mean is not None:
+        result['all_1'] = all_mean
+        counts['all_1'] = all_count
     else:
         print("Warning: No activations with score 1 found")
-    
+
     return result, counts
 
 
-def calculate_mean_activations_roles_240(all_scores: Dict[str, Dict], all_activations: Dict[str, Dict]) -> Tuple[Dict[str, torch.Tensor], Dict[str, int]]:
-    """Calculate mean activations for 'roles_240' directory with special default handling."""
-    pos_activations = []
-    all_activations_list = []
-    
+def calculate_mean_activations_roles_240(all_scores: Dict[str, Dict], activation_file_paths: Dict[str, Path]) -> Tuple[Dict[str, torch.Tensor], Dict[str, int]]:
+    """Calculate mean activations for 'roles_240' directory with streaming and special default handling."""
+    # Initialize running means
+    pos_mean = None
+    pos_count = 0
+    default_mean = None
+    default_count = 0
+    all_mean = None
+    all_count = 0
+
     # Find all default files with pattern {int}_default
     default_file_pattern = re.compile(r'^\d+_default$')
-    default_files = [name for name in all_activations.keys() if default_file_pattern.match(name)]
-    
-    # Process role files (same as roles directory for pos and all)
-    for role_name in all_scores.keys():
+    default_files = [name for name in activation_file_paths.keys() if default_file_pattern.match(name)]
+
+    # Process role files (same as roles directory for pos and all) with streaming
+    print("Processing role files...")
+    for role_name in tqdm(all_scores.keys(), desc="Role files"):
         if role_name in default_files:
             continue  # Handle these separately
-            
-        if role_name not in all_activations:
+
+        if role_name not in activation_file_paths:
             print(f"Warning: No activations found for role {role_name}")
             continue
-            
+
+        # Load activations for this file only
+        try:
+            activations = torch.load(activation_file_paths[role_name], map_location='cpu')
+        except Exception as e:
+            print(f"Warning: Failed to load activations for {role_name}: {e}")
+            continue
+
         scores = all_scores[role_name]
-        activations = all_activations[role_name]
-        
-        # Collect pos activations with score == 1
-        pos_acts = filter_activations_by_score(scores, activations, 'pos', 1)
-        pos_activations.extend(pos_acts)
-        all_activations_list.extend(pos_acts)
-        
-        # Collect default activations with score == 1 for all_1
-        default_acts = filter_activations_by_score(scores, activations, 'default', 1)
-        all_activations_list.extend(default_acts)
-    
+
+        # Process pos activations with score == 1
+        for key, activation in activations.items():
+            key_prefix = parse_key_prefix(key)
+            if key_prefix == 'pos' and key in scores and scores[key] == 1:
+                pos_mean, pos_count = update_running_mean(pos_mean, activation, pos_count)
+                all_mean, all_count = update_running_mean(all_mean, activation, all_count)
+
+            # Process default activations with score == 1 for all_1
+            elif key_prefix == 'default' and key in scores and scores[key] == 1:
+                all_mean, all_count = update_running_mean(all_mean, activation, all_count)
+
+        # Clear memory
+        del activations
+        gc.collect()
+
     # Special handling for default_1: mean ALL activations from {int}_default.pt files
     # These files don't have scores, so we add ALL their activations
-    default_activations = []
-    for default_file in default_files:
-        if default_file in all_activations:
-            # Add ALL activations from these files (no score filtering)
-            activations = all_activations[default_file]
-            for key, activation in activations.items():
-                default_activations.append(activation)
-                # Also add to all_1
-                all_activations_list.append(activation)
-        else:
-            print(f"Warning: Default file {default_file} not found in activations")
-    
     if default_files:
-        print(f"Found and processed {len(default_files)} default files: {default_files}")
+        print(f"Found {len(default_files)} default files, processing with streaming...")
+        for default_file in tqdm(default_files, desc="Default files"):
+            if default_file not in activation_file_paths:
+                print(f"Warning: Default file {default_file} not found in activations")
+                continue
+
+            # Load activations for this file only
+            try:
+                activations = torch.load(activation_file_paths[default_file], map_location='cpu')
+            except Exception as e:
+                print(f"Warning: Failed to load activations for {default_file}: {e}")
+                continue
+
+            # Add ALL activations from these files (no score filtering)
+            for key, activation in activations.items():
+                default_mean, default_count = update_running_mean(default_mean, activation, default_count)
+                # Also add to all_1
+                all_mean, all_count = update_running_mean(all_mean, activation, all_count)
+
+            # Clear memory after each file
+            del activations
+            gc.collect()
     else:
         print("Warning: No default files with pattern {int}_default.pt found")
-    
-    # Calculate means
+
+    # Prepare results
     result = {}
     counts = {}
-    
-    if pos_activations:
-        result['pos_1'] = torch.stack(pos_activations).mean(dim=0)
-        counts['pos_1'] = len(pos_activations)
+
+    if pos_mean is not None:
+        result['pos_1'] = pos_mean
+        counts['pos_1'] = pos_count
     else:
         print("Warning: No pos activations with score 1 found")
-        
-    if default_activations:
-        result['default_1'] = torch.stack(default_activations).mean(dim=0)
-        counts['default_1'] = len(default_activations)
+
+    if default_mean is not None:
+        result['default_1'] = default_mean
+        counts['default_1'] = default_count
     else:
         print("Warning: No default activations found in {int}_default.pt files")
-        
-    if all_activations_list:
-        result['all_1'] = torch.stack(all_activations_list).mean(dim=0)
-        counts['all_1'] = len(all_activations_list)
+
+    if all_mean is not None:
+        result['all_1'] = all_mean
+        counts['all_1'] = all_count
     else:
         print("Warning: No activations found for all_1")
-    
+
     return result, counts
 
 
@@ -235,17 +299,17 @@ def process_directory(scores_dir: str, activations_dir: str, output_dir: str, pr
     output_path = os.path.join(output_dir, "default_vectors.pt")
 
     try:
-        # Load data
-        print("Loading scores and activations...")
-        all_scores, all_activations = load_scores_and_activations(scores_dir, activations_dir)
+        # Load data (streaming approach - only get file paths)
+        print("Loading scores and getting activation file paths...")
+        all_scores, activation_file_paths = load_scores_and_activations(scores_dir, activations_dir)
 
-        print(f"Loaded {len(all_scores)} score files and {len(all_activations)} activation files")
+        print(f"Loaded {len(all_scores)} score files and found {len(activation_file_paths)} activation files")
 
-        # Calculate means based on processing type
+        # Calculate means based on processing type (with streaming)
         if processing_type == 'roles_240':
-            result, counts = calculate_mean_activations_roles_240(all_scores, all_activations)
+            result, counts = calculate_mean_activations_roles_240(all_scores, activation_file_paths)
         else:
-            result, counts = calculate_mean_activations_roles(all_scores, all_activations)
+            result, counts = calculate_mean_activations_roles(all_scores, activation_file_paths)
 
         # Prepare output with metadata
         output = {
@@ -258,7 +322,7 @@ def process_directory(scores_dir: str, activations_dir: str, output_dir: str, pr
                 'output_dir': output_dir,
                 'total_files_processed': {
                     'scores': len(all_scores),
-                    'activations': len(all_activations)
+                    'activations': len(activation_file_paths)
                 }
             }
         }
