@@ -151,7 +151,19 @@ def load_steering_config(config_path: str, device: str = "cpu") -> List[HFSteeri
             ...
         ]
     }
+
+    If config_path is None, returns a single baseline experiment with no steering.
     """
+    # Handle baseline mode (no config file)
+    if config_path is None:
+        logger.info("No config file provided - running in baseline mode (no steering)")
+        return [HFSteeringExperiment(
+            id='baseline_unsteered',
+            vectors=[],
+            coefficients=[],
+            layer_indices=[]
+        )]
+
     logger.info(f"Loading steering config from {config_path}")
     payload = torch.load(config_path, map_location="cpu", weights_only=False)
 
@@ -208,8 +220,10 @@ def parse_arguments():
     parser.add_argument(
         "--config_filepath",
         type=str,
-        required=True,
-        help="Path to steering config file (.pt format) containing vectors and experiments"
+        required=False,
+        default=None,
+        help="Path to steering config file (.pt format) containing vectors and experiments. "
+             "If omitted, runs without steering (baseline mode)."
     )
 
     parser.add_argument(
@@ -268,7 +282,7 @@ def parse_arguments():
     parser.add_argument(
         "--max_length",
         type=int,
-        default=2048,
+        default=512,
         help="Maximum sequence length"
     )
 
@@ -330,6 +344,49 @@ def parse_arguments():
         choices=["bfloat16", "float16", "float32"],
         default="bfloat16",
         help="Data type for model weights (default: bfloat16)"
+    )
+
+    parser.add_argument(
+        "--completion_mode",
+        action="store_true",
+        help="Use raw text completion mode instead of chat templates (for base models)"
+    )
+
+    parser.add_argument(
+        "--stop_sequences",
+        type=str,
+        nargs="*",
+        default=None,
+        help="List of stop sequences where generation should stop (e.g., '\\n\\n' '###')"
+    )
+
+    parser.add_argument(
+        "--top_p",
+        type=float,
+        default=1.0,
+        help="Nucleus sampling parameter (top_p). Default: 1.0 (disabled)"
+    )
+
+    parser.add_argument(
+        "--top_k",
+        type=int,
+        default=-1,
+        help="Top-k sampling parameter. Default: -1 (disabled)"
+    )
+
+    parser.add_argument(
+        "--repetition_penalty",
+        type=float,
+        default=1.0,
+        help="Repetition penalty. Default: 1.0 (disabled)"
+    )
+
+    parser.add_argument(
+        "--experiment_ids",
+        type=str,
+        nargs="*",
+        default=None,
+        help="List of specific experiment IDs to run. If not specified, all experiments from config will be run."
     )
 
     args = parser.parse_args()
@@ -512,45 +569,58 @@ def generate_batched_responses(
     max_new_tokens: int = 1024,
     temperature: float = 0.7,
     max_length: int = 2048,
-    thinking: bool = True
+    thinking: bool = True,
+    completion_mode: bool = False,
+    stop_sequences: Optional[List[str]] = None,
+    top_p: float = 1.0,
+    top_k: int = -1,
+    repetition_penalty: float = 1.0
 ) -> List[str]:
     """
     Generate responses for a batch of prompts efficiently using real batch inference.
-    Always uses chat template formatting.
+    Uses chat template formatting or raw text for completion mode.
     """
     try:
         if not prompt_data_list:
             return []
 
-        # Determine if this is a Gemma model (no system prompt support)
-        is_gemma = 'gemma-2' in model.config.name_or_path.lower() if hasattr(model.config, 'name_or_path') else False
-
-        # Format prompts for chat
+        # Format prompts
         formatted_prompts = []
         for prompt_data in prompt_data_list:
             system_prompt = prompt_data.get('_system_prompt', '')
             user_message = prompt_data.get('_user_message', '')
 
-            if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
-                if is_gemma or not system_prompt:
-                    # Gemma model or no system prompt: only use user message
-                    content = (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
-                    messages = [{"role": "user", "content": content}]
+            # Completion mode: use raw text concatenation
+            if completion_mode:
+                if system_prompt:
+                    formatted_prompts.append(f"{system_prompt}\n\n{user_message}")
                 else:
-                    # Use system prompt + user message
-                    messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message}
-                    ]
-
-                formatted_prompt = tokenizer.apply_chat_template(
-                    messages, tokenize=False, add_generation_prompt=True, enable_thinking=thinking
-                )
-                formatted_prompts.append(formatted_prompt)
+                    formatted_prompts.append(user_message)
             else:
-                # Fallback to simple concatenation
-                content = (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
-                formatted_prompts.append(content)
+                # Chat mode: use chat template formatting
+                # Determine if this is a Gemma model (no system prompt support)
+                is_gemma = 'gemma-2' in model.config.name_or_path.lower() if hasattr(model.config, 'name_or_path') else False
+
+                if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
+                    if is_gemma or not system_prompt:
+                        # Gemma model or no system prompt: only use user message
+                        content = (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
+                        messages = [{"role": "user", "content": content}]
+                    else:
+                        # Use system prompt + user message
+                        messages = [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message}
+                        ]
+
+                    formatted_prompt = tokenizer.apply_chat_template(
+                        messages, tokenize=False, add_generation_prompt=True, enable_thinking=thinking
+                    )
+                    formatted_prompts.append(formatted_prompt)
+                else:
+                    # Fallback to simple concatenation
+                    content = (f"{system_prompt} {user_message}".strip() if system_prompt else user_message)
+                    formatted_prompts.append(content)
 
         # Tokenize all prompts at once
         batch_inputs = tokenizer(
@@ -568,8 +638,24 @@ def generate_batched_responses(
             'do_sample': True if temperature > 0 else False,
             'pad_token_id': tokenizer.pad_token_id or tokenizer.eos_token_id,
             'eos_token_id': tokenizer.eos_token_id,
-            'use_cache': True
+            'use_cache': True,
+            'top_p': top_p,
+            'top_k': top_k if top_k > 0 else None,
+            'repetition_penalty': repetition_penalty,
         }
+
+        # Add stop sequences if provided
+        if stop_sequences:
+            # Convert stop sequences to token IDs
+            stop_token_ids = []
+            for seq in stop_sequences:
+                tokens = tokenizer.encode(seq, add_special_tokens=False)
+                if tokens:
+                    stop_token_ids.append(tokens)
+            if stop_token_ids:
+                # Note: HF doesn't have direct stop_sequences support, we'd need a custom stopping criteria
+                # For now, we'll use eos_token_id. Consider adding custom StoppingCriteria if needed.
+                pass
 
         # Generate responses for entire batch at once
         with torch.no_grad():
@@ -629,6 +715,11 @@ def worker_process(
     thinking: bool,
     samples_per_prompt: int,
     dtype_value: torch.dtype,
+    completion_mode: bool,
+    stop_sequences: Optional[List[str]],
+    top_p: float,
+    top_k: int,
+    repetition_penalty: float,
     progress_queue: mp.Queue
 ):
     """
@@ -718,20 +809,58 @@ def worker_process(
 
             logger_worker.info(f"Processing {len(work_items)} work items for experiment '{experiment_id}'")
 
+            # Check if steering is needed
+            has_steering = bool(experiment.vectors)
+
             # Apply steering ONCE for this entire experiment
             # ActivationSteering will handle device placement automatically
             try:
-                with ActivationSteering(
-                    model=model,
-                    steering_vectors=experiment.vectors,
-                    coefficients=experiment.coefficients,
-                    layer_indices=experiment.layer_indices,
-                    intervention_type="addition",
-                    positions="all"
-                ) as steerer:
-                    logger_worker.info(f"[steer] Steering context active for experiment '{experiment_id}'")
+                # Only use ActivationSteering context if there are vectors to apply
+                if has_steering:
+                    # Steering mode: use ActivationSteering context manager
+                    with ActivationSteering(
+                        model=model,
+                        steering_vectors=experiment.vectors,
+                        coefficients=experiment.coefficients,
+                        layer_indices=experiment.layer_indices,
+                        intervention_type="addition",
+                        positions="all"
+                    ) as steerer:
+                        logger_worker.info(f"[steer] Steering context active for experiment '{experiment_id}'")
 
-                    # Generate ALL responses for this experiment in batches within steering context
+                        # Generate ALL responses for this experiment in batches within steering context
+                        all_responses = []
+                        with tqdm(total=len(work_items), desc=f"Worker-{worker_id} exp={experiment_id}",
+                                 unit="prompts", leave=False, position=worker_id) as pbar:
+                            for i in range(0, len(work_items), batch_size):
+                                batch_work_items = work_items[i:i + batch_size]
+                                batch_prompt_data = [item[0] for item in batch_work_items]
+
+                                # Generate responses for this batch
+                                batch_responses = generate_batched_responses(
+                                    model, tokenizer, batch_prompt_data,
+                                    max_new_tokens=max_new_tokens,
+                                    temperature=temperature,
+                                    max_length=max_length,
+                                    thinking=thinking,
+                                    completion_mode=completion_mode,
+                                    stop_sequences=stop_sequences,
+                                    top_p=top_p,
+                                    top_k=top_k,
+                                    repetition_penalty=repetition_penalty
+                                )
+
+                                all_responses.extend(batch_responses)
+                                pbar.update(len(batch_work_items))
+
+                        logger_worker.info(f"[steer] Generated {len(all_responses)} responses")
+
+                    logger_worker.info(f"[steer] Steering context released for experiment '{experiment_id}'")
+                else:
+                    # Baseline mode: no steering, just generate responses directly
+                    logger_worker.info(f"[baseline] Running without steering for experiment '{experiment_id}'")
+
+                    # Generate ALL responses for this experiment in batches without steering
                     all_responses = []
                     with tqdm(total=len(work_items), desc=f"Worker-{worker_id} exp={experiment_id}",
                              unit="prompts", leave=False, position=worker_id) as pbar:
@@ -745,15 +874,18 @@ def worker_process(
                                 max_new_tokens=max_new_tokens,
                                 temperature=temperature,
                                 max_length=max_length,
-                                thinking=thinking
+                                thinking=thinking,
+                                completion_mode=completion_mode,
+                                stop_sequences=stop_sequences,
+                                top_p=top_p,
+                                top_k=top_k,
+                                repetition_penalty=repetition_penalty
                             )
 
                             all_responses.extend(batch_responses)
                             pbar.update(len(batch_work_items))
 
-                    logger_worker.info(f"[steer] Generated {len(all_responses)} responses")
-
-                logger_worker.info(f"[steer] Steering context released for experiment '{experiment_id}'")
+                    logger_worker.info(f"[baseline] Generated {len(all_responses)} responses")
 
                 # Prepare output rows
                 output_rows = []
@@ -875,6 +1007,25 @@ def main():
     all_experiments = load_steering_config(args.config_filepath)
     logger.info(f"Loaded {len(all_experiments)} experiments")
 
+    # Filter experiments if specific IDs are requested
+    if args.experiment_ids is not None and len(args.experiment_ids) > 0:
+        requested_ids = set(args.experiment_ids)
+        available_ids = {exp.id for exp in all_experiments}
+
+        # Validate that all requested IDs exist
+        missing_ids = requested_ids - available_ids
+        if missing_ids:
+            raise ValueError(
+                f"Requested experiment IDs not found in config: {sorted(missing_ids)}\n"
+                f"Available IDs: {sorted(available_ids)}"
+            )
+
+        # Filter to only requested experiments
+        all_experiments = [exp for exp in all_experiments if exp.id in requested_ids]
+        logger.info(f"Filtered to {len(all_experiments)} experiments: {sorted(requested_ids)}")
+    else:
+        logger.info(f"Running all experiments from config")
+
     # Load prompts
     if args.prompts_file:
         combined_prompts = load_prompts_file(args.prompts_file)
@@ -910,27 +1061,41 @@ def main():
     )
 
     print(f"Created {len(base_prompts)} base prompts")
-    print(f"Will generate {len(base_prompts) * len(all_experiments) * args.samples_per_prompt} total responses")
 
     # Read existing combinations
     jsonl_handler = JSONLHandler(args.output_jsonl, args.samples_per_prompt)
     existing_combinations = jsonl_handler.read_existing_combinations()
-    print(f"Found {len(existing_combinations)} existing combinations")
+
+    # Calculate work statistics
+    total_possible = len(base_prompts) * len(all_experiments) * args.samples_per_prompt
+    already_completed = len(existing_combinations)
+    will_generate = total_possible - already_completed
+
+    print(f"Total possible responses: {total_possible}")
+    print(f"Already completed: {already_completed}")
+    print(f"Will generate: {will_generate} new responses")
 
     # Check GPU availability
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA not available")
 
-    n_gpus = torch.cuda.device_count()
-    print(f"Found {n_gpus} GPUs available")
-
-    # Determine GPU IDs to use
-    if args.gpu_id is not None:
+    # Read physical GPU IDs from CUDA_VISIBLE_DEVICES if set (for task spooler compatibility)
+    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+        gpu_ids_str = os.environ['CUDA_VISIBLE_DEVICES']
+        available_gpus = [int(x.strip()) for x in gpu_ids_str.split(',') if x.strip()]
+        print(f"Found {len(available_gpus)} GPUs from CUDA_VISIBLE_DEVICES: {available_gpus}")
+    elif args.gpu_id is not None:
+        # Explicit GPU ID specified
+        n_gpus = torch.cuda.device_count()
         if args.gpu_id < 0 or args.gpu_id >= n_gpus:
             raise ValueError(f"GPU ID {args.gpu_id} is out of range [0, {n_gpus-1}]")
         available_gpus = [args.gpu_id]
+        print(f"Using specified GPU: {args.gpu_id}")
     else:
+        # No external constraint, use all GPUs
+        n_gpus = torch.cuda.device_count()
         available_gpus = list(range(n_gpus))
+        print(f"Found {n_gpus} GPUs available: {available_gpus}")
 
     print(f"Available GPUs: {available_gpus}")
     print(f"Tensor parallel size: {args.tensor_parallel_size}")
@@ -991,6 +1156,11 @@ def main():
                 args.thinking,
                 args.samples_per_prompt,
                 dtype_value,
+                args.completion_mode,
+                args.stop_sequences,
+                args.top_p,
+                args.top_k,
+                args.repetition_penalty,
                 progress_queue
             )
         )

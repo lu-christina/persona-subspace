@@ -34,6 +34,13 @@
 # 	--tensor-parallel-size 2 \
 # 	--no-default --roles-subset 5-275
 
+ts -G 2 uv run 2_responses.py \
+    --model-name meta-llama/Llama-3.1-70B-Instruct \
+    --questions-file /root/git/persona-subspace/traits/data/questions_240.jsonl \
+    --output-dir /workspace/llama-3.1-70b/traits_240/responses \
+	--tensor-parallel-size 2 \
+	--skip-default
+
 # uv run scripts/role_trait_projections.py \
 #     --activations_dir /workspace/llama-3.3-70b/gemma_roles/response_activations \
 #     --scores_dir /workspace/gemma-2-27b/roles_240/extract_scores \

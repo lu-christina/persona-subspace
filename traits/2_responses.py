@@ -887,7 +887,7 @@ Examples:
                        help='GPU memory utilization ratio (default: 0.9)')
     
     # Generation parameters
-    parser.add_argument('--question-count', type=int, default=40,
+    parser.add_argument('--question-count', type=int, default=240,
                        help='Number of questions to process per trait (default: 20)')
     parser.add_argument('--temperature', type=float, default=0.7,
                        help='Sampling temperature (default: 0.7)')

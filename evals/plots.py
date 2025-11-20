@@ -25,9 +25,14 @@ def parse_experiment_id(experiment_id):
     Examples:
         "layer_32-contrast-coeff:-0.75" → (32, "contrast", -0.75)
         "layer_32-role_pc1-coeff:0.5" → (32, "role_pc1", 0.5)
+        "baseline_unsteered" → (None, None, 0.0)
     """
     if not experiment_id or experiment_id == "baseline":
         return (None, None, None)
+
+    # Handle baseline_unsteered case
+    if experiment_id == "baseline_unsteered":
+        return (None, None, 0.0)
 
     try:
         # Find the coeff: part to split properly

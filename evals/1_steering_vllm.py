@@ -153,7 +153,17 @@ def load_steering_config(config_path: str) -> List[SteeringExperiment]:
             ...
         ]
     }
+
+    If config_path is None, returns a single baseline experiment with no steering.
     """
+    # Handle baseline mode (no config file)
+    if config_path is None:
+        logger.info("No config file provided - running in baseline mode (no steering)")
+        return [SteeringExperiment(
+            id='baseline_unsteered',
+            spec=SteeringSpec(layers={})
+        )]
+
     logger.info(f"Loading steering config from {config_path}")
     payload = torch.load(config_path, map_location="cpu")
 
@@ -213,8 +223,10 @@ def parse_arguments():
     parser.add_argument(
         "--config_filepath",
         type=str,
-        required=True,
-        help="Path to steering config file (.pt format) containing vectors and experiments"
+        required=False,
+        default=None,
+        help="Path to steering config file (.pt format) containing vectors and experiments. "
+             "If omitted, runs without steering (baseline mode)."
     )
 
     parser.add_argument(
@@ -347,6 +359,49 @@ def parse_arguments():
         help="Number of prompts to generate concurrently (higher = faster but more VRAM). Default: 64"
     )
 
+    parser.add_argument(
+        "--completion_mode",
+        action="store_true",
+        help="Use raw text completion mode instead of chat templates (for base models)"
+    )
+
+    parser.add_argument(
+        "--stop_sequences",
+        type=str,
+        nargs="*",
+        default=None,
+        help="List of stop sequences where generation should stop (e.g., '\\n\\n' '###')"
+    )
+
+    parser.add_argument(
+        "--top_p",
+        type=float,
+        default=1.0,
+        help="Nucleus sampling parameter (top_p). Default: 1.0 (disabled)"
+    )
+
+    parser.add_argument(
+        "--top_k",
+        type=int,
+        default=-1,
+        help="Top-k sampling parameter. Default: -1 (disabled)"
+    )
+
+    parser.add_argument(
+        "--repetition_penalty",
+        type=float,
+        default=1.0,
+        help="Repetition penalty. Default: 1.0 (disabled)"
+    )
+
+    parser.add_argument(
+        "--experiment_ids",
+        type=str,
+        nargs="*",
+        default=None,
+        help="List of specific experiment IDs to run. If not specified, all experiments from config will be run."
+    )
+
     args = parser.parse_args()
 
     # Validate mutually exclusive arguments
@@ -354,8 +409,8 @@ def parse_arguments():
         if args.questions_file or args.roles_file:
             parser.error("--prompts_file cannot be used with --questions_file or --roles_file")
     else:
-        if not args.questions_file or not args.roles_file:
-            parser.error("Either --prompts_file OR both --questions_file and --roles_file must be provided")
+        if not args.questions_file:
+            parser.error("Either --prompts_file OR --questions_file (with optional --roles_file) must be provided")
 
     return args
 
@@ -520,11 +575,19 @@ def create_prompt_data(prompts_data, company_name="Acme Corp", name_value="Alex"
     return base_prompts
 
 
-def format_prompt_for_chat(prompt_data: Dict[str, Any], tokenizer, model_name: str = "", enable_thinking: bool = True) -> str:
-    """Format a single prompt using the tokenizer's chat template."""
+def format_prompt_for_chat(prompt_data: Dict[str, Any], tokenizer, model_name: str = "", enable_thinking: bool = True, completion_mode: bool = False) -> str:
+    """Format a single prompt using the tokenizer's chat template or raw text for completion mode."""
     system_prompt = prompt_data.get('_system_prompt', '')
     user_message = prompt_data.get('_user_message', '')
 
+    # Completion mode: just use raw text concatenation
+    if completion_mode:
+        if system_prompt:
+            return f"{system_prompt}\n\n{user_message}"
+        else:
+            return user_message
+
+    # Chat mode: use chat template formatting
     if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
         # Check if this is a Gemma model - they append system prompts to user messages
         is_gemma = 'gemma' in model_name.lower()
@@ -572,6 +635,11 @@ def worker_process(
     dtype: str,
     enable_thinking: bool,
     concurrent_batch_size: int,
+    completion_mode: bool,
+    stop_sequences: Optional[List[str]],
+    top_p: float,
+    top_k: int,
+    repetition_penalty: float,
     progress_queue: mp.Queue
 ):
     """
@@ -581,8 +649,9 @@ def worker_process(
     torch.set_float32_matmul_precision('high')
 
     try:
-        # Note: We don't set CUDA_VISIBLE_DEVICES here because task spooler handles GPU assignment
+        # Set CUDA_VISIBLE_DEVICES for this worker's GPU subset (using physical GPU IDs)
         gpu_str = ','.join(map(str, gpu_ids))
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpu_str
 
         logger = logging.getLogger(f"Worker-{worker_id}")
         handler = logging.StreamHandler()
@@ -686,26 +755,37 @@ def worker_process(
                 # Format all prompts for this experiment
                 formatted_prompts = []
                 for prompt_data, _ in work_items:
-                    formatted_prompt = format_prompt_for_chat(prompt_data, tokenizer, model_name, enable_thinking)
+                    formatted_prompt = format_prompt_for_chat(prompt_data, tokenizer, model_name, enable_thinking, completion_mode)
                     formatted_prompts.append(formatted_prompt)
+
+                # Check if steering is needed
+                has_steering = bool(steering_spec.layers)
 
                 # Apply steering and generate - we're already in async context
                 # Send prompts in concurrent batches to utilize vLLM's continuous batching
                 try:
-                    # Push steering spec
-                    await vllm_model.push_steering_spec(steering_spec)
-                    logger.info(f"[steer] Steering context active for experiment '{experiment_id}'")
+                    # Push steering spec only if there are layers to steer
+                    if has_steering:
+                        await vllm_model.push_steering_spec(steering_spec)
+                        logger.info(f"[steer] Steering context active for experiment '{experiment_id}'")
+                    else:
+                        logger.info(f"[baseline] Running without steering for experiment '{experiment_id}'")
 
                     sampling_params = SamplingParams(
                         max_tokens=max_new_tokens,
                         temperature=temperature,
+                        top_p=top_p,
+                        top_k=top_k,
+                        repetition_penalty=repetition_penalty,
+                        stop=stop_sequences,
                     )
 
                     # Send prompts in concurrent waves for better throughput
                     # This allows vLLM's continuous batching to work effectively
                     all_responses = []
 
-                    logger.info(f"[steer] Generating {len(formatted_prompts)} responses with concurrent batching (batch_size={concurrent_batch_size})")
+                    mode_label = "steer" if has_steering else "baseline"
+                    logger.info(f"[{mode_label}] Generating {len(formatted_prompts)} responses with concurrent batching (batch_size={concurrent_batch_size})")
                     with tqdm(total=len(formatted_prompts), desc=f"Worker-{worker_id} exp={experiment_id}",
                              unit="prompts", leave=False, position=worker_id) as pbar:
 
@@ -726,12 +806,13 @@ def worker_process(
                             all_responses.extend(batch_texts)
                             pbar.update(len(batch_texts))
 
-                    logger.info(f"[steer] Generated {len(all_responses)} responses")
+                    logger.info(f"[{mode_label}] Generated {len(all_responses)} responses")
 
                 finally:
-                    # Pop steering spec
-                    await vllm_model.pop_steering_spec()
-                    logger.info(f"[steer] Steering context released for experiment '{experiment_id}'")
+                    # Pop steering spec only if we pushed one
+                    if has_steering:
+                        await vllm_model.pop_steering_spec()
+                        logger.info(f"[steer] Steering context released for experiment '{experiment_id}'")
 
                 # Prepare output rows
                 output_rows = []
@@ -775,12 +856,47 @@ def worker_process(
             logger.info(f"\n{'='*60}")
             logger.info(f"Worker completed. Processed {total_processed} total items")
 
+            # Properly shutdown the vLLM engine before exiting
+            try:
+                logger.info("Shutting down vLLM engine...")
+                if hasattr(vllm_model, 'engine') and vllm_model.engine is not None:
+                    # Try to abort all requests first
+                    try:
+                        if hasattr(vllm_model.engine, 'abort_all'):
+                            vllm_model.engine.abort_all()
+                        vllm_model.engine._request_tracker.abort_all()
+                        logger.info("Aborted all engine requests")
+                    except:
+                        pass
+
+                    # Shutdown the background loop
+                    try:
+                        if hasattr(vllm_model.engine, 'shutdown_background_loop'):
+                            await vllm_model.engine.shutdown_background_loop()
+                            logger.info("Engine background loop shut down")
+                    except:
+                        pass
+
+                    # Destroy the engine
+                    try:
+                        if hasattr(vllm_model.engine, 'engine'):
+                            del vllm_model.engine.engine
+                        del vllm_model.engine
+                        logger.info("Engine object destroyed")
+                    except:
+                        pass
+
+            except Exception as e:
+                logger.warning(f"Error during engine shutdown: {e}")
+
             # Signal completion
             progress_queue.put({'worker_id': worker_id, 'done': True})
             return total_processed
 
         # Run the async worker main function
         asyncio.run(worker_main_async())
+
+        logger.info("Work complete, forcefully cleaning up engine...")
 
     except Exception as e:
         logger.error(f"Fatal error in worker: {e}")
@@ -799,12 +915,62 @@ def worker_process(
                 logger.warning(f"Error destroying model parallel: {e}")
 
             # Delete model object
-            del vllm_model
+            try:
+                del vllm_model
+                logger.info("vLLM model deleted")
+            except Exception as e:
+                logger.warning(f"Error deleting model: {e}")
 
+        # Properly destroy CUDA contexts before shutdown
         if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
+            try:
+                # Synchronize all CUDA streams
+                for device_id in range(torch.cuda.device_count()):
+                    torch.cuda.set_device(device_id)
+                    torch.cuda.synchronize()
+                    torch.cuda.empty_cache()
+                    # Reset the device to force cleanup
+                    torch.cuda.reset_peak_memory_stats(device_id)
+                logger.info("CUDA contexts synchronized and cleared")
+            except Exception as e:
+                logger.warning(f"Error cleaning CUDA: {e}")
+
+        # Shutdown Ray and kill all worker processes (vLLM uses Ray for distributed inference)
+        try:
+            import ray
+            if ray.is_initialized():
+                # First, try to kill all Ray actors explicitly
+                try:
+                    import ray._private.worker
+                    worker = ray._private.worker.global_worker
+                    if hasattr(worker, 'core_worker'):
+                        # Kill all actors
+                        core_worker = worker.core_worker
+                        if hasattr(core_worker, 'disconnect'):
+                            core_worker.disconnect()
+                    logger.info("Disconnected Ray core worker")
+                except Exception as e:
+                    logger.warning(f"Error disconnecting Ray workers: {e}")
+
+                # Now shutdown Ray
+                ray.shutdown()
+                logger.info("Ray shutdown complete")
+
+                # Give Ray a moment to clean up
+                import time
+                time.sleep(1)
+        except Exception as e:
+            logger.warning(f"Error shutting down Ray: {e}")
+
+        # Final garbage collection
         gc.collect()
+
+        logger.info("Worker process cleanup complete, forcing process exit...")
+
+        # Force process termination to ensure Ray workers are killed
+        # By this point, all work is done and cleanup has been attempted
+        import os
+        os._exit(0)
 
 
 def progress_monitor(progress_queue: mp.Queue, total_experiments: int, n_workers: int):
@@ -854,6 +1020,25 @@ def main():
     all_experiments = load_steering_config(args.config_filepath)
     logger.info(f"Loaded {len(all_experiments)} experiments")
 
+    # Filter experiments if specific IDs are requested
+    if args.experiment_ids is not None and len(args.experiment_ids) > 0:
+        requested_ids = set(args.experiment_ids)
+        available_ids = {exp.id for exp in all_experiments}
+
+        # Validate that all requested IDs exist
+        missing_ids = requested_ids - available_ids
+        if missing_ids:
+            raise ValueError(
+                f"Requested experiment IDs not found in config: {sorted(missing_ids)}\n"
+                f"Available IDs: {sorted(available_ids)}"
+            )
+
+        # Filter to only requested experiments
+        all_experiments = [exp for exp in all_experiments if exp.id in requested_ids]
+        logger.info(f"Filtered to {len(all_experiments)} experiments: {sorted(requested_ids)}")
+    else:
+        logger.info(f"Running all experiments from config")
+
     # Load prompts
     if args.prompts_file:
         combined_prompts = load_prompts_file(args.prompts_file)
@@ -866,7 +1051,15 @@ def main():
         prompts_data = combined_prompts
     else:
         questions = load_questions(args.questions_file)
-        roles = load_roles(args.roles_file)
+
+        # Load roles file if provided, otherwise create a dummy role with empty text
+        if args.roles_file:
+            roles = load_roles(args.roles_file)
+        else:
+            # Create a single dummy role with empty text (no system prompt)
+            roles = [{'id': 0, '_role_text': ''}]
+            print("No roles file provided - using questions only (no system prompt)")
+
         is_combined_format = False
 
         if args.test_mode and len(questions) > 10:
@@ -881,35 +1074,41 @@ def main():
     )
 
     print(f"Created {len(base_prompts)} base prompts")
-    print(f"Will generate {len(base_prompts) * len(all_experiments) * args.samples_per_prompt} total responses")
 
     # Read existing combinations
     jsonl_handler = JSONLHandler(args.output_jsonl, args.samples_per_prompt)
     existing_combinations = jsonl_handler.read_existing_combinations()
-    print(f"Found {len(existing_combinations)} existing combinations")
+
+    # Calculate work statistics
+    total_possible = len(base_prompts) * len(all_experiments) * args.samples_per_prompt
+    already_completed = len(existing_combinations)
+    will_generate = total_possible - already_completed
+
+    print(f"Total possible responses: {total_possible}")
+    print(f"Already completed: {already_completed}")
+    print(f"Will generate: {will_generate} new responses")
 
     # Check GPU availability
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA not available")
 
-    n_gpus = torch.cuda.device_count()
-    print(f"Found {n_gpus} GPUs available")
-
-    # Check if CUDA_VISIBLE_DEVICES was already set (e.g., by task spooler)
-    # If so, respect it and don't try to spawn multiple workers
-    cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES')
-    if cuda_visible_devices is not None:
-        print(f"CUDA_VISIBLE_DEVICES already set to: {cuda_visible_devices}")
-        print(f"Running in single-worker mode (managed by external scheduler)")
-        available_gpus = list(range(n_gpus))  # Use all visible GPUs (already filtered by env var)
+    # Read physical GPU IDs from CUDA_VISIBLE_DEVICES if set (for task spooler compatibility)
+    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+        gpu_ids_str = os.environ['CUDA_VISIBLE_DEVICES']
+        available_gpus = [int(x.strip()) for x in gpu_ids_str.split(',') if x.strip()]
+        print(f"Found {len(available_gpus)} GPUs from CUDA_VISIBLE_DEVICES: {available_gpus}")
     elif args.gpu_id is not None:
         # Explicit GPU ID specified
+        n_gpus = torch.cuda.device_count()
         if args.gpu_id < 0 or args.gpu_id >= n_gpus:
             raise ValueError(f"GPU ID {args.gpu_id} is out of range [0, {n_gpus-1}]")
         available_gpus = [args.gpu_id]
+        print(f"Using specified GPU: {args.gpu_id}")
     else:
         # No external constraint, use all GPUs
+        n_gpus = torch.cuda.device_count()
         available_gpus = list(range(n_gpus))
+        print(f"Found {n_gpus} GPUs available: {available_gpus}")
 
     print(f"Available GPUs: {available_gpus}")
     print(f"Tensor parallel size: {args.tensor_parallel_size}")
@@ -972,6 +1171,11 @@ def main():
                 args.dtype,
                 args.thinking,
                 args.concurrent_batch_size,
+                args.completion_mode,
+                args.stop_sequences,
+                args.top_p,
+                args.top_k,
+                args.repetition_penalty,
                 progress_queue
             )
         )
@@ -987,17 +1191,24 @@ def main():
     )
     monitor_process.start()
 
-    # Wait for all workers
+    # Wait for all workers to complete
+    print("\nWaiting for workers to complete...")
     for i, p in enumerate(processes):
-        p.join()
+        p.join()  # Wait indefinitely for worker to finish
+
         if p.exitcode != 0:
             print(f"Warning: Worker process {i} exited with code {p.exitcode}")
         else:
             print(f"Worker process {i} completed successfully")
 
+    # Terminate monitor process
+    print("Terminating monitor process...")
     monitor_process.join(timeout=5)
     if monitor_process.is_alive():
         monitor_process.terminate()
+        monitor_process.join(timeout=2)
+        if monitor_process.is_alive():
+            monitor_process.kill()
 
     print(f"\nAll workers completed!")
     print(f"Results saved to: {args.output_jsonl}")
