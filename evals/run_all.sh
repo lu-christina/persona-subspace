@@ -177,7 +177,7 @@
 
 
 ts -G 2 uv run 1_steering_hf.py \
-    --config_filepath /workspace/llama-3.1-70b/evals/configs/asst_pc1_contrast_config.pt \
+    --config_filepath /workspace/llama-3.1-70b/evals/configs/rp_pc1_contrast_config.pt \
     --questions_file /root/git/persona-subspace/evals/introspective/prefill_8.jsonl \
     --output_jsonl /workspace/llama-3.1-70b/evals/results/base/prefill_8.jsonl \
     --model_name meta-llama/Llama-3.1-70B --max_new_tokens 256 --tensor_parallel_size 2 \
@@ -185,23 +185,23 @@ ts -G 2 uv run 1_steering_hf.py \
     --batch_size 128
 
 ts -G 2 uv run 1_steering_hf.py \
-    --config_filepath /workspace/gemma-2-27b/evals/configs/asst_pc1_contrast_config.pt \
+    --config_filepath /workspace/gemma-2-27b/evals/configs/rp_pc1_contrast_config.pt \
     --questions_file /root/git/persona-subspace/evals/introspective/prefill_8.jsonl \
     --output_jsonl /workspace/gemma-2-27b/evals/results/base/prefill_8.jsonl \
     --model_name google/gemma-2-27b --max_new_tokens 256 --tensor_parallel_size 1 \
     --completion_mode --samples_per_prompt 400 \
     --batch_size 80
 
-ts -G 2 uv run 1_steering_hf.py \
-    --questions_file /root/git/persona-subspace/evals/introspective/prefill_8.jsonl \
-    --output_jsonl /workspace/llama-3.1-70b/evals/results/base/prefill_8.jsonl \
-    --model_name meta-llama/Llama-3.1-70B --max_new_tokens 256 --tensor_parallel_size 2 \
-    --completion_mode --samples_per_prompt 400 \
-    --batch_size 128
+# ts -G 2 uv run 1_steering_hf.py \
+#     --questions_file /root/git/persona-subspace/evals/introspective/prefill_8.jsonl \
+#     --output_jsonl /workspace/llama-3.1-70b/evals/results/base/prefill_8.jsonl \
+#     --model_name meta-llama/Llama-3.1-70B --max_new_tokens 256 --tensor_parallel_size 2 \
+#     --completion_mode --samples_per_prompt 400 \
+#     --batch_size 128
 
-ts -G 2 uv run 1_steering_hf.py \
-    --questions_file /root/git/persona-subspace/evals/introspective/prefill_8.jsonl \
-    --output_jsonl /workspace/gemma-2-27b/evals/results/base/prefill_8.jsonl \
-    --model_name google/gemma-2-27b --max_new_tokens 256 --tensor_parallel_size 1 \
-    --completion_mode --samples_per_prompt 400 \
-    --batch_size 80
+# ts -G 2 uv run 1_steering_hf.py \
+#     --questions_file /root/git/persona-subspace/evals/introspective/prefill_8.jsonl \
+#     --output_jsonl /workspace/gemma-2-27b/evals/results/base/prefill_8.jsonl \
+#     --model_name google/gemma-2-27b --max_new_tokens 256 --tensor_parallel_size 1 \
+#     --completion_mode --samples_per_prompt 400 \
+#     --batch_size 80
