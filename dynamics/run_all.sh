@@ -2,21 +2,26 @@
 set -euo pipefail
 
 FILENAMES=(
-	# "conspiracy"
-	# "deception"
-	# "delusion"
-	# "gambling"
-	# "legal_advice"
-	# "manipulation"
-	# "ostracization"
-	# "wellness"
+	"conspiracy"
+	"deception"
+	"delusion"
+	"gambling"
+	"legal_advice"
+	"manipulation"
+	"ostracization"
+	"wellness"
+	"jailbreak"
 	"isolation"
-	"angelicism"
-	"oblivion"
-	"suicidal"
+	# "angelicism"
+	# "oblivion"
+	# "suicidal"
 )
 EXP_IDS=(
-	"layers_32:56-p0.25"
+	# "layers_56:72-p0.25"
+	# "layers_56:72-p0.5"
+	# "layers_56:72-p0.75"
+	"layers_44:48-p0.5"
+	"layers_44:48-p0.75"
 )
 
 # for filename in "${FILENAMES[@]}"; do
@@ -27,17 +32,51 @@ EXP_IDS=(
 # 	--auditor-model openai/gpt-5-chat
 # done
 
+# for filename in "${FILENAMES[@]}"; do
+# 	for exp_id in "${EXP_IDS[@]}"; do
+# 		ts -G 2 uv run scripts/steer_transcript.py \
+# 			--transcript /root/git/persona-subspace/dynamics/results/qwen-3-32b/interactive/${filename}.json \
+# 			--config /workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt \
+# 			--experiment_id $exp_id \
+# 			--output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/steered/${exp_id}/${filename}.json \
+# 			--model_name Qwen/Qwen3-32B
+# 	done
+# done
+
+# for filename in "${FILENAMES[@]}"; do
+# 	for exp_id in "${EXP_IDS[@]}"; do
+# 		ts -G 2 uv run scripts/steer_transcript.py \
+# 			--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/${filename}.json \
+# 			--config /workspace/llama-3.3-70b/capped/configs/contrast/role_trait_config.pt \
+# 			--experiment_id $exp_id \
+# 			--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/steered/${exp_id}/${filename}.json \
+# 			--model_name meta-llama/Llama-3.3-70B-Instruct
+# 	done
+# done
+
 for filename in "${FILENAMES[@]}"; do
 	for exp_id in "${EXP_IDS[@]}"; do
-		ts -G 2 uv run scripts/steer_transcript.py \
-			--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/${filename}.json \
-			--config /workspace/llama-3.3-70b/capped/configs/contrast/sonnet_role_config.pt \
+		ts -G 2 uv run scripts/remind_transcript.py \
+			--transcript /root/git/persona-subspace/dynamics/results/qwen-3-32b/kimi-k2/${filename}.json \
+			--config /workspace/qwen-3-32b/capped/configs/contrast/role_trait_sliding_config.pt \
 			--experiment_id $exp_id \
-			--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/steered/sonnet_role/${exp_id}/${filename}.json \
-			--model_name meta-llama/Llama-3.3-70B-Instruct
+			--layer 44 \
+			--output_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/reminder/${exp_id}/layer_44/${filename}.json \
+			--model_name Qwen/Qwen3-32B
 	done
 done
 
+# for filename in "${FILENAMES[@]}"; do
+# 	for exp_id in "${EXP_IDS[@]}"; do
+# 		ts -G 2 uv run scripts/remind_transcript.py \
+# 			--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/${filename}.json \
+# 			--config /workspace/llama-3.3-70b/capped/configs/contrast/role_trait_config.pt \
+# 			--experiment_id $exp_id \
+# 			--layer 60 \
+# 			--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/reminder/${exp_id}/layer_60/${filename}.json \
+# 			--model_name meta-llama/Llama-3.3-70B-Instruct
+# 	done
+# done
 
 # ts -G 2 uv run scripts/replay_transcript.py \
 # 	--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/isolation.json \
