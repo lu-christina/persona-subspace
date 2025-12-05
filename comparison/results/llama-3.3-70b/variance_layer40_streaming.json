@@ -2,8 +2,8 @@
   "model_name": "llama-3.3-70b",
   "layer": 40,
   "n_samples": 332400,
-  "timestamp": "2025-10-23T08:00:21.457012",
-  "analysis_version": "1.0_streaming",
+  "timestamp": "2025-12-05T01:24:00.374029",
+  "analysis_version": "1.1_streaming",
   "conditional_var_roles": {
     "description": "Conditional variance analysis for raw role activations based on PC1 position",
     "n_samples": 332400,
@@ -92,6 +92,92 @@
         "p_value": 9.621973864796032e-209,
         "significant": true
       }
+    }
+  },
+  "projected_variance_analysis": {
+    "description": "Variance of PC2-6 in projected space, conditioned on PC1",
+    "threshold_analysis": {
+      "assistant_like": {
+        "variance_per_pc": {
+          "pc2": 400.16847684197154,
+          "pc3": 439.255790936772,
+          "pc4": 489.44924131612765,
+          "pc5": 375.4641587248211,
+          "pc6": 987.6813011391533
+        },
+        "mean_variance_pc2_6": 538.4037937917691
+      },
+      "roleplay": {
+        "variance_per_pc": {
+          "pc2": 1642.2348548263938,
+          "pc3": 1255.9002532049826,
+          "pc4": 902.8180829871088,
+          "pc5": 725.446923777836,
+          "pc6": 800.4607153293301
+        },
+        "mean_variance_pc2_6": 1065.3721660251301
+      },
+      "variance_ratio_mean_pc2_6": 0.5053668670550467
+    },
+    "quintile_analysis": {
+      "quintiles": [
+        {
+          "quintile": 1,
+          "variance_per_pc": {
+            "pc2": 333.7711119919836,
+            "pc3": 390.81546768117994,
+            "pc4": 458.9506683036962,
+            "pc5": 353.8108897411187,
+            "pc6": 944.7104206010328
+          },
+          "mean_variance_pc2_6": 496.4117116638023
+        },
+        {
+          "quintile": 2,
+          "variance_per_pc": {
+            "pc2": 742.0691642850067,
+            "pc3": 670.4474361050741,
+            "pc4": 539.599742925417,
+            "pc5": 460.52665291614227,
+            "pc6": 894.9962946901468
+          },
+          "mean_variance_pc2_6": 661.5278581843575
+        },
+        {
+          "quintile": 3,
+          "variance_per_pc": {
+            "pc2": 1559.496029308841,
+            "pc3": 1008.1410116764674,
+            "pc4": 606.1704572451508,
+            "pc5": 625.5346721999092,
+            "pc6": 696.2237377262122
+          },
+          "mean_variance_pc2_6": 899.1131816313161
+        },
+        {
+          "quintile": 4,
+          "variance_per_pc": {
+            "pc2": 2051.821763521594,
+            "pc3": 1759.6928471219187,
+            "pc4": 1255.1043088449596,
+            "pc5": 892.4310289508635,
+            "pc6": 928.8475342112313
+          },
+          "mean_variance_pc2_6": 1377.5794965301136
+        },
+        {
+          "quintile": 5,
+          "variance_per_pc": {
+            "pc2": 1345.2188179256864,
+            "pc3": 1274.5963364069373,
+            "pc4": 1048.5174533650181,
+            "pc5": 747.3032524443457,
+            "pc6": 625.5998767167441
+          },
+          "mean_variance_pc2_6": 1008.2471473717463
+        }
+      ],
+      "variance_ratio_first_to_last_mean_pc2_6": 2.0310704273927116
     }
   }
 }

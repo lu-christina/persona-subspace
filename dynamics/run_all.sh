@@ -17,11 +17,9 @@ FILENAMES=(
 	"suicidal"
 )
 EXP_IDS=(
-	"layers_32:40-p0.25"
-	"layers_32:40-p0.5"
-	"layers_32:40-p0.75"
-	# "layers_44:48-p0.5"
-	# "layers_44:48-p0.75"
+	"layers_56:72-p0.25"
+	"layers_56:72-p0.5"
+	"layers_56:72-p0.75"
 )
 
 # for filename in "${FILENAMES[@]}"; do
@@ -72,8 +70,8 @@ for filename in "${FILENAMES[@]}"; do
 			--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/${filename}.json \
 			--config /workspace/llama-3.3-70b/capped/configs/contrast/role_trait_config.pt \
 			--experiment_id $exp_id \
-			--layer 40 \
-			--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/reminder/${exp_id}/layer_40/${filename}.json \
+			--layer 56 \
+			--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/reminder/${exp_id}/layer_56/${filename}.json \
 			--model_name meta-llama/Llama-3.3-70B-Instruct
 	done
 done

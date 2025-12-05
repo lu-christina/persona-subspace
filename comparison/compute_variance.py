@@ -81,11 +81,11 @@ def compute_global_mean_streaming(response_activations_dir, role_files, layer, c
     return global_mean, total_samples
 
 
-def build_pc1_array(response_activations_dir, role_files, layer, pca_results, chunk_size=20):
-    """Build PC1 array by streaming through all role files."""
-    print("Pass 1: Building PC1 array...")
+def build_pc_array(response_activations_dir, role_files, layer, pca_results, chunk_size=20, n_pcs=6):
+    """Build PC array (PC1-6) by streaming through all role files."""
+    print(f"Pass 1: Building PC1-{n_pcs} array...")
 
-    pc1_values = []
+    pc_values = []
     total_samples = 0
 
     # Process in chunks
@@ -106,25 +106,28 @@ def build_pc1_array(response_activations_dir, role_files, layer, pca_results, ch
         chunk_tensor = torch.stack(chunk_activations).float()  # Shape: [n_samples, 4608]
         projected = project_to_pc_space(chunk_tensor, pca_results)
 
-        # Extract PC1 values
-        pc1_chunk = projected[:, 0]
-        pc1_values.append(pc1_chunk)
+        # Extract PC1-6 values
+        pc_chunk = projected[:, :n_pcs]
+        pc_values.append(pc_chunk)
 
-        total_samples += len(pc1_chunk)
+        total_samples += len(pc_chunk)
 
-    # Concatenate all PC1 values
-    pc1_array = np.concatenate(pc1_values)
+    # Concatenate all PC values
+    pc_array = np.concatenate(pc_values, axis=0)
     print(f"Total samples: {total_samples}")
-    print(f"PC1 array shape: {pc1_array.shape}")
+    print(f"PC array shape: {pc_array.shape}")
 
-    return pc1_array, total_samples
+    return pc_array, total_samples
 
 
-def accumulate_groups(response_activations_dir, role_files, layer, pc1_array,
+def accumulate_groups(response_activations_dir, role_files, layer, pc_array,
                        global_mean, pca_results, threshold, quintile_edges,
                        model_name, chunk_size=20):
     """Accumulate samples for each group (assistant, roleplay, quintiles)."""
     print("\nPass 2: Accumulating samples per group...")
+
+    # Extract PC1 values from the full PC array
+    pc1_array = pc_array[:, 0]
 
     # Initialize group lists
     assistant_samples = []
@@ -136,12 +139,18 @@ def accumulate_groups(response_activations_dir, role_files, layer, pc1_array,
     roleplay_samples_no_pc1 = []
     quintile_samples_no_pc1 = [[] for _ in range(5)]
 
+    # Lists for projected PC values (PC1-6)
+    assistant_projected = []
+    roleplay_projected = []
+    quintile_projected = [[] for _ in range(5)]
+
     # Get PC1 direction for projection removal
     pc1_direction = torch.from_numpy(pca_results['pca'].components_[0]).float()
 
     # Lists for distance computation
     all_samples = []
     all_samples_no_pc1 = []
+    all_projected = []
 
     sample_idx = 0
 
@@ -167,9 +176,10 @@ def accumulate_groups(response_activations_dir, role_files, layer, pc1_array,
         pc1_projections = pc1_loadings * pc1_direction.unsqueeze(0)
         chunk_no_pc1 = chunk_tensor - pc1_projections
 
-        # Get PC1 values for this chunk
+        # Get PC values for this chunk
         chunk_size_actual = chunk_tensor.shape[0]
         chunk_pc1 = pc1_array[sample_idx:sample_idx + chunk_size_actual]
+        chunk_pc_all = pc_array[sample_idx:sample_idx + chunk_size_actual]  # Full PC1-6
 
         # Determine masks based on model
         if model_name == "gemma-2-27b":
@@ -183,10 +193,12 @@ def accumulate_groups(response_activations_dir, role_files, layer, pc1_array,
         if assistant_mask.sum() > 0:
             assistant_samples.append(chunk_tensor[assistant_mask])
             assistant_samples_no_pc1.append(chunk_no_pc1[assistant_mask])
+            assistant_projected.append(chunk_pc_all[assistant_mask])
 
         if roleplay_mask.sum() > 0:
             roleplay_samples.append(chunk_tensor[roleplay_mask])
             roleplay_samples_no_pc1.append(chunk_no_pc1[roleplay_mask])
+            roleplay_projected.append(chunk_pc_all[roleplay_mask])
 
         # Accumulate quintile groups
         for q_idx in range(5):
@@ -198,10 +210,12 @@ def accumulate_groups(response_activations_dir, role_files, layer, pc1_array,
             if mask.sum() > 0:
                 quintile_samples[q_idx].append(chunk_tensor[mask])
                 quintile_samples_no_pc1[q_idx].append(chunk_no_pc1[mask])
+                quintile_projected[q_idx].append(chunk_pc_all[mask])
 
         # Accumulate all samples for distance computation
         all_samples.append(chunk_tensor)
         all_samples_no_pc1.append(chunk_no_pc1)
+        all_projected.append(chunk_pc_all)
 
         sample_idx += chunk_size_actual
 
@@ -215,8 +229,14 @@ def accumulate_groups(response_activations_dir, role_files, layer, pc1_array,
     roleplay_tensor_no_pc1 = torch.cat(roleplay_samples_no_pc1, dim=0)
     quintile_tensors_no_pc1 = [torch.cat(q_samples, dim=0) for q_samples in quintile_samples_no_pc1]
 
+    # Concatenate projected PC values
+    assistant_proj = np.concatenate(assistant_projected, axis=0)
+    roleplay_proj = np.concatenate(roleplay_projected, axis=0)
+    quintile_proj = [np.concatenate(q_proj, axis=0) for q_proj in quintile_projected]
+
     all_tensor = torch.cat(all_samples, dim=0)
     all_tensor_no_pc1 = torch.cat(all_samples_no_pc1, dim=0)
+    all_proj = np.concatenate(all_projected, axis=0)
 
     print(f"Assistant samples: {assistant_tensor.shape[0]}")
     print(f"Roleplay samples: {roleplay_tensor.shape[0]}")
@@ -230,8 +250,12 @@ def accumulate_groups(response_activations_dir, role_files, layer, pc1_array,
         'assistant_no_pc1': assistant_tensor_no_pc1,
         'roleplay_no_pc1': roleplay_tensor_no_pc1,
         'quintiles_no_pc1': quintile_tensors_no_pc1,
+        'assistant_projected': assistant_proj,
+        'roleplay_projected': roleplay_proj,
+        'quintiles_projected': quintile_proj,
         'all': all_tensor,
         'all_no_pc1': all_tensor_no_pc1,
+        'all_projected': all_proj,
     }
 
 
@@ -341,6 +365,65 @@ def compute_variance_metrics(groups, global_mean, threshold, quintile_edges, pc1
     }
 
 
+def compute_projected_variance_metrics(groups, model_name):
+    """Compute variance metrics for PC2-6 in projected space."""
+    print("\nComputing projected variance metrics (PC2-6)...")
+
+    def compute_pc_variances(projected_array):
+        """Compute variance for each PC dimension (PC2-6)."""
+        # projected_array shape: [n_samples, 6] - columns are PC1, PC2, ..., PC6
+        # We want PC2-6, which are columns 1-5
+        pc2_6 = projected_array[:, 1:6]  # Shape: [n_samples, 5]
+        variances = np.var(pc2_6, axis=0)  # Variance per PC dimension
+        return {
+            'pc2': float(variances[0]),
+            'pc3': float(variances[1]),
+            'pc4': float(variances[2]),
+            'pc5': float(variances[3]),
+            'pc6': float(variances[4]),
+        }, float(np.mean(variances))
+
+    # Threshold analysis
+    assistant_var_per_pc, assistant_mean_var = compute_pc_variances(groups['assistant_projected'])
+    roleplay_var_per_pc, roleplay_mean_var = compute_pc_variances(groups['roleplay_projected'])
+    var_ratio_mean = assistant_mean_var / roleplay_mean_var
+
+    # Quintile analysis
+    quintile_results = []
+    for q_idx, q_proj in enumerate(groups['quintiles_projected']):
+        var_per_pc, mean_var = compute_pc_variances(q_proj)
+        quintile_results.append({
+            'quintile': q_idx + 1,
+            'variance_per_pc': var_per_pc,
+            'mean_variance_pc2_6': mean_var
+        })
+
+    # Quintile ratio (comparing extreme quintiles)
+    if model_name == "gemma-2-27b":
+        quintile_ratio = quintile_results[0]['mean_variance_pc2_6'] / quintile_results[-1]['mean_variance_pc2_6']
+    else:
+        quintile_ratio = quintile_results[-1]['mean_variance_pc2_6'] / quintile_results[0]['mean_variance_pc2_6']
+
+    return {
+        'description': 'Variance of PC2-6 in projected space, conditioned on PC1',
+        'threshold_analysis': {
+            'assistant_like': {
+                'variance_per_pc': assistant_var_per_pc,
+                'mean_variance_pc2_6': assistant_mean_var
+            },
+            'roleplay': {
+                'variance_per_pc': roleplay_var_per_pc,
+                'mean_variance_pc2_6': roleplay_mean_var
+            },
+            'variance_ratio_mean_pc2_6': float(var_ratio_mean)
+        },
+        'quintile_analysis': {
+            'quintiles': quintile_results,
+            'variance_ratio_first_to_last_mean_pc2_6': float(quintile_ratio)
+        }
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description='Compute streaming variance analysis on raw activations')
     parser.add_argument('--model', type=str, required=True, help='Model name (e.g., gemma-2-27b)')
@@ -377,14 +460,17 @@ def main():
     role_files = get_role_files(response_activations_dir)
     print(f"Found {len(role_files)} role files")
 
-    # Pass 1: Compute global mean and build PC1 array
+    # Pass 1: Compute global mean and build PC array (PC1-6)
     global_mean, total_samples = compute_global_mean_streaming(
         response_activations_dir, role_files, args.layer, args.chunk_size
     )
 
-    pc1_array, _ = build_pc1_array(
+    pc_array, _ = build_pc_array(
         response_activations_dir, role_files, args.layer, pca_results, args.chunk_size
     )
+
+    # Extract PC1 for quintile computation
+    pc1_array = pc_array[:, 0]
 
     # Compute quintile edges
     quintile_edges = np.quantile(pc1_array, np.linspace(0, 1, 6))
@@ -392,7 +478,7 @@ def main():
 
     # Pass 2: Accumulate groups
     groups = accumulate_groups(
-        response_activations_dir, role_files, args.layer, pc1_array,
+        response_activations_dir, role_files, args.layer, pc_array,
         global_mean, pca_results, threshold, quintile_edges,
         args.model, args.chunk_size
     )
@@ -402,6 +488,9 @@ def main():
         groups, global_mean, threshold, quintile_edges, pc1_array, args.model
     )
 
+    # Compute projected variance metrics (PC2-6)
+    projected_metrics = compute_projected_variance_metrics(groups, args.model)
+
     # Build output JSON
     timestamp = datetime.now().isoformat()
     output_data = {
@@ -409,12 +498,13 @@ def main():
         "layer": args.layer,
         "n_samples": int(total_samples),
         "timestamp": timestamp,
-        "analysis_version": "1.0_streaming",
+        "analysis_version": "1.1_streaming",
         "conditional_var_roles": {
             "description": "Conditional variance analysis for raw role activations based on PC1 position",
             "n_samples": int(total_samples),
             **metrics
-        }
+        },
+        "projected_variance_analysis": projected_metrics
     }
 
     # Save output
@@ -431,6 +521,7 @@ def main():
     print(f"  Threshold variance ratio (PC1 removed): {metrics['threshold_analysis']['variance_ratio_raw_pc1_removed']:.4f}")
     print(f"  Quintile variance ratio: {metrics['quintile_analysis']['variance_ratio_first_to_last_full']:.2f}x")
     print(f"  Distance correlation: r={metrics['distance_correlation']['full_space']['correlation']:.4f}")
+    print(f"  Projected PC2-6 variance ratio: {projected_metrics['threshold_analysis']['variance_ratio_mean_pc2_6']:.4f}")
 
 
 if __name__ == "__main__":
