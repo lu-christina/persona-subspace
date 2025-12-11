@@ -66,6 +66,7 @@ class RoleResponseGenerator:
         top_p: float = 0.9,
         prompt_indices: Optional[List[int]] = None,
         include_default: bool = True,
+        default_only: bool = False,
         append_mode: bool = False,
         questions_file: Optional[str] = None,
         roles_subset: Optional[Tuple[int, int]] = None
@@ -86,6 +87,7 @@ class RoleResponseGenerator:
             top_p: Top-p sampling parameter
             prompt_indices: List of instruction prompt indices to process (None = all prompts)
             include_default: Whether to include default system prompts
+            default_only: Whether to skip pos instructions (only run default prompts)
             append_mode: Whether to append to existing files instead of overwriting
             questions_file: Path to central questions JSONL file (if None, use role-specific questions)
             roles_subset: Tuple of (start, end) indices to process subset of roles (if None, process all)
@@ -102,6 +104,7 @@ class RoleResponseGenerator:
         self.top_p = top_p
         self.prompt_indices = prompt_indices if prompt_indices is not None else list(range(5))
         self.include_default = include_default
+        self.default_only = default_only
         self.append_mode = append_mode
         self.questions_file = questions_file
         self.roles_subset = roles_subset
@@ -296,36 +299,44 @@ class RoleResponseGenerator:
         """
         instructions = role_data['instruction']
         questions = role_data['questions'][:self.question_count]
-        
+
         logger.info(f"Processing role '{role_name}' with {len(questions)} questions")
-        
+
         # Extract all positive instructions
         all_pos_instructions = []
-        
+
         for inst in instructions:
             if 'pos' in inst:
                 all_pos_instructions.append(inst['pos'])
-        
+
         if not all_pos_instructions:
             logger.error(f"Missing pos instructions for role {role_name}")
             return []
-        
+
         logger.info(f"Found {len(all_pos_instructions)} positive instructions")
-        
+
         # Keep all instructions, filter during processing
         pos_instructions = all_pos_instructions
-        
+
         logger.info(f"Available {len(pos_instructions)} pos instruction prompts, will use indices: {self.prompt_indices}")
-        
+
         # Define default system prompts
+        model_name_short = ""
+        if self.model_name.startswith("google/gemma"):
+            model_name_short = "Gemma"
+        elif self.model_name.startswith("Qwen"):
+            model_name_short = "Qwen"
+        elif self.model_name.startswith("meta-llama"):
+            model_name_short = "Llama"
+
         default_instructions = [
             "",
             "You are an AI assistant.",
             "You are a large language model.",
-            "You are Gemma.",
+            f"You are {model_name_short}.",
             "Respond as yourself."
         ] if self.include_default else []
-        
+
         # Load existing responses if in append mode
         existing_responses = []
         existing_analysis = {"labels_done": set()}
@@ -347,31 +358,32 @@ class RoleResponseGenerator:
             
             existing_analysis = self.analyze_existing_responses(existing_responses)
             logger.info(f"Found {existing_analysis['total']} existing responses, prompts done: {existing_analysis['prompts_done']}")
-        
+
         # Prepare conversation batches for each instruction type
         all_conversations = []
         all_metadata = []
-        
-        # Positive instruction conversations (selected variants)
-        for prompt_idx in self.prompt_indices:
-            if prompt_idx < len(pos_instructions):
-                pos_instruction = pos_instructions[prompt_idx]
-                for q_idx, question in enumerate(questions):
-                    # Skip if this combination already exists (check by question and prompt combination)
-                    skip_key = ("pos", prompt_idx, q_idx)
-                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
-                        continue
-                    
-                    conversation = self.format_conversation(pos_instruction, question)
-                    all_conversations.append(conversation)
-                    all_metadata.append({
-                        "system_prompt": pos_instruction,
-                        "label": "pos",
-                        "prompt_index": prompt_idx,
-                        "question_index": q_idx,
-                        "question": question
-                    })
-        
+
+        # Positive instruction conversations (selected variants) - skip if default_only
+        if not self.default_only:
+            for prompt_idx in self.prompt_indices:
+                if prompt_idx < len(pos_instructions):
+                    pos_instruction = pos_instructions[prompt_idx]
+                    for q_idx, question in enumerate(questions):
+                        # Skip if this combination already exists (check by question and prompt combination)
+                        skip_key = ("pos", prompt_idx, q_idx)
+                        if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                            continue
+
+                        conversation = self.format_conversation(pos_instruction, question)
+                        all_conversations.append(conversation)
+                        all_metadata.append({
+                            "system_prompt": pos_instruction,
+                            "label": "pos",
+                            "prompt_index": prompt_idx,
+                            "question_index": q_idx,
+                            "question": question
+                        })
+
         # Default instruction conversations (selected variants)
         for prompt_idx in self.prompt_indices:
             if prompt_idx < len(default_instructions):
@@ -381,19 +393,19 @@ class RoleResponseGenerator:
                     skip_key = ("default", prompt_idx, q_idx)
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
-                    
+
                     conversation = self.format_conversation(default_instruction, question)
                     all_conversations.append(conversation)
                     all_metadata.append({
                         "system_prompt": default_instruction,
-                        "label": "default", 
+                        "label": "default",
                         "prompt_index": prompt_idx,
                         "question_index": q_idx,
                         "question": question
                     })
-        
+
         logger.info(f"Generated {len(all_conversations)} conversation prompts for role '{role_name}'")
-        
+
         # Run batch inference
         try:
             logger.info(f"Running batch inference for role '{role_name}'...")
@@ -406,13 +418,13 @@ class RoleResponseGenerator:
                 progress=True,
                 enable_thinking=False
             )
-            
+
             logger.info(f"Generated {len(responses)} responses for role '{role_name}'")
-            
+
         except Exception as e:
             logger.error(f"Error during batch inference for role '{role_name}': {e}")
             return []
-        
+
         # Combine responses with metadata
         new_result_objects = []
         for metadata, response in zip(all_metadata, responses):
@@ -427,7 +439,7 @@ class RoleResponseGenerator:
                 "question": metadata["question"]
             }
             new_result_objects.append(result_obj)
-        
+
         # In append mode, combine with existing responses
         if self.append_mode and existing_responses:
             all_result_objects = existing_responses + new_result_objects
@@ -435,7 +447,7 @@ class RoleResponseGenerator:
             return all_result_objects
         else:
             return new_result_objects
-    
+
     def generate_role_responses_with_central_questions(self, role_name: str, role_data: Dict) -> List[Dict]:
         """
         Generate responses for a single role using central questions file.
@@ -457,37 +469,45 @@ class RoleResponseGenerator:
         
         # Extract all positive instructions
         all_pos_instructions = []
-        
+
         for inst in instructions:
             if 'pos' in inst:
                 all_pos_instructions.append(inst['pos'])
-        
+
         if not all_pos_instructions:
             logger.error(f"Missing pos instructions for role {role_name}")
             return []
-        
+
         logger.info(f"Found {len(all_pos_instructions)} positive instructions")
-        
+
         # Keep all instructions, filter during processing
         pos_instructions = all_pos_instructions
-        
+
         logger.info(f"Available {len(pos_instructions)} pos instruction prompts, will use indices: {self.prompt_indices}")
-        
+
         # Define default system prompts
+        model_name_short = ""
+        if self.model_name.startswith("google/gemma"):
+            model_name_short = "Gemma"
+        elif self.model_name.startswith("Qwen"):
+            model_name_short = "Qwen"
+        elif self.model_name.startswith("meta-llama"):
+            model_name_short = "Llama"
+
         default_instructions = [
             "",
             "You are an AI assistant.",
             "You are a large language model.",
-            "You are Gemma.",
+            f"You are {model_name_short}.",
             "Respond as yourself."
         ] if self.include_default else []
-        
+
         # Load existing responses if in append mode
         existing_responses = []
         existing_analysis = {"labels_done": set()}
         if self.append_mode:
             existing_responses = self.load_existing_responses(role_name)
-            
+
             # Truncate responses if needed (discard any invalid responses from buggy runs)
             # With 10 instruction types (5 pos + 5 default) and default question_count, 
             # we expect a reasonable number of responses
@@ -503,31 +523,32 @@ class RoleResponseGenerator:
             
             existing_analysis = self.analyze_existing_responses(existing_responses)
             logger.info(f"Found {existing_analysis['total']} existing responses, prompts done: {existing_analysis['prompts_done']}")
-        
+
         # Prepare conversation batches for each instruction type
         all_conversations = []
         all_metadata = []
-        
-        # Positive instruction conversations (selected variants)
-        for prompt_idx in self.prompt_indices:
-            if prompt_idx < len(pos_instructions):
-                pos_instruction = pos_instructions[prompt_idx]
-                for q_idx, question in enumerate(questions):
-                    # Skip if this combination already exists (check by question and prompt combination)
-                    skip_key = ("pos", prompt_idx, q_idx)
-                    if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
-                        continue
-                    
-                    conversation = self.format_conversation(pos_instruction, question)
-                    all_conversations.append(conversation)
-                    all_metadata.append({
-                        "system_prompt": pos_instruction,
-                        "label": "pos",
-                        "prompt_index": prompt_idx,
-                        "question_index": q_idx,
-                        "question": question
-                    })
-        
+
+        # Positive instruction conversations (selected variants) - skip if default_only
+        if not self.default_only:
+            for prompt_idx in self.prompt_indices:
+                if prompt_idx < len(pos_instructions):
+                    pos_instruction = pos_instructions[prompt_idx]
+                    for q_idx, question in enumerate(questions):
+                        # Skip if this combination already exists (check by question and prompt combination)
+                        skip_key = ("pos", prompt_idx, q_idx)
+                        if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
+                            continue
+
+                        conversation = self.format_conversation(pos_instruction, question)
+                        all_conversations.append(conversation)
+                        all_metadata.append({
+                            "system_prompt": pos_instruction,
+                            "label": "pos",
+                            "prompt_index": prompt_idx,
+                            "question_index": q_idx,
+                            "question": question
+                        })
+
         # Default instruction conversations (selected variants)
         for prompt_idx in self.prompt_indices:
             if prompt_idx < len(default_instructions):
@@ -537,17 +558,17 @@ class RoleResponseGenerator:
                     skip_key = ("default", prompt_idx, q_idx)
                     if self.append_mode and skip_key in {(r['label'], r.get('prompt_index', 0), r['question_index']) for r in existing_responses}:
                         continue
-                    
+
                     conversation = self.format_conversation(default_instruction, question)
                     all_conversations.append(conversation)
                     all_metadata.append({
                         "system_prompt": default_instruction,
-                        "label": "default", 
+                        "label": "default",
                         "prompt_index": prompt_idx,
                         "question_index": q_idx,
                         "question": question
                     })
-        
+
         logger.info(f"Generated {len(all_conversations)} conversation prompts for role '{role_name}'")
         
         # Run batch inference
@@ -822,6 +843,7 @@ def process_roles_on_worker(worker_id, gpu_ids, role_names, args, prompt_indices
             top_p=args.top_p,
             prompt_indices=prompt_indices,
             include_default=args.include_default,
+            default_only=args.default_only,
             append_mode=args.append_mode,
             questions_file=args.questions_file,
             roles_subset=None  # Already filtered at the worker level
@@ -937,6 +959,7 @@ def run_multi_worker(args, prompt_indices, roles_subset):
         top_p=args.top_p,
         prompt_indices=prompt_indices,
         include_default=args.include_default,
+        default_only=args.default_only,
         append_mode=args.append_mode,
         questions_file=args.questions_file,
         roles_subset=roles_subset
@@ -1072,6 +1095,8 @@ Examples:
                        help='Include default system prompts in addition to positive prompts (default: True)')
     parser.add_argument('--no-default', action='store_false', dest='include_default',
                        help='Disable default system prompts')
+    parser.add_argument('--default-only', action='store_true',
+                       help='Skip pos instructions (only run default system prompts)')
     parser.add_argument('--append-mode', action='store_true',
                        help='Append responses to existing files instead of overwriting')
     
@@ -1121,7 +1146,12 @@ Examples:
         except ValueError as e:
             logger.error(f"Invalid roles subset format: {args.roles_subset}")
             return 1
-    
+
+    # Validate mutually exclusive flags
+    if not args.include_default and args.default_only:
+        logger.error("Error: --no-default and --default-only are mutually exclusive")
+        return 1
+
     # Print configuration
     logger.info("Configuration:")
     logger.info(f"  Model: {args.model_name}")
@@ -1134,6 +1164,7 @@ Examples:
     logger.info(f"  Max tokens: {args.max_tokens}")
     logger.info(f"  Prompt indices: {prompt_indices if prompt_indices else 'all (0-4)'}")
     logger.info(f"  Include default: {args.include_default}")
+    logger.info(f"  Default only: {args.default_only}")
     logger.info(f"  Append mode: {args.append_mode}")
     logger.info(f"  Skip existing: {not args.no_skip_existing}")
 
@@ -1175,6 +1206,7 @@ Examples:
             top_p=args.top_p,
             prompt_indices=prompt_indices,
             include_default=args.include_default,
+            default_only=args.default_only,
             append_mode=args.append_mode,
             questions_file=args.questions_file,
             roles_subset=roles_subset

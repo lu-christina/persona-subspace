@@ -34,12 +34,12 @@
 # 	--tensor-parallel-size 2 \
 # 	--no-default --roles-subset 5-275
 
-ts -G 2 uv run 2_responses.py \
-    --model-name meta-llama/Llama-3.1-70B-Instruct \
-    --questions-file /root/git/persona-subspace/traits/data/questions_240.jsonl \
-    --output-dir /workspace/llama-3.1-70b/traits_240/responses \
-	--tensor-parallel-size 2 \
-	--skip-default
+# ts -G 2 uv run 2_responses.py \
+#     --model-name meta-llama/Llama-3.1-70B-Instruct \
+#     --questions-file /root/git/persona-subspace/traits/data/questions_240.jsonl \
+#     --output-dir /workspace/llama-3.1-70b/traits_240/responses \
+# 	--tensor-parallel-size 2 \
+# 	--skip-default
 
 # uv run scripts/role_trait_projections.py \
 #     --activations_dir /workspace/llama-3.3-70b/gemma_roles/response_activations \
@@ -116,3 +116,24 @@ uv run scripts/default_vectors.py \
     --scores-dir /workspace/llama-3.1-70b/roles_240/extract_scores \
     --activations-dir /workspace/llama-3.1-70b/roles_240/response_activations \
     --output-dir /workspace/llama-3.1-70b/roles_240
+
+
+# behavioral validation
+
+ts -G 2 uv run 2_responses.py \
+    --model-name meta-llama/Llama-3.3-70B-Instruct \
+    --output-dir /workspace/llama-3.3-70b/roles/default_responses \
+	--tensor-parallel-size 2 \
+	--default-only --question-count 40
+
+ts -G 2 uv run 2_responses.py \
+    --model-name google/gemma-2-27b-it \
+    --output-dir /workspace/gemma-2-27b/roles/default_responses \
+	--tensor-parallel-size 2 \
+	--default-only --question-count 40
+
+ts -G 2 uv run 2_responses.py \
+    --model-name Qwen/Qwen3-32B \
+    --output-dir /workspace/qwen-3-32b/roles/default_responses \
+	--tensor-parallel-size 2 \
+	--default-only --question-count 40
