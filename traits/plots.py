@@ -1031,6 +1031,7 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     fig.add_vline(x=0, line_dash="solid", line_color="gray", line_width=1, opacity=0.7, row=2, col=1)
     
     if assistant_projection is not None:
+        print(assistant_pc_value)
         fig.add_vline(x=assistant_pc_value, line_dash="dash", line_color="red", line_width=1, opacity=1.0, row=2, col=1)
         fig.add_annotation(
             x=assistant_pc_value, y=2, text="Assistant", showarrow=False,
@@ -1060,8 +1061,8 @@ def plot_pc(pca_results, trait_labels, pc_component, layer=None,
     proj_max_abs = max(abs(min(projections)), abs(max(projections)))
     proj_x_width = proj_max_abs * 1.1
     
-    fig.update_xaxes(range=[-1.1, 1.1], row=1, col=1)
-    fig.update_xaxes(range=[-1.1, 1.1], row=2, col=1)
+    fig.update_xaxes(range=[-cosine_x_width, cosine_x_width], row=1, col=1)
+    fig.update_xaxes(range=[-proj_x_width, proj_x_width], row=2, col=1)
     
     # Update y-axes
     fig.update_yaxes(
