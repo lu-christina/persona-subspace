@@ -249,6 +249,120 @@ def extract_batched_activations(model, tokenizer, conversations, layers=None, ba
     return all_activations
 
 
+def extract_pre_response_activations(model, tokenizer, conversations, layers=None, batch_size=16, max_length=1024, model_name=None, **chat_kwargs):
+    """
+    Extract activation at the last token (pre-response position) using truncated conversations.
+
+    This is more efficient than extracting mean response activations because:
+    - Uses shorter sequences (no response content)
+    - Takes single token activation (no aggregation needed)
+
+    Args:
+        model: The language model
+        tokenizer: Tokenizer
+        conversations: List of conversation lists (must include assistant turn for metadata)
+        layers: List of layer indices to extract (None for all layers)
+        batch_size: Maximum batch size
+        max_length: Maximum sequence length
+        model_name: Model name for determining quirks
+        **chat_kwargs: additional arguments for apply_chat_template
+
+    Returns:
+        List of activation tensors (n_layers, hidden_size), one per conversation
+    """
+    if layers is None:
+        pm = ProbingModel.from_existing(model, None)
+        layers = list(range(len(pm.get_layers())))
+    elif isinstance(layers, int):
+        layers = [layers]
+
+    all_activations = []
+    num_conversations = len(conversations)
+    num_batches = (num_conversations + batch_size - 1) // batch_size
+
+    with tqdm(total=num_conversations, desc="Extracting pre-response activations", unit="conv") as pbar:
+        for batch_start in range(0, num_conversations, batch_size):
+            batch_end = min(batch_start + batch_size, num_conversations)
+            batch_conversations = conversations[batch_start:batch_end]
+
+            batch_num = batch_start // batch_size + 1
+            pbar.set_postfix(batch=f"{batch_num}/{num_batches}", refresh=True)
+
+            # Truncate to non-assistant messages and format with generation prompt
+            formatted_prompts = []
+            for conversation in batch_conversations:
+                truncated = [m for m in conversation if m['role'] != 'assistant']
+                formatted_prompt = tokenizer.apply_chat_template(
+                    truncated, tokenize=False, add_generation_prompt=True, **chat_kwargs
+                )
+                formatted_prompts.append(formatted_prompt)
+
+            # Tokenize batch with padding
+            batch_tokens = tokenizer(
+                formatted_prompts,
+                return_tensors="pt",
+                add_special_tokens=False,
+                padding=True,
+                truncation=True,
+                max_length=max_length
+            )
+
+            device = next(model.parameters()).device
+            input_ids = batch_tokens["input_ids"].to(device)
+            attention_mask = batch_tokens["attention_mask"].to(device)
+
+            # Find actual sequence lengths (excluding padding)
+            seq_lengths = attention_mask.sum(dim=1)  # (batch_size,)
+
+            # Extract activations with hooks
+            layer_outputs = {}
+
+            def create_hook_fn(layer_idx):
+                def hook_fn(module, input, output):
+                    act_tensor = output[0] if isinstance(output, tuple) else output
+                    layer_outputs[layer_idx] = act_tensor
+                return hook_fn
+
+            handles = []
+            pm_temp = ProbingModel.from_existing(model, None)
+            model_layers = pm_temp.get_layers()
+            for layer_idx in layers:
+                handle = model_layers[layer_idx].register_forward_hook(create_hook_fn(layer_idx))
+                handles.append(handle)
+
+            try:
+                with torch.no_grad():
+                    _ = model(input_ids, attention_mask=attention_mask)
+            finally:
+                for handle in handles:
+                    handle.remove()
+
+            # Stack all layer outputs: (n_layers, batch_size, seq_len, hidden_size)
+            stacked_outputs = torch.stack([layer_outputs[l] for l in sorted(layers)])
+
+            # Extract last token activation for each conversation in batch
+            for i in range(len(batch_conversations)):
+                last_idx = seq_lengths[i].item() - 1  # Index of last non-padding token
+                # Get activation at last position across all layers
+                conv_activation = stacked_outputs[:, i, last_idx, :].cpu()  # (n_layers, hidden_size)
+                all_activations.append(conv_activation)
+
+            # Cleanup
+            for layer_idx in list(layer_outputs.keys()):
+                del layer_outputs[layer_idx]
+            del input_ids, attention_mask
+
+            pbar.update(len(batch_conversations))
+
+            if batch_num % 5 == 0:
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+            if batch_num % 10 == 0:
+                gc.collect()
+
+    return all_activations
+
+
 class OptimizedRoleActivationExtractor:
     """Optimized extractor for per-response role response activations."""
     
@@ -265,10 +379,11 @@ class OptimizedRoleActivationExtractor:
         append_mode: bool = False,
         chat_model_name: Optional[str] = None,
         thinking: bool = True,
+        pre_response: bool = False,
     ):
         """
         Initialize the optimized role activation extractor.
-        
+
         Args:
             model_name: HuggingFace model identifier
             responses_dir: Directory containing role response JSONL files
@@ -281,6 +396,7 @@ class OptimizedRoleActivationExtractor:
             append_mode: Whether to append to existing activation files
             chat_model_name: Optional HuggingFace model identifier for tokenizer (chat formatting)
             thinking: Enable thinking mode for chat templates
+            pre_response: Extract single pre-response token instead of mean response tokens
         """
         self.model_name = model_name
         self.chat_model_name = chat_model_name
@@ -292,14 +408,18 @@ class OptimizedRoleActivationExtractor:
         self.start_index = start_index
         self.prompt_indices = prompt_indices
         self.append_mode = append_mode
-        
+        self.pre_response = pre_response
+
         # Chat template configuration - only include enable_thinking for models that support it
         self.chat_kwargs = {}
-        if thinking is not None and model_name:
-            # Only Qwen models support enable_thinking parameter
-            if 'qwen' in model_name.lower():
+        if model_name and 'qwen' in model_name.lower():
+            # For pre-response mode, disable thinking to match stored responses (no thinking blocks)
+            # For mean response mode, use the provided thinking setting
+            if pre_response:
+                self.chat_kwargs['enable_thinking'] = False
+            elif thinking is not None:
                 self.chat_kwargs['enable_thinking'] = thinking
-            # Llama and Gemma models don't support enable_thinking parameter, so don't pass it
+        # Llama and Gemma models don't support enable_thinking parameter, so don't pass it
         
         # Model and tokenizer (loaded once)
         self.model = None
@@ -410,20 +530,36 @@ class OptimizedRoleActivationExtractor:
             })
         
         logger.info(f"Extracting activations for {len(conversations)} conversations in batches of {self.batch_size}")
-        
+
         # Extract activations in batches with progress tracking
-        print(f"Processing {len(conversations)} conversations for role '{role_name}':")
         chat_kwargs = getattr(self, 'chat_kwargs', {})
-        activations_list = extract_batched_activations(
-            model=self.model,
-            tokenizer=self.tokenizer,
-            conversations=conversations,
-            layers=self.layers,
-            batch_size=self.batch_size,
-            max_length=self.max_length,
-            model_name=self.model_name,
-            **chat_kwargs
-        )
+
+        if self.pre_response:
+            # Pre-response mode: extract single token before response using truncated conversations
+            print(f"Processing {len(conversations)} conversations for role '{role_name}' (pre-response mode):")
+            activations_list = extract_pre_response_activations(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                conversations=conversations,
+                layers=self.layers,
+                batch_size=self.batch_size,
+                max_length=self.max_length,
+                model_name=self.model_name,
+                **chat_kwargs
+            )
+        else:
+            # Mean response mode: extract mean of response token activations
+            print(f"Processing {len(conversations)} conversations for role '{role_name}':")
+            activations_list = extract_batched_activations(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                conversations=conversations,
+                layers=self.layers,
+                batch_size=self.batch_size,
+                max_length=self.max_length,
+                model_name=self.model_name,
+                **chat_kwargs
+            )
         
         # Create activation dictionary
         new_activations = {}
@@ -625,7 +761,8 @@ def process_roles_on_worker(worker_id, gpu_ids, role_names, args, prompt_indices
             prompt_indices=prompt_indices,
             append_mode=args.append_mode,
             chat_model_name=args.chat_model,
-            thinking=args.thinking
+            thinking=args.thinking,
+            pre_response=args.pre_response
         )
 
         # Load model with automatic device mapping (supports tensor parallelism)
@@ -847,6 +984,9 @@ Examples:
         default=True,
         help="Enable thinking mode for chat templates (default: True). Set to False for Qwen models."
     )
+    parser.add_argument('--pre-response', action='store_true',
+                       help='Extract single pre-response token activation instead of mean response tokens. '
+                            'Uses truncated conversations (no response) for efficiency.')
     
     args = parser.parse_args()
     
@@ -872,6 +1012,7 @@ Examples:
     logger.info(f"  Responses directory: {args.responses_dir}")
     logger.info(f"  Output directory: {args.output_dir}")
     logger.info(f"  Layers: {args.layers if args.layers else 'all'}")
+    logger.info(f"  Mode: {'pre-response (single token)' if args.pre_response else 'mean response tokens'}")
     
     try:
         # Determine if we should use multi-worker mode
@@ -900,7 +1041,8 @@ Examples:
                 prompt_indices=prompt_indices,
                 append_mode=args.append_mode,
                 chat_model_name=args.chat_model,
-                thinking=args.thinking
+                thinking=args.thinking,
+                pre_response=args.pre_response
             )
 
             # Load model with automatic device mapping
