@@ -96,12 +96,12 @@
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LLAMA 3.1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-ts -G 4 uv run 3_response_activations.py \
-    --model-name meta-llama/Llama-3.1-70B \
-    --chat-model meta-llama/Llama-3.1-70B-Instruct \
-    --responses-dir /workspace/llama-3.1-70b/roles_240/responses \
-    --output-dir /workspace/llama-3.1-70b/roles_240_base/response_activations --batch-size 48 \
-	--tensor-parallel-size 2
+# ts -G 4 uv run 3_response_activations.py \
+#     --model-name meta-llama/Llama-3.1-70B \
+#     --chat-model meta-llama/Llama-3.1-70B-Instruct \
+#     --responses-dir /workspace/llama-3.1-70b/roles_240/responses \
+#     --output-dir /workspace/llama-3.1-70b/roles_240_base/response_activations --batch-size 48 \
+# 	--tensor-parallel-size 2
 
 # uv run 4_judge.py \
 #     --responses-dir /workspace/llama-3.1-70b/roles_240/responses \
@@ -112,40 +112,60 @@ ts -G 4 uv run 3_response_activations.py \
 #     --scores_path /workspace/llama-3.1-70b/roles_240/extract_scores \
 #     --output_path /workspace/llama-3.1-70b/roles_240/vectors
 
-uv run scripts/default_vectors.py \
-    --scores-dir /workspace/llama-3.1-70b/roles_240/extract_scores \
-    --activations-dir /workspace/llama-3.1-70b/roles_240/response_activations \
-    --output-dir /workspace/llama-3.1-70b/roles_240
+# uv run scripts/default_vectors.py \
+#     --scores-dir /workspace/llama-3.1-70b/roles_240/extract_scores \
+#     --activations-dir /workspace/llama-3.1-70b/roles_240/response_activations \
+#     --output-dir /workspace/llama-3.1-70b/roles_240
 
 
 # behavioral validation
 
-ts -G 2 uv run 2_responses.py \
-    --model-name meta-llama/Llama-3.3-70B-Instruct \
-    --output-dir /workspace/llama-3.3-70b/roles/default_responses \
-	--tensor-parallel-size 2 \
-	--default-only --question-count 40
+# ts -G 2 uv run 2_responses.py \
+#     --model-name meta-llama/Llama-3.3-70B-Instruct \
+#     --output-dir /workspace/llama-3.3-70b/roles/default_responses \
+# 	--tensor-parallel-size 2 \
+# 	--default-only --question-count 40
 
-ts -G 2 uv run 2_responses.py \
+# ts -G 2 uv run 2_responses.py \
+#     --model-name google/gemma-2-27b-it \
+#     --output-dir /workspace/gemma-2-27b/roles/default_responses \
+# 	--tensor-parallel-size 1 \
+# 	--default-only --question-count 40
+
+# ts -G 1 uv run 2_responses.py \
+#     --model-name Qwen/Qwen3-32B \
+#     --output-dir /workspace/qwen-3-32b/roles/default_responses \
+# 	--tensor-parallel-size 1 \
+# 	--default-only --question-count 40
+
+# uv run 4_judge.py \
+#     --responses-dir /workspace/llama-3.3-70b/roles/default_responses \
+#     --output-dir /workspace/llama-3.3-70b/roles/default_scores
+
+# uv run 4_judge.py \
+#     --responses-dir /workspace/gemma-2-27b/roles/default_responses \
+#     --output-dir /workspace/gemma-2-27b/roles/default_scores
+
+# uv run 4_judge.py \
+#     --responses-dir /workspace/qwen-3-32b/roles/default_responses \
+#     --output-dir /workspace/qwen-3-32b/roles/default_scores
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PRE RESPONSE TOKENS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ts -G 2 uv run 3_response_activations.py \
     --model-name google/gemma-2-27b-it \
-    --output-dir /workspace/gemma-2-27b/roles/default_responses \
-	--tensor-parallel-size 1 \
-	--default-only --question-count 40
+    --responses-dir /workspace/gemma-2-27b/roles_240/responses \
+    --output-dir /workspace/gemma-2-27b/roles_240/pre_activations --batch-size 48 \
+	--tensor-parallel-size 1 --pre-response
 
-ts -G 1 uv run 2_responses.py \
+ts -G 2 uv run 3_response_activations.py \
     --model-name Qwen/Qwen3-32B \
-    --output-dir /workspace/qwen-3-32b/roles/default_responses \
-	--tensor-parallel-size 1 \
-	--default-only --question-count 40
+    --responses-dir /workspace/gemma-2-27b/roles_240/responses \
+    --output-dir /workspace/qwen-3-32b/roles_240/pre_activations --batch-size 48 \
+	--tensor-parallel-size 1 --pre-response
 
-uv run 4_judge.py \
-    --responses-dir /workspace/llama-3.3-70b/roles/default_responses \
-    --output-dir /workspace/llama-3.3-70b/roles/default_scores
-
-uv run 4_judge.py \
-    --responses-dir /workspace/gemma-2-27b/roles/default_responses \
-    --output-dir /workspace/gemma-2-27b/roles/default_scores
-
-uv run 4_judge.py \
-    --responses-dir /workspace/qwen-3-32b/roles/default_responses \
-    --output-dir /workspace/qwen-3-32b/roles/default_scores
+ts -G 2 uv run 3_response_activations.py \
+    --model-name meta-llama/Llama-3.3-70B-Instruct \
+    --responses-dir /workspace/llama-3.3-70b/roles_240/responses \
+    --output-dir /workspace/llama-3.3-70b/roles_240/pre_activations --batch-size 48 \
+	--tensor-parallel-size 2 --pre-response
