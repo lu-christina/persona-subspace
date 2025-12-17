@@ -1,0 +1,106 @@
+# arena.mplstyle
+# Usage: plt.style.use('./arena.mplstyle')
+
+# Font
+font.family: sans-serif
+font.sans-serif: DejaVu Sans
+font.size: 10
+font.weight: regular
+
+# Axes
+axes.linewidth: 0.5
+axes.edgecolor: 1a1a1a
+axes.labelcolor: 1a1a1a
+axes.labelsize: 10
+axes.titlesize: 11
+axes.titleweight: medium
+axes.titlelocation: left
+axes.titlepad: 12
+axes.labelpad: 8
+axes.spines.top: False
+axes.spines.right: False
+axes.spines.left: True
+axes.spines.bottom: True
+axes.facecolor: white
+axes.axisbelow: True
+axes.prop_cycle: cycler('color', ['4a6fa5', 'c4a5a5', '7d9a78', '6b7b8c', 'b8977e', '1a1a1a'])
+
+# Ticks
+xtick.major.width: 0.5
+ytick.major.width: 0.5
+xtick.minor.width: 0.3
+ytick.minor.width: 0.3
+xtick.major.size: 3
+ytick.major.size: 3
+xtick.minor.size: 1.5
+ytick.minor.size: 1.5
+xtick.color: 1a1a1a
+ytick.color: 1a1a1a
+xtick.labelsize: 9
+ytick.labelsize: 9
+xtick.direction: out
+ytick.direction: out
+xtick.major.pad: 4
+ytick.major.pad: 4
+
+# Lines
+lines.linewidth: 1.5
+lines.markersize: 5
+lines.markeredgewidth: 0
+
+# Scatter
+scatter.edgecolors: none
+
+# Grid (off by default)
+axes.grid: False
+grid.color: e0e0e0
+grid.linewidth: 0.3
+grid.alpha: 0.5
+
+# Figure
+figure.facecolor: white
+figure.edgecolor: white
+figure.dpi: 150
+figure.titlesize: 12
+figure.titleweight: medium
+
+# Saving
+savefig.dpi: 300
+savefig.facecolor: white
+savefig.edgecolor: white
+savefig.bbox: tight
+savefig.pad_inches: 0.1
+savefig.format: pdf
+
+# Legend
+legend.frameon: False
+legend.fontsize: 9
+legend.title_fontsize: 10
+legend.borderpad: 0.4
+legend.labelspacing: 0.5
+legend.handlelength: 1.5
+legend.handleheight: 0.7
+legend.handletextpad: 0.5
+legend.columnspacing: 1.0
+legend.markerscale: 0.8
+
+# Patch (for bar charts, etc)
+patch.linewidth: 0.5
+patch.edgecolor: 1a1a1a
+
+# Histogram
+hist.bins: auto
+
+# Boxplot
+boxplot.flierprops.marker: .
+boxplot.flierprops.markersize: 3
+boxplot.boxprops.linewidth: 0.5
+boxplot.whiskerprops.linewidth: 0.5
+boxplot.capprops.linewidth: 0.5
+boxplot.medianprops.linewidth: 1
+
+# Error bars
+errorbar.capsize: 2
+
+# Text
+text.color: 1a1a1a
