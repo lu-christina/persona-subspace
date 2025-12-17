@@ -337,14 +337,14 @@ def extract_pre_response_activations(model, tokenizer, conversations, layers=Non
                 for handle in handles:
                     handle.remove()
 
-            # Stack all layer outputs: (n_layers, batch_size, seq_len, hidden_size)
-            stacked_outputs = torch.stack([layer_outputs[l] for l in sorted(layers)])
-
             # Extract last token activation for each conversation in batch
             for i in range(len(batch_conversations)):
                 last_idx = seq_lengths[i].item() - 1  # Index of last non-padding token
-                # Get activation at last position across all layers
-                conv_activation = stacked_outputs[:, i, last_idx, :].cpu()  # (n_layers, hidden_size)
+                # Get activation at last position for each layer
+                layer_acts = []
+                for l in sorted(layers):
+                    layer_acts.append(layer_outputs[l][i, last_idx, :].cpu())
+                conv_activation = torch.stack(layer_acts)  # (n_layers, hidden_size)
                 all_activations.append(conv_activation)
 
             # Cleanup
