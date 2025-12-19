@@ -488,7 +488,6 @@ dependencies = [
     { name = "seaborn" },
     { name = "sentence-transformers" },
     { name = "simple-gpu-scheduler" },
-    { name = "steerllm" },
     { name = "tiktoken" },
     { name = "torch" },
     { name = "tqdm" },
@@ -517,7 +516,6 @@ requires-dist = [
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "sentence-transformers", specifier = ">=5.1.1" },
     { name = "simple-gpu-scheduler", specifier = ">=0.1.4" },
-    { name = "steerllm", directory = "../chatspace/steerllm" },
     { name = "tiktoken", specifier = ">=0.11.0" },
     { name = "torch", specifier = ">=2.8.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
@@ -4531,29 +4529,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/28/bb/59e7be0271be264b7b541baf3973f97747740950bfd5115de731f63da8ab/statsmodels-0.14.5-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:557df3a870a57248df744fdfcc444ecbc5bdbf1c042b8a8b5d8e3e797830dc2a", size = 10694060, upload-time = "2025-10-30T16:33:07.656Z" },
     { url = "https://files.pythonhosted.org/packages/8b/c0/b28d0fd0347ea38d3610052f479e4b922eb33bb8790817f93cd89e6e08ba/statsmodels-0.14.5-cp314-cp314-win_amd64.whl", hash = "sha256:95af7a9c4689d514f4341478b891f867766f3da297f514b8c4adf08f4fa61d03", size = 9648961, upload-time = "2025-10-30T13:47:24.303Z" },
 ]
-
-[[package]]
-name = "steerllm"
-version = "0.1.0"
-source = { directory = "../chatspace/steerllm" }
-dependencies = [
-    { name = "numpy" },
-    { name = "torch" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "accelerate", marker = "extra == 'huggingface'", specifier = ">=0.25.0" },
-    { name = "numpy", specifier = ">=1.20" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21" },
-    { name = "steerllm", extras = ["huggingface"], marker = "extra == 'training'" },
-    { name = "steerllm", extras = ["vllm", "huggingface", "training"], marker = "extra == 'all'" },
-    { name = "torch", specifier = ">=2.0.0" },
-    { name = "transformers", marker = "extra == 'huggingface'", specifier = ">=4.40.0" },
-    { name = "vllm", marker = "extra == 'vllm'", specifier = ">=0.11.0" },
-]
-provides-extras = ["vllm", "huggingface", "training", "all", "dev"]
 
 [[package]]
 name = "stopit"

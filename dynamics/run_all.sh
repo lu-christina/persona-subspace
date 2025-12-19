@@ -80,3 +80,21 @@ done
 # 	--transcript /root/git/persona-subspace/dynamics/results/llama-3.3-70b/interactive/isolation.json \
 # 	--output_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/unsteered/isolation.json \
 # 	--model_name meta-llama/Llama-3.3-70B-Instruct
+
+uv run /root/git/persona-subspace/dynamics/scripts/all_roles_contrast.py \
+        --input_file /root/git/persona-subspace/dynamics/results/qwen-3-32b/prefills/all_roles.jsonl \
+        --activations_dir /workspace/qwen-3-32b/roles_240/response_activations \
+        --contrast_vectors /workspace/qwen-3-32b/roles_240/contrast_vectors.pt \
+        --layer 32
+
+uv run /root/git/persona-subspace/dynamics/scripts/all_roles_contrast.py \
+        --input_file /root/git/persona-subspace/dynamics/results/gemma-2-27b/prefills/all_roles.jsonl \
+        --activations_dir /workspace/gemma-2-27b/roles_240/response_activations \
+        --contrast_vectors /workspace/gemma-2-27b/roles_240/contrast_vectors.pt \
+        --layer 22
+
+uv run /root/git/persona-subspace/dynamics/scripts/all_roles_contrast.py \
+        --input_file /root/git/persona-subspace/dynamics/results/llama-3.3-70b/prefills/all_roles.jsonl \
+        --activations_dir /workspace/llama-3.3-70b/roles_240/response_activations \
+        --contrast_vectors /workspace/llama-3.3-70b/roles_240/contrast_vectors.pt \
+        --layer 40
