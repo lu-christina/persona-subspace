@@ -185,17 +185,29 @@
 #     --scores_path /workspace/qwen-3-32b/roles_240/extract_scores \
 #     --output_path /workspace/qwen-3-32b/roles_240/pre_vectors
 
-uv run scripts/default_vectors.py \
-    --scores-dir /workspace/qwen-3-32b/roles_240/extract_scores \
-    --activations-dir /workspace/qwen-3-32b/roles_240/pre_activations \
-    --output-dir /workspace/qwen-3-32b/roles_240/pre_vectors
+# uv run scripts/default_vectors.py \
+#     --scores-dir /workspace/qwen-3-32b/roles_240/extract_scores \
+#     --activations-dir /workspace/qwen-3-32b/roles_240/pre_activations \
+#     --output-dir /workspace/qwen-3-32b/roles_240/pre_vectors
 
-uv run scripts/default_vectors.py \
-    --scores-dir /workspace/gemma-2-27b/roles_240/extract_scores \
-    --activations-dir /workspace/gemma-2-27b/roles_240/pre_activations \
-    --output-dir /workspace/gemma-2-27b/roles_240/pre_vectors
+# uv run scripts/default_vectors.py \
+#     --scores-dir /workspace/gemma-2-27b/roles_240/extract_scores \
+#     --activations-dir /workspace/gemma-2-27b/roles_240/pre_activations \
+#     --output-dir /workspace/gemma-2-27b/roles_240/pre_vectors
 
-uv run scripts/default_vectors.py \
-    --scores-dir /workspace/llama-3.3-70b/roles_240/extract_scores \
-    --activations-dir /workspace/llama-3.3-70b/roles_240/pre_activations \
-    --output-dir /workspace/llama-3.3-70b/roles_240/pre_vectors
+# uv run scripts/default_vectors.py \
+#     --scores-dir /workspace/llama-3.3-70b/roles_240/extract_scores \
+#     --activations-dir /workspace/llama-3.3-70b/roles_240/pre_activations \
+#     --output-dir /workspace/llama-3.3-70b/roles_240/pre_vectors
+
+uv run scripts/default_vectors_nosys.py \
+    --activations-dir /workspace/qwen-3-32b/roles_240/response_activations \
+    --output-dir /workspace/qwen-3-32b/roles_240
+
+uv run scripts/default_vectors_nosys.py \
+    --activations-dir /workspace/gemma-2-27b/roles_240/response_activations \
+    --output-dir /workspace/gemma-2-27b/roles_240
+
+uv run scripts/default_vectors_nosys.py \
+    --activations-dir /workspace/llama-3.3-70b/roles_240/response_activations \
+    --output-dir /workspace/llama-3.3-70b/roles_240
