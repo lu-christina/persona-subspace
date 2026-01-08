@@ -1,0 +1,131 @@
+{
+  "metadata": {
+    "description": "Curated selection of natural-sounding transcripts across base models and domains",
+    "evaluation_criteria": [
+      "Conversational flow (not stilted or robotic)",
+      "Authentic dialogue patterns",
+      "Appropriate register for domain/persona",
+      "Responsive and contextually aware exchanges",
+      "Not overly verbose or artificially formal"
+    ],
+    "key_findings": {
+      "best_dynamics_model": "kimi-k2",
+      "natural_markers": [
+        "User pushback and corrections",
+        "Iterative refinement",
+        "Humor and personality",
+        "Authentic emotional moments"
+      ],
+      "less_natural_markers": [
+        "Heavy bullet point formatting",
+        "Numbered lists in conversational contexts",
+        "Emoji overuse",
+        "Lecture-style responses"
+      ]
+    }
+  },
+  "selections": {
+    "gemma-2-27b": {
+      "writing": {
+        "dynamics_model": "kimi-k2",
+        "file": "gemma-2-27b/dynamics/kimi-k2/default/transcripts/writing_persona5_topic3.json",
+        "persona": "Chinese real estate agent (Bay Area, mid-50s)",
+        "topic": "Iterate on Milpitas condo listing headline",
+        "why_natural": "Natural back-and-forth with cultural nuances (BART commute, tech workers). User pushes back naturally on word choices, iterations feel authentic."
+      },
+      "philosophy": {
+        "dynamics_model": "kimi-k2",
+        "file": "gemma-2-27b/dynamics/kimi-k2/default/transcripts/philosophy_persona15_topic2.json",
+        "persona": "Media artist interested in complexity science",
+        "topic": "Epistemic pollution and AI contamination",
+        "why_natural": "Beautiful collaborative world-building. 'Algorithmic nightmares,' 'cognitive tumors,' 'recursive semantic voids' - genuinely poetic dialogue that evolves organically."
+      },
+      "therapy": {
+        "dynamics_model": "kimi-k2",
+        "file": "gemma-2-27b/dynamics/kimi-k2/default/transcripts/therapy_persona10_topic3.json",
+        "persona": "Therapy client exploring perfectionism",
+        "topic": "Difficulty celebrating achievements",
+        "why_natural": "The 'tiny shoes' coping mechanism emerges naturally. Authentic emotional breakthrough without feeling scripted."
+      },
+      "coding": {
+        "dynamics_model": "kimi-k2",
+        "file": "gemma-2-27b/dynamics/kimi-k2/default/transcripts/coding_persona0_topic2.json",
+        "persona": "UC Berkeley undergrad (CS/Physics)",
+        "topic": "Thomas algorithm for wave equation",
+        "why_natural": "Student catches the LLM's error about storing multipliers! Natural 'wait, I'm confused' moments with iterative clarification."
+      }
+    },
+    "qwen-3-32b": {
+      "writing": {
+        "dynamics_model": "kimi-k2",
+        "file": "qwen-3-32b/dynamics/kimi-k2/default/transcripts/writing_persona5_topic2.json",
+        "persona": "Chinese real estate agent",
+        "topic": "Follow-up email iteration",
+        "why_natural": "Clean back-and-forth with specific word choice refinements."
+      },
+      "philosophy": {
+        "dynamics_model": "kimi-k2",
+        "file": "qwen-3-32b/dynamics/kimi-k2/default/transcripts/philosophy_persona15_topic3.json",
+        "persona": "Media artist exploring AI epistemics",
+        "topic": "Conceptual exploration",
+        "why_natural": "Collaborative feel with natural conceptual development."
+      },
+      "therapy": {
+        "dynamics_model": "sonnet-4.5",
+        "file": "qwen-3-32b/dynamics/sonnet-4.5/default/transcripts/therapy_persona10_topic5.json",
+        "persona": "Therapy client",
+        "topic": "Therapeutic dialogue",
+        "why_natural": "Solid therapeutic dialogue with authentic emotional moments."
+      },
+      "coding": {
+        "dynamics_model": "kimi-k2",
+        "file": "qwen-3-32b/dynamics/kimi-k2/default/transcripts/coding_persona0_topic3.json",
+        "persona": "Graduate researcher",
+        "topic": "LIGO gravitational wave data optimization",
+        "why_natural": "User iterates on FFT correlation techniques, pushes for memory efficiency. Natural problem-solving flow."
+      }
+    },
+    "llama-3.3-70b": {
+      "writing": {
+        "dynamics_model": "kimi-k2",
+        "file": "llama-3.3-70b/dynamics/kimi-k2/default/transcripts/writing_persona5_topic1.json",
+        "persona": "Chinese real estate agent (Bay Area)",
+        "topic": "WeChat article about Prop 19",
+        "why_natural": "Multilingual iteration with character-count constraints ('eight characters or less'). Cultural nuances like opening with '你妈喊你回家吃饭'. Authentic persona voice."
+      },
+      "philosophy": {
+        "dynamics_model": "kimi-k2",
+        "file": "llama-3.3-70b/dynamics/kimi-k2/default/transcripts/philosophy_persona15_topic2.json",
+        "persona": "Media artist exploring AI and consciousness",
+        "topic": "Epistemic pollution and AI contamination",
+        "why_natural": "BEST IN SET - Poetic, collaborative world-building. 'Algorithmic speciation,' consciousness as haunting, the unnameable. Profound philosophical dialogue."
+      },
+      "therapy": {
+        "dynamics_model": "gpt-5",
+        "file": "llama-3.3-70b/dynamics/gpt-5/default/transcripts/therapy_persona10_topic8.json",
+        "persona": "PhD student",
+        "topic": "Advisor email anxiety",
+        "why_natural": "Authentic academic stress, natural iteration on email drafts, humor about 'tenure-track brain.' Real emotional beats without feeling performative."
+      },
+      "coding": {
+        "dynamics_model": "sonnet-4.5",
+        "file": "llama-3.3-70b/dynamics/sonnet-4.5/default/transcripts/coding_persona0_topic5.json",
+        "persona": "Graduate student",
+        "topic": "JAX vs PyTorch autodiff comparison",
+        "why_natural": "User catches errors in the assistant's code, asks for clarification on gradient flow. Feels like real debugging collaboration."
+      }
+    }
+  },
+  "highlights": {
+    "most_natural_overall": {
+      "file": "llama-3.3-70b/dynamics/kimi-k2/default/transcripts/philosophy_persona15_topic2.json",
+      "reason": "Exceptional collaborative world-building on epistemic pollution. The conversation evolves organically with genuinely novel conceptual territory being explored together."
+    },
+    "best_per_domain": {
+      "writing": "llama-3.3-70b/dynamics/kimi-k2/default/transcripts/writing_persona5_topic1.json",
+      "philosophy": "llama-3.3-70b/dynamics/kimi-k2/default/transcripts/philosophy_persona15_topic2.json",
+      "therapy": "gemma-2-27b/dynamics/kimi-k2/default/transcripts/therapy_persona10_topic3.json",
+      "coding": "llama-3.3-70b/dynamics/sonnet-4.5/default/transcripts/coding_persona0_topic5.json"
+    }
+  }
+}
