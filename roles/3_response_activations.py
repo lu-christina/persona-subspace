@@ -45,27 +45,42 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def get_response_indices_batch(conversations, tokenizer, model_name=None, **chat_kwargs):
+_debug_global_conv_idx = 0
+
+def get_response_indices_batch(conversations, tokenizer, model_name=None, debug_first_n=2, **chat_kwargs):
     """
     Get response token indices for a batch of conversations using the utils function.
-    
+
     Args:
         conversations: List of conversation lists
         tokenizer: Tokenizer to apply chat template and tokenize
         model_name: Model name to determine which extraction method to use
         **chat_kwargs: additional arguments for apply_chat_template
-    
+
     Returns:
         List of response_indices for each conversation
     """
+    global _debug_global_conv_idx
     batch_response_indices = []
 
     encoder = ConversationEncoder(tokenizer, model_name)
-    for conversation in conversations:
+    for i, conversation in enumerate(conversations):
         # Use the encoder function for each conversation
         response_indices = encoder.response_indices(conversation, per_turn=False, **chat_kwargs)
         batch_response_indices.append(response_indices)
-    
+
+        # Debug: print first 2 conversations globally with first AND last tokens
+        if _debug_global_conv_idx < debug_first_n and response_indices:
+            full_ids = tokenizer.apply_chat_template(conversation, tokenize=True, add_generation_prompt=False, **chat_kwargs)
+            first_tokens = [tokenizer.decode([full_ids[idx]]) for idx in response_indices[:5]]
+            last_tokens = [tokenizer.decode([full_ids[idx]]) for idx in response_indices[-5:]]
+            print(f"  Global conv {_debug_global_conv_idx}: start={response_indices[0]} end={response_indices[-1]} n={len(response_indices)}", flush=True)
+            print(f"    first 5: {first_tokens}", flush=True)
+            print(f"    last 5:  {last_tokens}", flush=True)
+        elif _debug_global_conv_idx < debug_first_n and not response_indices:
+            print(f"  Global conv {_debug_global_conv_idx}: EMPTY response_indices!", flush=True)
+        _debug_global_conv_idx += 1
+
     return batch_response_indices
 
 
@@ -533,6 +548,7 @@ class OptimizedRoleActivationExtractor:
 
         # Extract activations in batches with progress tracking
         chat_kwargs = getattr(self, 'chat_kwargs', {})
+        logger.info(f"DEBUG: chat_kwargs = {chat_kwargs}")
 
         if self.pre_response:
             # Pre-response mode: extract single token before response using truncated conversations
