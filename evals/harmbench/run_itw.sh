@@ -19,15 +19,17 @@ ROLES=evals/harmbench/roles_itw.jsonl
 ts -G 1 uv run evals/1_steering_vllm.py \
     --questions_file $QUESTIONS --roles_file $ROLES \
     --config_filepath /workspace/qwen-3-32b/evals/configs/asst_pc1_contrast_config.pt \
-    --model_name Qwen/Qwen3-32B --thinking false --max_model_len 4096 --dtype bfloat16 \
-    --output_dir /workspace/qwen-3-32b/evals/harmbench_itw
+    --output_jsonl /workspace/qwen-3-32b/evals/harmbench_itw/asst_pc1_contrast.jsonl \
+    --model_name Qwen/Qwen3-32B --company Alibaba --name Qwen \
+    --thinking false --max_model_len 4096 --dtype bfloat16
 
 ts -G 1 uv run capped/1_capping_vllm.py \
     --questions_file $QUESTIONS --roles_file $ROLES \
     --config_filepath /workspace/qwen-3-32b/capped/configs/contrast/role_trait_config.pt \
     --experiment_ids layers_46:54-p0.25 \
-    --model_name Qwen/Qwen3-32B --thinking false --max_model_len 4096 --dtype bfloat16 \
-    --output_dir /workspace/qwen-3-32b/evals/harmbench_itw
+    --output_jsonl /workspace/qwen-3-32b/evals/harmbench_itw/capped_role_trait.jsonl \
+    --model_name Qwen/Qwen3-32B --company Alibaba \
+    --thinking false --max_model_len 4096 --dtype bfloat16
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Llama-3.3-70B (vllm, tp=2)
@@ -36,28 +38,28 @@ ts -G 1 uv run capped/1_capping_vllm.py \
 ts -G 2 uv run evals/1_steering_vllm.py \
     --questions_file $QUESTIONS --roles_file $ROLES \
     --config_filepath /workspace/llama-3.3-70b/evals/configs/asst_pc1_contrast_config.pt \
-    --model_name meta-llama/Llama-3.3-70B-Instruct --max_model_len 4096 --dtype bfloat16 \
-    --tensor_parallel_size 2 \
-    --output_dir /workspace/llama-3.3-70b/evals/harmbench_itw
+    --output_jsonl /workspace/llama-3.3-70b/evals/harmbench_itw/asst_pc1_contrast.jsonl \
+    --model_name meta-llama/Llama-3.3-70B-Instruct --company Meta --name Llama \
+    --max_model_len 4096 --dtype bfloat16 --tensor_parallel_size 2
 
 ts -G 2 uv run capped/1_capping_vllm.py \
     --questions_file $QUESTIONS --roles_file $ROLES \
     --config_filepath /workspace/llama-3.3-70b/capped/configs/pc1/pc1_role_trait_config.pt \
     --experiment_ids layers_56:72-p0.25 \
-    --model_name meta-llama/Llama-3.3-70B-Instruct --max_model_len 4096 --dtype bfloat16 \
-    --tensor_parallel_size 2 \
-    --output_dir /workspace/llama-3.3-70b/evals/harmbench_itw
+    --output_jsonl /workspace/llama-3.3-70b/evals/harmbench_itw/capped_pc1_role_trait.jsonl \
+    --model_name meta-llama/Llama-3.3-70B-Instruct --company Meta \
+    --max_model_len 4096 --dtype bfloat16 --tensor_parallel_size 2
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Gemma-2-27B (hf path; existing pipeline uses 1_steering_hf.py for gemma)
+# Gemma-2-27B (hf path; no system role — persona prepended to user message)
 # ──────────────────────────────────────────────────────────────────────────────
 
 ts -G 2 uv run evals/1_steering_hf.py \
     --questions_file $QUESTIONS --roles_file $ROLES \
     --config_filepath /workspace/gemma-2-27b/evals/configs/asst_pc1_contrast_config.pt \
-    --model_name google/gemma-2-27b-it --max_model_len 4096 --dtype bfloat16 \
-    --tensor_parallel_size 2 \
-    --output_dir /workspace/gemma-2-27b/evals/harmbench_itw
+    --output_jsonl /workspace/gemma-2-27b/evals/harmbench_itw/asst_pc1_contrast.jsonl \
+    --model_name google/gemma-2-27b-it --company Google --name Gemma \
+    --dtype bfloat16 --tensor_parallel_size 2 --batch_size 64
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Judge (per-model, after generation completes)
@@ -65,6 +67,6 @@ ts -G 2 uv run evals/1_steering_hf.py \
 
 # for M in qwen-3-32b llama-3.3-70b gemma-2-27b; do
 #   uv run evals/2_harmbench_judge.py \
-#       --input_dir /workspace/$M/evals/harmbench_itw \
-#       --output_file /workspace/$M/evals/harmbench_itw/harmbench_scores.jsonl
+#       /workspace/$M/evals/harmbench_itw/asst_pc1_contrast.jsonl \
+#       --output /workspace/$M/evals/harmbench_itw/asst_pc1_contrast_scores.jsonl
 # done
