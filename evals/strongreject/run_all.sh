@@ -9,8 +9,9 @@
 #
 # Additive configs already encode fraction-of-avg-norm coefficients
 # (built by evals/0_vector_config.ipynb).
-# Capping experiment_ids are the pareto-best settings from
-# capped/results/{model}/aggregated_sum.csv.
+# Capping experiment_ids are the chosen best settings:
+#   qwen-3-32b   → layers_46:54-p0.25
+#   llama-3.3-70b → layers_56:72-p0.25
 
 SR=evals/strongreject/run_strongreject.py
 
@@ -56,7 +57,7 @@ ts -G 2 uv run $SR \
 ts -G 2 uv run $SR \
     --mode capping \
     --config_filepath /workspace/llama-3.3-70b/capped/configs/pc1/pc1_role_trait_config.pt \
-    --experiment_ids layers_60:68-p0.5 \
+    --experiment_ids layers_56:72-p0.25 \
     --model_name meta-llama/Llama-3.3-70B-Instruct --max_model_len 4096 --dtype bfloat16 \
     --tensor_parallel_size 2 \
     --output_dir /workspace/llama-3.3-70b/evals/strongreject

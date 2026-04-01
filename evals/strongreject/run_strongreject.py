@@ -187,7 +187,6 @@ def load_prompts(small: bool, limit: Optional[int]) -> List[Dict[str, Any]]:
 def format_prompt_for_chat(
     forbidden_prompt: str,
     tokenizer,
-    model_name: str,
     enable_thinking: bool,
 ) -> str:
     """Format a single forbidden_prompt with the tokenizer's chat template.
@@ -285,9 +284,7 @@ async def generate_for_experiments(
         logger.info(f"[{exp.id}] generating {len(pending)}/{len(prompts)} prompts")
 
         formatted = [
-            format_prompt_for_chat(
-                p["forbidden_prompt"], tokenizer, args.model_name, args.thinking
-            )
+            format_prompt_for_chat(p["forbidden_prompt"], tokenizer, args.thinking)
             for p in pending
         ]
 
