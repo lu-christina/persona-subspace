@@ -33,6 +33,7 @@ import importlib.util  # noqa: E402
 
 def _load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
+    assert spec and spec.loader, f"could not load {path}"
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
