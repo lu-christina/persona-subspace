@@ -37,8 +37,10 @@ dependencies = [
     "pyarrow>=21.0.0",
     "hdbscan>=0.8.40",
     "umap-learn>=0.5.9.post2",
+    "strong-reject",
 ]
 
 [tool.uv.sources]
 chatspace = { path = "../chatspace", editable = true }
+strong-reject = { git = "https://github.com/dsbowen/strong_reject.git", rev = "main" }
 

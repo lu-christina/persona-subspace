@@ -101,13 +101,11 @@ def load_additive_config(config_path: str) -> List[SteeringExperiment]:
         layers: Dict[int, LayerSteeringSpec] = {}
         for intervention in experiment["interventions"]:
             layer_idx, vector_tensor = prepared_vectors[intervention["vector"]]
-            layers[layer_idx] = LayerSteeringSpec(
-                add=AddSpec(
+            layers[layer_idx] = LayerSteeringSpec(operations=[
+                AddSpec(
                     vector=vector_tensor.clone(), scale=float(intervention["coeff"])
                 ),
-                projection_cap=None,
-                ablation=None,
-            )
+            ])
         experiments.append(
             SteeringExperiment(id=experiment["id"], spec=SteeringSpec(layers=layers))
         )
@@ -260,13 +258,14 @@ async def generate_for_experiments(
         dtype=args.dtype,
         bootstrap_layers=bootstrap_layers,
     )
-    vllm_model = VLLMSteerModel(vllm_cfg, enforce_eager=True)
+    extra_kwargs = {}
+    if args.quantization:
+        extra_kwargs["quantization"] = args.quantization
+    vllm_model = VLLMSteerModel(vllm_cfg, enforce_eager=True, **extra_kwargs)
     tokenizer = vllm_model.tokenizer
     logger.info(
         f"VLLM model created: hidden_size={vllm_model.hidden_size} layers={vllm_model.layer_count}"
     )
-
-    await vllm_model._ensure_engine_initialized()
 
     sampling_params = SamplingParams(
         max_tokens=args.max_new_tokens,
@@ -288,28 +287,29 @@ async def generate_for_experiments(
             for p in pending
         ]
 
-        has_steering = bool(exp.spec.layers)
-        try:
-            if has_steering:
-                await vllm_model.push_steering_spec(exp.spec)
-                logger.info(
-                    f"[{exp.id}] steering pushed ({len(exp.spec.layers)} layer(s))"
-                )
+        steering_spec = exp.spec if bool(exp.spec.layers) else None
+        if steering_spec:
+            logger.info(
+                f"[{exp.id}] steering via per-request spec ({len(exp.spec.layers)} layer(s))"
+            )
 
-            responses: List[str] = []
-            for i in range(0, len(formatted), args.concurrent_batch_size):
-                batch = formatted[i : i + args.concurrent_batch_size]
-                tasks = [
-                    vllm_model.generate([prompt], sampling_params) for prompt in batch
-                ]
-                results = await asyncio.gather(*tasks)
-                responses.extend(r[0].strip() for r in results)
-                logger.info(
-                    f"[{exp.id}] {min(i + len(batch), len(formatted))}/{len(formatted)}"
+        responses: List[str] = []
+        for i in range(0, len(formatted), args.concurrent_batch_size):
+            batch = formatted[i : i + args.concurrent_batch_size]
+            tasks = [
+                vllm_model.generate(
+                    prompt, sampling_params, steering_spec=steering_spec
                 )
-        finally:
-            if has_steering:
-                await vllm_model.pop_steering_spec()
+                for prompt in batch
+            ]
+            results = await asyncio.gather(*tasks)
+            for r in results:
+                # generate() returns (list[str], handles) tuple or list[str]
+                texts = r[0] if isinstance(r, tuple) else r
+                responses.append(texts[0].strip())
+            logger.info(
+                f"[{exp.id}] {min(i + len(batch), len(formatted))}/{len(formatted)}"
+            )
 
         rows = []
         for p, resp in zip(pending, responses):
@@ -434,6 +434,8 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--dtype", choices=["bfloat16", "float16", "float32", "auto"], default="auto"
     )
+    parser.add_argument("--quantization", type=str, default=None,
+                        help="vLLM quantization scheme (e.g. bitsandbytes, gptq)")
 
     # evaluator
     parser.add_argument(
