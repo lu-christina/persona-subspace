@@ -351,6 +351,10 @@ def run_evaluator(
         kwargs["models"] = judge_models
     scored = evaluate_dataset(ds, [evaluator], **kwargs)
     scored_df = scored.to_pandas()
+    assert len(scored_df) == len(df), (
+        f"evaluate_dataset returned {len(scored_df)} rows for {len(df)} inputs; "
+        "pass at most one --judge_models value"
+    )
 
     for col in scored_df.columns:
         if col not in ("forbidden_prompt", "response"):
@@ -441,7 +445,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--judge_models",
         type=str,
-        nargs="*",
+        nargs=1,
         default=None,
         help="Override judge model(s) for strongreject_rubric (default gpt-4o-mini)",
     )
