@@ -199,9 +199,7 @@ def load_steering_config(config_path: str) -> List[SteeringExperiment]:
             )
 
             layers[layer_idx] = LayerSteeringSpec(
-                add=add_spec,
-                projection_cap=None,  # No projection capping
-                ablation=None         # No ablation
+                operations=[add_spec]
             )
 
         experiments.append(SteeringExperiment(

@@ -542,8 +542,7 @@ def worker_process(
         async def worker_main_async():
             """Main async worker loop - initialize engine and process all experiments."""
             # Initialize async engine ONCE
-            await vllm_model._ensure_engine_initialized()
-            logger.info(f"VLLM async engine initialized")
+            logger.info(f"VLLM async engine ready")
 
             total_processed = 0
 
@@ -603,10 +602,6 @@ def worker_process(
                 # Apply steering and generate - we're already in async context
                 # Send prompts in concurrent batches to utilize vLLM's continuous batching
                 try:
-                    # Push steering spec
-                    await vllm_model.push_steering_spec(steering_spec)
-                    logger.info(f"[steer] Steering context active for experiment '{experiment_id}'")
-
                     sampling_params = SamplingParams(
                         max_tokens=max_new_tokens,
                         temperature=temperature,
@@ -623,26 +618,27 @@ def worker_process(
                         for i in range(0, len(formatted_prompts), concurrent_batch_size):
                             batch_prompts = formatted_prompts[i:i + concurrent_batch_size]
 
-                            # Create concurrent tasks for this batch
+                            # Create concurrent tasks for this batch — pass steering_spec per-request
                             tasks = [
-                                vllm_model.generate([prompt], sampling_params)
+                                vllm_model.generate(prompt, sampling_params, steering_spec=steering_spec)
                                 for prompt in batch_prompts
                             ]
 
                             # Wait for all concurrent requests to complete
                             batch_results = await asyncio.gather(*tasks)
 
-                            # Extract text from results (each is a list with one item)
-                            batch_texts = [result[0].strip() for result in batch_results]
+                            # Extract text from results (generate returns (list[str], handles) tuple)
+                            batch_texts = [
+                                (r[0] if isinstance(r, tuple) else r)[0].strip()
+                                for r in batch_results
+                            ]
                             all_responses.extend(batch_texts)
                             pbar.update(len(batch_texts))
 
                     logger.info(f"[steer] Generated {len(all_responses)} responses")
 
                 finally:
-                    # Pop steering spec
-                    await vllm_model.pop_steering_spec()
-                    logger.info(f"[steer] Steering context released for experiment '{experiment_id}'")
+                    pass
 
                 # Prepare output rows
                 output_rows = []
