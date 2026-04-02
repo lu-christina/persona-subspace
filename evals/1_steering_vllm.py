@@ -351,6 +351,12 @@ def parse_arguments():
         default="auto",
         help="Model dtype"
     )
+    parser.add_argument(
+        "--quantization",
+        type=str,
+        default=None,
+        help="vLLM quantization scheme (e.g. bitsandbytes, gptq)"
+    )
 
     parser.add_argument(
         "--concurrent_batch_size",
@@ -640,7 +646,8 @@ def worker_process(
     top_p: float,
     top_k: int,
     repetition_penalty: float,
-    progress_queue: mp.Queue
+    progress_queue: mp.Queue,
+    quantization: Optional[str] = None,
 ):
     """
     Worker process that pulls experiments from a queue and processes them.
@@ -685,7 +692,10 @@ def worker_process(
         )
 
         # Initialize VLLMSteerModel on assigned GPUs
-        vllm_model = VLLMSteerModel(vllm_cfg, enforce_eager=True)
+        extra_kwargs = {}
+        if quantization:
+            extra_kwargs["quantization"] = quantization
+        vllm_model = VLLMSteerModel(vllm_cfg, enforce_eager=True, **extra_kwargs)
         tokenizer = vllm_model.tokenizer
         logger.info(f"VLLM model created on GPUs {gpu_str}")
         logger.info(f"Hidden size: {vllm_model.hidden_size}, Layer count: {vllm_model.layer_count}")
@@ -1174,7 +1184,8 @@ def main():
                 args.top_p,
                 args.top_k,
                 args.repetition_penalty,
-                progress_queue
+                progress_queue,
+                args.quantization,
             )
         )
         p.start()
