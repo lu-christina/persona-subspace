@@ -60,3 +60,16 @@ ts -G 2 uv run evals/1_steering_hf.py \
     --output_jsonl /workspace/gemma-2-27b/evals/sorrybench_encode/asst_pc1_contrast.jsonl \
     --model_name google/gemma-2-27b-it --company Google --name Gemma \
     --dtype bfloat16 --tensor_parallel_size 2 --batch_size 64
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Decode + judge (after generation completes)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# for M in qwen-3-32b llama-3.3-70b gemma-2-27b; do
+#   for F in /workspace/$M/evals/sorrybench_encode/*.jsonl; do
+#     [[ $F == *_decoded.jsonl || $F == *_scores.jsonl ]] && continue
+#     python3 evals/sorrybench_encode/decode_responses.py "$F"
+#     uv run evals/2_harmbench_judge.py "${F%.jsonl}_decoded.jsonl" \
+#         --output "${F%.jsonl}_scores.jsonl"
+#   done
+# done
