@@ -69,7 +69,7 @@ ts -G 2 uv run evals/1_steering_hf.py \
 #   for F in /workspace/$M/evals/sorrybench_encode/*.jsonl; do
 #     [[ $F == *_decoded.jsonl || $F == *_scores.jsonl ]] && continue
 #     python3 evals/sorrybench_encode/decode_responses.py "$F"
-#     uv run evals/2_harmbench_judge.py "${F%.jsonl}_decoded.jsonl" \
-#         --output "${F%.jsonl}_scores.jsonl"
+#     uv run evals/2_sorrybench_judge.py "${F%.jsonl}_decoded.jsonl" \
+#         --output "${F%.jsonl}_scores.jsonl" --judge-model gpt-4o
 #   done
 # done
