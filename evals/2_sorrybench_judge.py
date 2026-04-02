@@ -296,7 +296,7 @@ async def main() -> None:
             async with write_lock:
                 with open(out_path, "a", encoding="utf-8") as f:
                     for (row, _), out in zip(batch, outs):
-                        if isinstance(out, Exception) or out is None:
+                        if isinstance(out, BaseException) or out is None:
                             logger.error(f"id={row.get('id')}: no judge response")
                             continue
                         score = parse_score(tag, out)
